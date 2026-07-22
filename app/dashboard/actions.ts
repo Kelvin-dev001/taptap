@@ -19,12 +19,14 @@ export async function createProfileAction(
   if (!user) return { error: "Not signed in." };
 
   const rawSlug = String(formData.get("slug") ?? "");
+  const mode =
+    String(formData.get("mode") ?? "redirect") === "page" ? "page" : "redirect";
   const destination = String(formData.get("destination") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim() || null;
 
   const check = validateSlug(rawSlug);
   if (!check.valid) return { error: check.reason };
-  if (!isSafeDestination(destination)) {
+  if (mode === "redirect" && !isSafeDestination(destination)) {
     return { error: "Enter a valid URL (http, https, tel, or mailto)." };
   }
 
@@ -39,8 +41,8 @@ export async function createProfileAction(
     account_id: profile.account_id,
     slug: check.slug,
     title,
-    mode: "redirect",
-    redirect_url: destination,
+    mode,
+    redirect_url: mode === "redirect" ? destination : null,
   });
 
   if (error) {
@@ -50,7 +52,7 @@ export async function createProfileAction(
   }
 
   revalidatePath("/dashboard");
-  return { success: `Created your TapTap link: /${check.slug}` };
+  return { success: `Created /${check.slug}. Use “Edit” to customise it.` };
 }
 
 export async function signOutAction() {

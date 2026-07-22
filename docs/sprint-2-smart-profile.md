@@ -1,6 +1,6 @@
 # Sprint 2 — Smart Profile Engine (Page Mode) — Plan
 
-**Status:** Proposed — awaiting approval to build · **Est:** ~2.5 weeks (roadmap weeks 3–5)
+**Status:** ✅ Built — pending live verification (2026-07-22) · **Est:** ~2.5 weeks (roadmap weeks 3–5)
 **Goal:** turn the slug from a redirect-only endpoint into a real, rendered **smart
 page** — a digital business card / multi-action landing page — plus the dashboard
 editor, themes, vCard, and QR generation. This is where TapTap starts looking like a
@@ -131,3 +131,27 @@ Bounded cleanup before feature work, while the codebase is tiny (per D-008).
 Confirm the unified `[slug]` entry is clean, no N+1 on links, lockfile committed,
 migration reproducible, and no shortcuts left undocumented before Sprint 3 (Analytics
 & leads).
+
+## Build status (2026-07-22)
+
+**Shipped in-repo:**
+
+- Step 0 migration to Next 16.2 + React 19 (verified green).
+- `app/[slug]/page.tsx` — unified public entry: renders page mode or redirects; logs
+  via `after()` (fire-and-forget) so redirects aren't delayed.
+- `components/public-profile.tsx` — renders avatar/title/bio + action blocks; vCard
+  download; view/click/download events via `/api/track` beacon.
+- Migration `0002_page_mode.sql` — `get_public_page` RPC, `download` event type,
+  `page-assets` Storage bucket + owner-scoped policies.
+- Editor at `/dashboard/[id]/edit` — mode toggle, profile fields, contact (vCard),
+  theme (preset + accent), block add/reorder/remove; avatar upload to Storage.
+- Create form now supports page or redirect mode; dashboard lists Edit / QR / Open.
+- `/api/qr/[slug]` — downloadable QR PNG encoding `?src=qr` (adds `qrcode` dep).
+- Unit tests for `buildHref` and `buildVCard` (pass).
+
+**Deferred (tracked):** slug-resolve caching (async logging already done); a formal
+two-account RLS/Storage isolation test; the redirect path could later move to edge
+runtime for the render case.
+
+**Needs Kelvin:** run migration `0002`, `npm install` (picks up `qrcode`),
+`npm run build`, push, then verify the loop live.

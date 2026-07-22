@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createServerSupabase } from "@/lib/supabase/server";
 import CreateProfileForm from "./create-profile-form";
 import { signOutAction } from "./actions";
@@ -9,6 +10,7 @@ type PageRow = {
   id: string;
   slug: string;
   title: string | null;
+  mode: "page" | "redirect";
   redirect_url: string | null;
   is_active: boolean;
 };
@@ -22,7 +24,7 @@ export default async function DashboardPage() {
 
   const { data: pages } = await supabase
     .from("smart_pages")
-    .select("id, slug, title, redirect_url, is_active")
+    .select("id, slug, title, mode, redirect_url, is_active")
     .order("created_at", { ascending: false });
 
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
@@ -70,7 +72,33 @@ export default async function DashboardPage() {
               </span>
             </div>
             {p.title && <p className="text-sm text-neutral-600">{p.title}</p>}
-            <p className="truncate text-sm text-neutral-500">→ {p.redirect_url}</p>
+            {p.mode === "redirect" ? (
+              <p className="truncate text-sm text-neutral-500">→ {p.redirect_url}</p>
+            ) : (
+              <p className="text-sm text-neutral-500">Smart page</p>
+            )}
+            <div className="mt-1 flex gap-4 text-sm">
+              <Link
+                href={`/dashboard/${p.id}/edit`}
+                className="text-blue-600 hover:underline"
+              >
+                Edit
+              </Link>
+              <a
+                href={`/api/qr/${p.slug}`}
+                className="text-blue-600 hover:underline"
+              >
+                QR code
+              </a>
+              <a
+                href={`${base}/${p.slug}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-blue-600 hover:underline"
+              >
+                Open
+              </a>
+            </div>
           </div>
         ))}
       </section>

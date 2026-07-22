@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { createProfileAction, type CreateState } from "./actions";
 
@@ -21,6 +21,7 @@ function SubmitButton() {
 
 export default function CreateProfileForm() {
   const [state, formAction] = useActionState(createProfileAction, initialState);
+  const [mode, setMode] = useState<"redirect" | "page">("redirect");
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
@@ -35,6 +36,30 @@ export default function CreateProfileForm() {
         />
       </div>
 
+      <label className="text-sm font-medium">Type</label>
+      <div className="flex gap-4 text-sm">
+        <label className="flex items-center gap-2">
+          <input
+            type="radio"
+            name="mode"
+            value="redirect"
+            checked={mode === "redirect"}
+            onChange={() => setMode("redirect")}
+          />
+          Single redirect
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="radio"
+            name="mode"
+            value="page"
+            checked={mode === "page"}
+            onChange={() => setMode("page")}
+          />
+          Smart page
+        </label>
+      </div>
+
       <label className="text-sm font-medium">Title (optional)</label>
       <input
         name="title"
@@ -42,13 +67,17 @@ export default function CreateProfileForm() {
         className="rounded-lg border border-neutral-300 px-3 py-2"
       />
 
-      <label className="text-sm font-medium">Redirect to</label>
-      <input
-        name="destination"
-        required
-        placeholder="https://g.page/r/... or https://wa.me/2547..."
-        className="rounded-lg border border-neutral-300 px-3 py-2"
-      />
+      {mode === "redirect" && (
+        <>
+          <label className="text-sm font-medium">Redirect to</label>
+          <input
+            name="destination"
+            required
+            placeholder="https://g.page/r/… or https://wa.me/2547…"
+            className="rounded-lg border border-neutral-300 px-3 py-2"
+          />
+        </>
+      )}
 
       <SubmitButton />
 

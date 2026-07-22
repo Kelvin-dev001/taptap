@@ -28,10 +28,10 @@ npm run dev                  # http://localhost:3000
 ### Supabase
 
 1. Create a project at supabase.com.
-2. **Run the schema:** open the Supabase SQL Editor and paste/run
-   `supabase/migrations/0001_init.sql`. This creates the tables, RLS policies, the
-   `resolve_slug` / `log_event` RPCs, and the trigger that auto-provisions an account
-   on sign-up.
+2. **Run the migrations in order:** open the Supabase SQL Editor and run
+   `supabase/migrations/0001_init.sql` then `supabase/migrations/0002_page_mode.sql`.
+   These create the tables, RLS policies, the `resolve_slug` / `get_public_page` /
+   `log_event` RPCs, the sign-up trigger, and the public `page-assets` Storage bucket.
 3. **Get your keys:** Project Settings → API → copy the Project URL and the `anon`
    public key into `.env.local`
    (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`).
@@ -82,10 +82,11 @@ supabase/
 docs/                    # planning: charter, discovery, blueprint, decision log
 ```
 
-## Notes / known limits (Sprint 1)
+## Notes / known limits (Sprint 2)
 
-- Only **redirect mode** is live publicly; page-mode rendering is Sprint 2.
-- The redirect awaits the event write for correctness; caching + fire-and-forget
-  logging (to trim latency) is a Sprint 2 task.
-- Auth is email/password (minimal). NFC provisioning, QR generation, analytics
-  dashboard, and billing are later sprints per `docs/sprint-0-blueprint.md`.
+- **Page mode** now renders at the slug (digital card / multi-action page); redirect
+  mode still works. Build one via Dashboard → create → Edit.
+- Redirect logging is now fire-and-forget via `after()`; slug-resolve caching is still
+  a follow-up.
+- Auth is email/password (minimal). Analytics dashboard, leads, and billing are later
+  sprints per `docs/sprint-0-blueprint.md`.
