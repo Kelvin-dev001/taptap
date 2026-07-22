@@ -39,6 +39,9 @@ auth, tenancy, and analytics capture.
 - Redirect awaits the event write; move to cached resolve + fire-and-forget in S2.
 - Auth is minimal (email/password, no password reset/magic link yet).
 - No automated e2e against a live Supabase yet (unit tests cover slug logic).
+- **Next.js 14 is EOL** (final patch 14.2.35, Dec 2025). Pinned to 14.2.35 for now;
+  plan a migration to a supported Next major (15+) early — see decision log D-008.
+- No committed lockfile yet; add `package-lock.json` for reproducible builds.
 
 ## Definition of done
 

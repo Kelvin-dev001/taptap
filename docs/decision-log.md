@@ -102,5 +102,23 @@ tap-URL domain remains an optional later optimization.
 
 ---
 
+### D-008 — Pin Next.js 14.2.35 now; migrate to a supported major early
+**Date:** 2026-07-22 · **Status:** Accepted (with follow-up)
+
+**Context:** Sprint 1 scaffolded on Next.js 14. Next.js 14 reached end-of-life on
+2025-10-26; 14.2.35 (2025-12-11) is its final security patch, so v14 will not receive
+fixes for newly disclosed CVEs.
+
+**Decision:** Pin `next@14.2.35` for the current build to stay on the most-patched v14.
+Schedule a migration to a supported Next major (15+) as an early tech-debt task —
+cheapest to do now while the codebase is small (a handful of routes). The v15/React 19
+migration touches async `cookies()`, route `params`, and `useFormState` →
+`useActionState`.
+
+**Consequences:** Unblocks a clean build today; a tracked, bounded migration follows
+before we build significantly more on v14.
+
+---
+
 _Add new decisions above this line as `D-00N`, and mirror the one-liner into
 `PROJECT.md`._
