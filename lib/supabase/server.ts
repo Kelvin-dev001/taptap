@@ -5,8 +5,9 @@ type CookieToSet = { name: string; value: string; options: CookieOptions };
 
 // Server-side Supabase client for server components and server actions.
 // Reads/writes the auth session from cookies.
-export function createServerSupabase() {
-  const cookieStore = cookies();
+// Next 16: cookies() is async, so this is async — callers must await it.
+export async function createServerSupabase() {
+  const cookieStore = await cookies();
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

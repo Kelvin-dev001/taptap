@@ -1,6 +1,7 @@
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import { createProfileAction, type CreateState } from "./actions";
 
 const initialState: CreateState = {};
@@ -19,7 +20,7 @@ function SubmitButton() {
 }
 
 export default function CreateProfileForm() {
-  const [state, formAction] = useFormState(createProfileAction, initialState);
+  const [state, formAction] = useActionState(createProfileAction, initialState);
 
   return (
     <form action={formAction} className="flex flex-col gap-3">

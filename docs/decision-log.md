@@ -118,6 +118,11 @@ migration touches async `cookies()`, route `params`, and `useFormState` →
 **Consequences:** Unblocks a clean build today; a tracked, bounded migration follows
 before we build significantly more on v14.
 
+**Update (2026-07-22, Sprint 2 Step 0):** Migrated to **Next 16.2 (Active LTS) + React
+19** (Next 15 is only maintenance LTS until Oct 2026, so we jumped straight to 16.2).
+Bumped deps and updated async `cookies()`, async route `params`, and `useFormState` →
+`useActionState`. Pending green-build verification on Vercel.
+
 ---
 
 _Add new decisions above this line as `D-00N`, and mirror the one-liner into

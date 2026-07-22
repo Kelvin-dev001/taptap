@@ -12,7 +12,7 @@ export async function createProfileAction(
   _prev: CreateState,
   formData: FormData,
 ): Promise<CreateState> {
-  const supabase = createServerSupabase();
+  const supabase = await createServerSupabase();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -54,7 +54,7 @@ export async function createProfileAction(
 }
 
 export async function signOutAction() {
-  const supabase = createServerSupabase();
+  const supabase = await createServerSupabase();
   await supabase.auth.signOut();
   redirect("/login");
 }

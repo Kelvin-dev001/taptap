@@ -9,9 +9,10 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { slug: string } },
+  { params }: { params: Promise<{ slug: string }> },
 ) {
-  const slug = normalizeSlug(params.slug);
+  const { slug: rawSlug } = await params;
+  const slug = normalizeSlug(rawSlug);
   if (!slug) {
     return new NextResponse("Not found", { status: 404 });
   }

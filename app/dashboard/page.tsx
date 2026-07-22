@@ -14,7 +14,7 @@ type PageRow = {
 };
 
 export default async function DashboardPage() {
-  const supabase = createServerSupabase();
+  const supabase = await createServerSupabase();
   const {
     data: { user },
   } = await supabase.auth.getUser();
