@@ -1,6 +1,6 @@
 # Sprint 3 — Analytics & Leads — Plan
 
-**Status:** ✅ Built — pending live verification (2026-07-22) · **Est:** ~2 weeks (roadmap weeks 6–7)
+**Status:** ✅ Complete — accepted 2026-07-22 · **Est:** ~2 weeks (roadmap weeks 6–7)
 **Goal:** turn the `events` we already capture into an owner-facing **analytics
 dashboard**, enrich events with device/OS/country, and add **lead capture** (a public
 form → the owner's leads list + CSV export).
@@ -135,3 +135,22 @@ lead form, submit one from the public page, see it in Leads + CSV.
 
 **Deferred:** pre-aggregated daily rollups (only if event volume demands it); a formal
 two-account analytics/leads isolation spot-check.
+
+## Sprint 3 closeout (2026-07-22)
+
+**Completed.** Events enriched with device/OS/country; owner analytics (account overview
++ per-page charts, dependency-free); lead capture end-to-end (public form → `leads`
+table with RLS → owner list + CSV export); `submit_lead`, `get_account_overview`,
+`get_page_analytics` RPCs; `parseUA`/`toCsv` unit-tested. Kelvin accepted the sprint.
+
+**Decisions.** No new strategic decisions. Confirmed the `leads` table was never created
+in Sprint 1 and built it fresh with RLS on from the start (closed a latent gap).
+
+**Outstanding (non-blocking).** Formal two-account analytics/leads isolation spot-check;
+analytics rollups if volume grows; commit `package-lock.json`.
+
+**Risks.** Geo/UA only meaningful on Vercel (local shows "unknown") — expected. Lead
+spam mitigated by honeypot + server validation.
+
+**Next.** Sprint 4 — Billing (plans, M-Pesa STK push + Paystack, plan gating): the
+recurring-revenue engine.

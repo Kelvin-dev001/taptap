@@ -6,7 +6,7 @@
 > decision changes.
 
 **Last updated:** 2026-07-22
-**Current phase:** Sprint 3 — Analytics & leads built, pending live verification (2026-07-22). Sprints 0–2 complete.
+**Current phase:** Sprint 4 — Billing built, pending live verification + external setup (2026-07-22). Sprints 0–3 complete.
 **Target:** MVP live / first paying customers within ~3 months (by late October 2026)
 **Company:** Hornbill — an existing company that owns `hornbilltech.co.ke`. The root
 domain already hosts a separate project, so TapTap will run on the
@@ -70,7 +70,8 @@ else is out of v1.**
 - `docs/sprint-0-blueprint.md` — approval-ready blueprint + detailed Sprint 1 plan
 - `docs/sprint-1-foundations.md` — Sprint 1 tracking + closeout (complete)
 - `docs/sprint-2-smart-profile.md` — Sprint 2 (page mode) — complete
-- `docs/sprint-3-analytics-leads.md` — Sprint 3 (analytics & leads) — built
+- `docs/sprint-3-analytics-leads.md` — Sprint 3 (analytics & leads) — complete
+- `docs/sprint-4-billing.md` — Sprint 4 (billing) — built
 - `docs/sprint-0-discovery.md` — full discovery: PRD, data model, security, pricing, GTM, risks
 - `docs/decision-log.md` — running ADR-lite record of decisions
 

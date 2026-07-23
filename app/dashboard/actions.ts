@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { validateSlug } from "@/lib/slug";
 import { isSafeDestination } from "@/lib/url";
+import { planFor, withinProfileLimit } from "@/lib/plans";
 
 export type CreateState = { error?: string; success?: string };
 
@@ -36,6 +37,22 @@ export async function createProfileAction(
     .eq("id", user.id)
     .single();
   if (!profile) return { error: "No account found for this user." };
+
+  // Enforce the plan's profile limit server-side.
+  const { count } = await supabase
+    .from("smart_pages")
+    .select("id", { count: "exact", head: true })
+    .eq("account_id", profile.account_id);
+  const { data: planSub } = await supabase
+    .from("subscriptions")
+    .select("plan_code")
+    .maybeSingle();
+  const plan = planFor(planSub?.plan_code);
+  if (!withinProfileLimit(plan, count ?? 0)) {
+    return {
+      error: `Your ${plan.name} plan allows ${plan.limits.maxProfiles} link(s). Upgrade in Billing to add more.`,
+    };
+  }
 
   const { data: created, error } = await supabase
     .from("smart_pages")

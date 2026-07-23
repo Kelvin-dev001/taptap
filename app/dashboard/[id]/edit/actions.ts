@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { isSafeDestination } from "@/lib/url";
 import { buildHref } from "@/lib/blocks";
+import { planFor } from "@/lib/plans";
 import type { Block, PageConfig, Theme } from "@/lib/profile";
 
 export type SavePayload = {
@@ -42,6 +43,17 @@ export async function savePageAction(
     b.type === "contact" ? true : !!buildHref(b.type, b.value),
   );
 
+  // Gate lead capture by plan — silently off if the plan doesn't include it.
+  const { data: sub } = await supabase
+    .from("subscriptions")
+    .select("plan_code")
+    .maybeSingle();
+  const plan = planFor(sub?.plan_code);
+  const config = payload.config ?? {};
+  if (config.leadForm?.enabled && !plan.limits.leadCapture) {
+    config.leadForm = { ...config.leadForm, enabled: false };
+  }
+
   const { error: upErr } = await supabase
     .from("smart_pages")
     .update({
@@ -49,7 +61,7 @@ export async function savePageAction(
       mode: payload.mode,
       redirect_url:
         payload.mode === "redirect" ? payload.redirectUrl.trim() : null,
-      config: payload.config ?? {},
+      config,
       theme: payload.theme ?? {},
     })
     .eq("id", pageId);

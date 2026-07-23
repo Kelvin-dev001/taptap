@@ -51,11 +51,19 @@ export default async function DashboardPage() {
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-8 px-6 py-10">
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Your TapTap links</h1>
-        <form action={signOutAction}>
-          <button className="text-sm text-neutral-500 hover:text-neutral-900">
-            Sign out
-          </button>
-        </form>
+        <div className="flex items-center gap-4">
+          <Link
+            href="/dashboard/billing"
+            className="text-sm text-neutral-500 hover:text-neutral-900"
+          >
+            Billing
+          </Link>
+          <form action={signOutAction}>
+            <button className="text-sm text-neutral-500 hover:text-neutral-900">
+              Sign out
+            </button>
+          </form>
+        </div>
       </header>
 
       <section>

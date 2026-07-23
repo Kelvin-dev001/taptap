@@ -29,11 +29,11 @@ npm run dev                  # http://localhost:3000
 
 1. Create a project at supabase.com.
 2. **Run the migrations in order:** open the Supabase SQL Editor and run
-   `0001_init.sql`, then `0002_page_mode.sql`, then `0003_analytics_leads.sql` (all in
-   `supabase/migrations/`). These create the tables, RLS policies, the RPCs
-   (`resolve_slug`, `get_public_page`, `log_event`, `submit_lead`,
+   `0001_init.sql`, `0002_page_mode.sql`, `0003_analytics_leads.sql`, then
+   `0004_billing.sql` (all in `supabase/migrations/`). These create the tables, RLS
+   policies, the RPCs (`resolve_slug`, `get_public_page`, `log_event`, `submit_lead`,
    `get_account_overview`, `get_page_analytics`), the sign-up trigger, the `page-assets`
-   Storage bucket, and the `leads` table.
+   Storage bucket, the `leads` table, and the `payments` table.
 3. **Get your keys:** Project Settings → API → copy the Project URL and the `anon`
    public key into `.env.local`
    (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`).
@@ -47,6 +47,18 @@ npm run dev                  # http://localhost:3000
    `https://wa.me/2547XXXXXXXX`).
 3. Visit `http://localhost:3000/java-house` — you should be 302-redirected, and an
    `events` row (type `tap`) should appear in Supabase. Add `?src=qr` to log a `scan`.
+
+## Billing setup (Sprint 4 — M-Pesa)
+
+1. Add `SUPABASE_SERVICE_ROLE_KEY` (Supabase → Settings → API → service_role) to your
+   env — **server-only, never exposed**; payment webhooks use it to activate plans.
+2. Create a **Safaricom Daraja** app (developer.safaricom.co.ke). Put the consumer
+   key/secret, shortcode, and passkey in the `MPESA_*` env vars; start with
+   `MPESA_ENV=sandbox`.
+3. The M-Pesa callback URL defaults to `${NEXT_PUBLIC_SITE_URL}/api/mpesa/callback` and
+   must be a **public HTTPS** URL (your Vercel domain). Set it in the Daraja app.
+4. Confirm the plan prices in `lib/plans.ts` (draft KES amounts) before going live.
+   Test the STK flow in sandbox first: Billing → Subscribe → enter a test number.
 
 ## Scripts
 
