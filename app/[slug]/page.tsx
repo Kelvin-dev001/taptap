@@ -1,8 +1,10 @@
 import { notFound, redirect } from "next/navigation";
 import { after } from "next/server";
+import { headers } from "next/headers";
 import { createEdgeClient } from "@/lib/supabase/edge";
 import { isSafeDestination } from "@/lib/url";
 import { normalizeSlug } from "@/lib/slug";
+import { parseUA } from "@/lib/ua";
 import PublicProfile from "@/components/public-profile";
 import type { PublicPage } from "@/lib/profile";
 
@@ -30,9 +32,18 @@ export default async function SlugPage({
   if (page.mode === "redirect") {
     if (!isSafeDestination(page.redirect_url)) notFound();
     const eventType = src === "qr" ? "scan" : "tap";
+    const h = await headers();
+    const { device, os } = parseUA(h.get("user-agent"));
+    const country = h.get("x-vercel-ip-country");
     // Log after the response so the redirect isn't delayed by the DB write.
     after(async () => {
-      await supabase.rpc("log_event", { p_page_id: page.id, p_type: eventType });
+      await supabase.rpc("log_event", {
+        p_page_id: page.id,
+        p_type: eventType,
+        p_device: device,
+        p_os: os,
+        p_country: country,
+      });
     });
     redirect(page.redirect_url as string);
   }

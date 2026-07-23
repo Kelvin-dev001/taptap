@@ -32,10 +32,17 @@ export type Contact = {
   website?: string;
 };
 
+export type LeadFormConfig = {
+  enabled?: boolean;
+  headline?: string;
+  buttonLabel?: string;
+};
+
 export type PageConfig = {
   bio?: string;
   avatarUrl?: string;
   contact?: Contact;
+  leadForm?: LeadFormConfig;
 };
 
 export type ThemePreset = "light" | "dark" | "brand";

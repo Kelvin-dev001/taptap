@@ -30,6 +30,23 @@ export default async function DashboardPage() {
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
   const rows = (pages ?? []) as PageRow[];
 
+  const { data: overviewData } = await supabase.rpc("get_account_overview", {
+    p_days: 30,
+  });
+  const overview = (overviewData ?? {}) as {
+    pages?: number;
+    totals?: Record<string, number>;
+    leads?: number;
+  };
+  const t = overview.totals ?? {};
+  const summary: { label: string; value: number }[] = [
+    { label: "Taps", value: t.tap ?? 0 },
+    { label: "Scans", value: t.scan ?? 0 },
+    { label: "Views", value: t.view ?? 0 },
+    { label: "Clicks", value: t.click ?? 0 },
+    { label: "Leads", value: overview.leads ?? 0 },
+  ];
+
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-8 px-6 py-10">
       <header className="flex items-center justify-between">
@@ -40,6 +57,23 @@ export default async function DashboardPage() {
           </button>
         </form>
       </header>
+
+      <section>
+        <h2 className="mb-3 text-sm font-semibold uppercase text-neutral-500">
+          Last 30 days
+        </h2>
+        <div className="grid grid-cols-5 gap-2">
+          {summary.map((s) => (
+            <div
+              key={s.label}
+              className="rounded-xl border border-neutral-200 p-3 text-center"
+            >
+              <div className="text-xl font-bold tabular-nums">{s.value}</div>
+              <div className="text-xs text-neutral-500">{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <section className="rounded-xl border border-neutral-200 p-5">
         <h2 className="mb-4 text-lg font-semibold">Create a link</h2>
@@ -77,12 +111,24 @@ export default async function DashboardPage() {
             ) : (
               <p className="text-sm text-neutral-500">Smart page</p>
             )}
-            <div className="mt-1 flex gap-4 text-sm">
+            <div className="mt-1 flex flex-wrap gap-4 text-sm">
               <Link
                 href={`/dashboard/${p.id}/edit`}
                 className="text-blue-600 hover:underline"
               >
                 Edit
+              </Link>
+              <Link
+                href={`/dashboard/${p.id}/analytics`}
+                className="text-blue-600 hover:underline"
+              >
+                Analytics
+              </Link>
+              <Link
+                href={`/dashboard/${p.id}/leads`}
+                className="text-blue-600 hover:underline"
+              >
+                Leads
               </Link>
               <a
                 href={`/api/qr/${p.slug}`}

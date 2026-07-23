@@ -45,6 +45,15 @@ export default function Editor(props: Props) {
   const [preset, setPreset] = useState<ThemePreset>(
     props.initialTheme.preset ?? "light",
   );
+  const [leadEnabled, setLeadEnabled] = useState(
+    props.initialConfig.leadForm?.enabled ?? false,
+  );
+  const [leadHeadline, setLeadHeadline] = useState(
+    props.initialConfig.leadForm?.headline ?? "",
+  );
+  const [leadButton, setLeadButton] = useState(
+    props.initialConfig.leadForm?.buttonLabel ?? "",
+  );
   const [blocks, setBlocks] = useState<UIBlock[]>(
     (props.initialBlocks ?? []).map((b) => ({ ...b, _key: keyCounter++ })),
   );
@@ -106,6 +115,11 @@ export default function Editor(props: Props) {
       bio: bio || undefined,
       avatarUrl: avatarUrl || undefined,
       contact,
+      leadForm: {
+        enabled: leadEnabled,
+        headline: leadHeadline || undefined,
+        buttonLabel: leadButton || undefined,
+      },
     };
     const theme: Theme = { preset, accent };
     const payloadBlocks: Block[] = blocks.map((b, i) => ({
@@ -246,6 +260,35 @@ export default function Editor(props: Props) {
                 />
               </label>
             </div>
+          </section>
+
+          {/* Lead capture */}
+          <section className="rounded-xl border border-neutral-200 p-4">
+            <h2 className="mb-3 font-semibold">Lead capture</h2>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={leadEnabled}
+                onChange={(e) => setLeadEnabled(e.target.checked)}
+              />
+              Show a lead form on this page
+            </label>
+            {leadEnabled && (
+              <div className="mt-3 flex flex-col gap-2">
+                <input
+                  className={inputCls}
+                  placeholder="Headline (e.g. Get in touch)"
+                  value={leadHeadline}
+                  onChange={(e) => setLeadHeadline(e.target.value)}
+                />
+                <input
+                  className={inputCls}
+                  placeholder="Button label (default: Send)"
+                  value={leadButton}
+                  onChange={(e) => setLeadButton(e.target.value)}
+                />
+              </div>
+            )}
           </section>
 
           {/* Blocks */}

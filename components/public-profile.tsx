@@ -5,6 +5,7 @@ import type { PublicPage, Block } from "@/lib/profile";
 import { resolveTheme } from "@/lib/profile";
 import { buildHref, defaultLabel } from "@/lib/blocks";
 import { buildVCard } from "@/lib/vcard";
+import LeadForm from "./lead-form";
 
 function track(pageId: string, type: string, linkId?: string) {
   try {
@@ -105,6 +106,16 @@ export default function PublicProfile({
             <p className="text-center opacity-60">No actions yet.</p>
           )}
         </div>
+
+        {config.leadForm?.enabled && (
+          <div className="mt-4 w-full">
+            <LeadForm
+              pageId={page.id}
+              config={config.leadForm}
+              accent={theme.accent}
+            />
+          </div>
+        )}
 
         <footer className="mt-8 text-xs opacity-50">
           Powered by Hornbill TapTap

@@ -29,9 +29,11 @@ npm run dev                  # http://localhost:3000
 
 1. Create a project at supabase.com.
 2. **Run the migrations in order:** open the Supabase SQL Editor and run
-   `supabase/migrations/0001_init.sql` then `supabase/migrations/0002_page_mode.sql`.
-   These create the tables, RLS policies, the `resolve_slug` / `get_public_page` /
-   `log_event` RPCs, the sign-up trigger, and the public `page-assets` Storage bucket.
+   `0001_init.sql`, then `0002_page_mode.sql`, then `0003_analytics_leads.sql` (all in
+   `supabase/migrations/`). These create the tables, RLS policies, the RPCs
+   (`resolve_slug`, `get_public_page`, `log_event`, `submit_lead`,
+   `get_account_overview`, `get_page_analytics`), the sign-up trigger, the `page-assets`
+   Storage bucket, and the `leads` table.
 3. **Get your keys:** Project Settings → API → copy the Project URL and the `anon`
    public key into `.env.local`
    (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`).
