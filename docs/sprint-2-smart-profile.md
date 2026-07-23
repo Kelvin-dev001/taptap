@@ -1,6 +1,6 @@
 # Sprint 2 — Smart Profile Engine (Page Mode) — Plan
 
-**Status:** ✅ Built — pending live verification (2026-07-22) · **Est:** ~2.5 weeks (roadmap weeks 3–5)
+**Status:** ✅ Complete — accepted 2026-07-22 · **Est:** ~2.5 weeks (roadmap weeks 3–5)
 **Goal:** turn the slug from a redirect-only endpoint into a real, rendered **smart
 page** — a digital business card / multi-action landing page — plus the dashboard
 editor, themes, vCard, and QR generation. This is where TapTap starts looking like a
@@ -155,3 +155,24 @@ runtime for the render case.
 
 **Needs Kelvin:** run migration `0002`, `npm install` (picks up `qrcode`),
 `npm run build`, push, then verify the loop live.
+
+## Sprint 2 closeout (2026-07-22)
+
+**Completed.** Page mode renders the smart page (avatar, title, bio, action blocks)
+or redirects; editor at `/dashboard/[id]/edit` (mode, profile, contact/vCard, theme,
+blocks + logo upload); vCard download; QR generation; `page-assets` Storage; async
+redirect logging via `after()`; create-a-Smart-page now jumps straight into the editor.
+Migrated to Next 16.2 + React 19. Pure-logic tests pass; Kelvin ran the app locally and
+accepted it.
+
+**Decisions.** D-008 (Next 16.2 migration) executed. No new strategic decisions.
+
+**Outstanding (non-blocking).** Confirm migration `0002` applied on all environments;
+formal two-account RLS + Storage isolation test; slug-resolve caching; commit a
+`package-lock.json`.
+
+**Risks.** The create-vs-edit split was initially confusing — mitigated (creating a
+Smart page now opens the editor). Analytics are write-only until Sprint 3 surfaces them.
+
+**Next.** Plan **Sprint 3 — Analytics & leads**: turn the `events` table into an owner
+analytics dashboard (taps/scans/views/clicks/downloads by day/device) plus lead capture.

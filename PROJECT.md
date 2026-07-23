@@ -6,7 +6,7 @@
 > decision changes.
 
 **Last updated:** 2026-07-22
-**Current phase:** Sprint 2 — Smart Profile engine (page mode) built, pending live verification (2026-07-22). Sprint 1 complete & live.
+**Current phase:** Sprint 2 — Smart Profile engine ✅ complete & accepted (2026-07-22). Next: Sprint 3 (Analytics & leads). Sprints 0–1 complete.
 **Target:** MVP live / first paying customers within ~3 months (by late October 2026)
 **Company:** Hornbill — an existing company that owns `hornbilltech.co.ke`. The root
 domain already hosts a separate project, so TapTap will run on the

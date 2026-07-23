@@ -42,7 +42,7 @@ export default async function DashboardPage() {
       </header>
 
       <section className="rounded-xl border border-neutral-200 p-5">
-        <h2 className="mb-4 text-lg font-semibold">Create a redirect link</h2>
+        <h2 className="mb-4 text-lg font-semibold">Create a link</h2>
         <CreateProfileForm />
       </section>
 

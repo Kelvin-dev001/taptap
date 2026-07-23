@@ -37,13 +37,17 @@ export async function createProfileAction(
     .single();
   if (!profile) return { error: "No account found for this user." };
 
-  const { error } = await supabase.from("smart_pages").insert({
-    account_id: profile.account_id,
-    slug: check.slug,
-    title,
-    mode,
-    redirect_url: mode === "redirect" ? destination : null,
-  });
+  const { data: created, error } = await supabase
+    .from("smart_pages")
+    .insert({
+      account_id: profile.account_id,
+      slug: check.slug,
+      title,
+      mode,
+      redirect_url: mode === "redirect" ? destination : null,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     // 23505 = unique_violation (slug already taken)
@@ -52,7 +56,13 @@ export async function createProfileAction(
   }
 
   revalidatePath("/dashboard");
-  return { success: `Created /${check.slug}. Use “Edit” to customise it.` };
+
+  // For a smart page, drop the user straight into the editor to build it.
+  if (mode === "page" && created) {
+    redirect(`/dashboard/${created.id}/edit`);
+  }
+
+  return { success: `Created /${check.slug}.` };
 }
 
 export async function signOutAction() {
