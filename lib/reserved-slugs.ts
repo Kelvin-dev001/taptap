@@ -49,4 +49,5 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   "undefined",
   "root",
   "system",
+  "t", // reserved for NFC tag token routes: /t/<token>
 ]);

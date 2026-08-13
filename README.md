@@ -28,12 +28,13 @@ npm run dev                  # http://localhost:3000
 ### Supabase
 
 1. Create a project at supabase.com.
-2. **Run the migrations in order:** open the Supabase SQL Editor and run
-   `0001_init.sql`, `0002_page_mode.sql`, `0003_analytics_leads.sql`, then
-   `0004_billing.sql` (all in `supabase/migrations/`). These create the tables, RLS
+2. **Run the migrations in order:** open the Supabase SQL Editor and run `0001_init.sql`,
+   `0002_page_mode.sql`, `0003_analytics_leads.sql`, `0004_billing.sql`, then
+   `0005_nfc_tags.sql` (all in `supabase/migrations/`). These create the tables, RLS
    policies, the RPCs (`resolve_slug`, `get_public_page`, `log_event`, `submit_lead`,
-   `get_account_overview`, `get_page_analytics`), the sign-up trigger, the `page-assets`
-   Storage bucket, the `leads` table, and the `payments` table.
+   `get_account_overview`, `get_page_analytics`, `resolve_tag`, `claim_tag`), the sign-up
+   trigger, the `page-assets` Storage bucket, and the `leads`, `payments`, and `nfc_tags`
+   tables.
 3. **Get your keys:** Project Settings → API → copy the Project URL and the `anon`
    public key into `.env.local`
    (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`).
@@ -59,6 +60,18 @@ npm run dev                  # http://localhost:3000
    must be a **public HTTPS** URL (your Vercel domain). Set it in the Daraja app.
 4. Confirm the plan prices in `lib/plans.ts` (draft KES amounts) before going live.
    Test the STK flow in sandbox first: Billing → Subscribe → enter a test number.
+
+## Cards & compliance (Sprint 5 — NFC)
+
+- **Provision cards:** set `ADMIN_TOKEN` (env), open `/admin`, enter the key + a count →
+  it mints tokens and shows `/t/<token>` URLs. Encode those onto NFC cards (NTAG213 is
+  enough) or print them as QR. No physical card is needed to build/test — just open a
+  `/t/<token>` URL in a browser.
+- **Claim:** a customer taps an unclaimed card → signs in → links it to a smart page.
+  Repoint or disable claimed cards under Dashboard → **Cards**. The chip is never
+  re-encoded.
+- **Compliance:** `/privacy` and `/terms` are live — fill the `[bracketed]` placeholders
+  (legal name, contact email) and complete Hornbill's ODPC registration before launch.
 
 ## Scripts
 

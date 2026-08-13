@@ -53,6 +53,12 @@ export default async function DashboardPage() {
         <h1 className="text-2xl font-bold">Your TapTap links</h1>
         <div className="flex items-center gap-4">
           <Link
+            href="/dashboard/tags"
+            className="text-sm text-neutral-500 hover:text-neutral-900"
+          >
+            Cards
+          </Link>
+          <Link
             href="/dashboard/billing"
             className="text-sm text-neutral-500 hover:text-neutral-900"
           >

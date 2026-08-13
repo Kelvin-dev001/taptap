@@ -6,7 +6,7 @@
 > decision changes.
 
 **Last updated:** 2026-07-22
-**Current phase:** Sprint 4 — Billing built, pending live verification + external setup (2026-07-22). Sprints 0–3 complete.
+**Current phase:** Sprint 5 — Hardware & compliance built, pending live verification (2026-07-24). **All 5 build sprints code-complete — MVP feature-complete.** Sprints 0–4 done.
 **Target:** MVP live / first paying customers within ~3 months (by late October 2026)
 **Company:** Hornbill — an existing company that owns `hornbilltech.co.ke`. The root
 domain already hosts a separate project, so TapTap will run on the
@@ -49,6 +49,8 @@ expand across East Africa, then the continent.
 | D-005 | **Storage:** Supabase Storage (not Cloudinary) in v1 — one fewer vendor |
 | D-006 | **Billing:** annual-first via M-Pesa STK push / Paystack; defer M-Pesa Ratiba recurring |
 | D-007 | **Domain:** run on `taptap.hornbilltech.co.ke` subdomain (root hosts another project); configure in Sprint 1 |
+| D-008 | **Framework:** pin Next 16.2 (Active LTS) + React 19; migrated off EOL Next 14 |
+| D-009 | **NFC identity:** permanent token URL `/t/<token>` per card (never re-encode); slugs kept for sharing |
 
 ## MVP scope (one line)
 
@@ -71,7 +73,8 @@ else is out of v1.**
 - `docs/sprint-1-foundations.md` — Sprint 1 tracking + closeout (complete)
 - `docs/sprint-2-smart-profile.md` — Sprint 2 (page mode) — complete
 - `docs/sprint-3-analytics-leads.md` — Sprint 3 (analytics & leads) — complete
-- `docs/sprint-4-billing.md` — Sprint 4 (billing) — built
+- `docs/sprint-4-billing.md` — Sprint 4 (billing) — complete
+- `docs/sprint-5-hardware-compliance.md` — Sprint 5 (hardware & compliance) — built
 - `docs/sprint-0-discovery.md` — full discovery: PRD, data model, security, pricing, GTM, risks
 - `docs/decision-log.md` — running ADR-lite record of decisions
 

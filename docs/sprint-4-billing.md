@@ -1,6 +1,6 @@
 # Sprint 4 — Billing — Plan
 
-**Status:** ✅ Built — pending live verification (2026-07-22) · **Est:** ~2 weeks (roadmap weeks 8–9)
+**Status:** ✅ Complete — accepted 2026-07-22 (STK initiation verified; confirm full callback→activation on Vercel) · **Est:** ~2 weeks (roadmap weeks 8–9)
 **Goal:** turn TapTap into a real SaaS — paid plans, payment via **M-Pesa STK push**
 (Daraja) and **Paystack** (cards), a subscription lifecycle, and **plan gating** that
 enforces tier limits. This is the recurring-revenue engine.
@@ -147,5 +147,25 @@ env vars; create a Daraja app (sandbox first); run migration `0004`; set the cal
 URL; confirm plan prices. Then `npm run build`, push, and test the STK flow in sandbox.
 
 **Deferred:** Paystack (cards) fast-follow; STK query-status polling for slow callbacks;
-renewal reminders; receipts/VAT. Payment flow is **untested here** — needs Daraja
-sandbox; expect 1–2 iterations.
+renewal reminders; receipts/VAT.
+
+## Sprint 4 closeout (2026-07-22)
+
+**Completed.** Plans/limits, M-Pesa STK push (Daraja), payments table, idempotent
+callback→subscription activation (service role), billing UI, and server-side gating
+(profile count + lead capture). Pure-logic tests pass. Kelvin configured Daraja sandbox
+env and verified STK **initiation** works locally ("check your phone").
+
+**Decisions.** M-Pesa STK first (Paystack fast-follow); annual-first; draft tier prices
+in `lib/plans.ts`.
+
+**Outstanding (non-blocking).** Confirm full **callback → activation** on Vercel (the
+callback can't reach localhost); Kelvin to send **final KES tier prices** to replace the
+drafts; add env vars to Vercel + set `MPESA_CALLBACK_URL`.
+
+**Risks.** Env misconfig (hit + resolved: vars belong in `.env.local`/Vercel, not
+`.env.example`; restart after changes). M-Pesa recurring not auto — annual-first +
+future renewal reminders. Payment reconciliation handled by `payments` + idempotency.
+
+**Next.** Sprint 5 — Hardware & compliance (NFC provisioning/claim flow, privacy/consent,
+ODPC registration).

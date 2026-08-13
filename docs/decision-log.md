@@ -125,5 +125,27 @@ Bumped deps and updated async `cookies()`, async route `params`, and `useFormSta
 
 ---
 
+### D-009 — Token-based NFC tag identity (keep slugs for sharing)
+**Date:** 2026-07-24 · **Status:** Accepted (my recommendation, confirm if you disagree)
+
+**Context:** Physical tags need an identity that survives repointing and supports a
+hardware-as-CAC inventory model (bulk-encode blank cards, sell, let customers self-claim).
+
+**Decision:** Encode NFC/printed cards with a permanent random **token URL**
+`/t/<token>` that resolves to the owner's currently-bound smart page. Keep human-friendly
+**slugs** (`/business-name`) for QR/social/link sharing. The two coexist: tokens =
+hardware identity, slugs = shareable brand identity.
+
+**Why (scalability):** lets us pre-encode blank card batches before a buyer exists;
+supports claim / rebind / transfer / deactivate (lost card) without re-encoding; gives
+per-card analytics; tokens are opaque/revocable (slugs are guessable). Cost: one extra
+indexed lookup on the tap path (cache later). This is the standard approach for platforms
+selling NFC hardware at scale.
+
+**Consequences:** `nfc_tags` gains a token; a `/t/[token]` route + claim flow; an admin
+provisioning tool. Slug routing is unchanged.
+
+---
+
 _Add new decisions above this line as `D-00N`, and mirror the one-liner into
 `PROJECT.md`._

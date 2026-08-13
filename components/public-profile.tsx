@@ -117,8 +117,11 @@ export default function PublicProfile({
           </div>
         )}
 
-        <footer className="mt-8 text-xs opacity-50">
-          Powered by Hornbill TapTap
+        <footer className="mt-8 flex flex-col items-center gap-1 text-xs opacity-50">
+          <span>Powered by Hornbill TapTap</span>
+          <a href="/privacy" className="underline">
+            Privacy
+          </a>
         </footer>
       </div>
     </main>
