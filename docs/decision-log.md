@@ -147,5 +147,35 @@ provisioning tool. Slug routing is unchanged.
 
 ---
 
+### D-010 — Supabase publishable/secret keys; `.env.example` is placeholders only
+**Date:** 2026-08-14 · **Status:** Accepted (prompted by a credential exposure)
+
+**Context:** A live Supabase `service_role` key was committed to `.env.example` in
+`c8df1a7` (Sprint 4) and pushed to the **public** repo, where it stayed until `ceb0b79`
+(2026-08-13) — roughly three weeks. That key bypasses RLS on every table, including
+`leads`, which holds customer PII. The Sprint 4 closeout recorded the "env vars belong in
+`.env.local`, not `.env.example`" lesson as resolved, but the file was never actually
+cleaned — the lesson was written down and not applied.
+
+**Decision:** (1) Rotate onto Supabase's **publishable/secret** key model rather than
+rolling the legacy JWT secret, then disable the legacy `anon` + `service_role` pair.
+(2) `.env.example` is a committed template that carries **placeholder values only** —
+real values live in `.env.local` (gitignored) and in Vercel.
+
+**Why publishable/secret over a JWT-secret roll:** secret keys are individually
+revocable, so a future leak means killing one key rather than regenerating everything.
+Rolling the legacy JWT secret would also invalidate every issued user access token,
+signing out all users — survivable at pilot scale, not after launch. Env var *names* are
+unchanged (`NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`), so no code
+changes: renaming would touch all five `lib/supabase/*.ts` consumers plus Vercel for
+purely cosmetic gain.
+
+**Consequences:** README and `.env.example` describe the API Keys page and the
+publishable/secret vocabulary. The exposed key remains in git history but is inert once
+revoked; history rewriting is optional cleanup, not the fix. Any pre-commit secret check
+must match unquoted `KEY=value` env lines, not just quoted assignments in source.
+
+---
+
 _Add new decisions above this line as `D-00N`, and mirror the one-liner into
 `PROJECT.md`._

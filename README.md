@@ -35,9 +35,17 @@ npm run dev                  # http://localhost:3000
    `get_account_overview`, `get_page_analytics`, `resolve_tag`, `claim_tag`), the sign-up
    trigger, the `page-assets` Storage bucket, and the `leads`, `payments`, and `nfc_tags`
    tables.
-3. **Get your keys:** Project Settings → API → copy the Project URL and the `anon`
-   public key into `.env.local`
-   (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`).
+3. **Get your keys:** Project Settings → **API Keys**. Copy the Project URL into
+   `NEXT_PUBLIC_SUPABASE_URL` and the **publishable** key (`sb_publishable_…`) into
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Then **Create new secret key** (`sb_secret_…`) and put
+   it in `SUPABASE_SERVICE_ROLE_KEY` — see the billing section below for what uses it.
+   The env var names predate Supabase's publishable/secret rename; the names stay, only
+   the key format changed.
+
+   > **Real keys go in `.env.local` (gitignored) and in Vercel — never in `.env.example`,
+   > which is a committed template.** The secret key bypasses RLS on every table; treat it
+   > like a database password. If one ever leaks, rotate it in the dashboard — scrubbing
+   > the file afterwards does not undo the exposure.
 4. **For quick testing:** Authentication → Providers → Email → you may turn off
    "Confirm email" so sign-up logs you in immediately. (Re-enable before launch.)
 
@@ -51,8 +59,10 @@ npm run dev                  # http://localhost:3000
 
 ## Billing setup (Sprint 4 — M-Pesa)
 
-1. Add `SUPABASE_SERVICE_ROLE_KEY` (Supabase → Settings → API → service_role) to your
-   env — **server-only, never exposed**; payment webhooks use it to activate plans.
+1. Add `SUPABASE_SERVICE_ROLE_KEY` (Supabase → Settings → API Keys → **Create new secret
+   key**) to your env — **server-only, never exposed**. It bypasses RLS, and three call
+   sites use it: the M-Pesa callback (activates plans), billing actions, and `/admin`
+   card minting. All go through `createAdminClient()` in `lib/supabase/admin.ts`.
 2. Create a **Safaricom Daraja** app (developer.safaricom.co.ke). Put the consumer
    key/secret, shortcode, and passkey in the `MPESA_*` env vars; start with
    `MPESA_ENV=sandbox`.

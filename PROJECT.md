@@ -51,6 +51,7 @@ expand across East Africa, then the continent.
 | D-007 | **Domain:** run on `taptap.hornbilltech.co.ke` subdomain (root hosts another project); configure in Sprint 1 |
 | D-008 | **Framework:** pin Next 16.2 (Active LTS) + React 19; migrated off EOL Next 14 |
 | D-009 | **NFC identity:** permanent token URL `/t/<token>` per card (never re-encode); slugs kept for sharing |
+| D-010 | **Secrets:** Supabase publishable/secret keys; `.env.example` holds placeholders only (real values in `.env.local` + Vercel) |
 
 ## MVP scope (one line)
 

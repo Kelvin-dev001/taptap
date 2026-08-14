@@ -163,8 +163,10 @@ in `lib/plans.ts`.
 callback can't reach localhost); Kelvin to send **final KES tier prices** to replace the
 drafts; add env vars to Vercel + set `MPESA_CALLBACK_URL`.
 
-**Risks.** Env misconfig (hit + resolved: vars belong in `.env.local`/Vercel, not
-`.env.example`; restart after changes). M-Pesa recurring not auto — annual-first +
+**Risks.** Env misconfig (hit: vars belong in `.env.local`/Vercel, not `.env.example`;
+restart after changes). **Correction (2026-08-14):** this was recorded as resolved but
+was not — real Supabase and Daraja credentials stayed in the committed `.env.example`
+and shipped to the public repo, where they sat for ~3 weeks until `ceb0b79`. See D-010. M-Pesa recurring not auto — annual-first +
 future renewal reminders. Payment reconciliation handled by `payments` + idempotency.
 
 **Next.** Sprint 5 — Hardware & compliance (NFC provisioning/claim flow, privacy/consent,
