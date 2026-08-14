@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import type { PublicPage, Block } from "@/lib/profile";
 import { resolveTheme } from "@/lib/profile";
 import { buildHref, defaultLabel } from "@/lib/blocks";
@@ -71,7 +72,10 @@ export default function PublicProfile({
     const href = buildHref(block.type, block.value);
     if (!href) return;
     track(page.id, "click", block.id);
-    window.location.href = href;
+    // NOTE (UI-0 finding A5): these action blocks are links rendered as
+    // <button>, so they announce as "button" and lose middle-click/new-tab.
+    // The semantic fix lands with the public-page rebuild in UI-4.
+    window.location.assign(href);
   }
 
   return (
@@ -119,9 +123,9 @@ export default function PublicProfile({
 
         <footer className="mt-8 flex flex-col items-center gap-1 text-xs opacity-50">
           <span>Powered by Hornbill TapTap</span>
-          <a href="/privacy" className="underline">
+          <Link href="/privacy" className="underline">
             Privacy
-          </a>
+          </Link>
         </footer>
       </div>
     </main>

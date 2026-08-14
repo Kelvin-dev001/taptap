@@ -21,6 +21,23 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   "profile",
   "profiles",
   "onboarding",
+  // Reserved in UI-1 (D-013): `/[slug]` is a root catch-all, so every name the
+  // product might one day route to must be withheld from customers BEFORE
+  // launch. Free now; breaking once someone owns one.
+  "analytics",
+  "insights",
+  "customers",
+  "leads",
+  "contacts",
+  "devices",
+  "nfc",
+  "tags",
+  "cards",
+  "qr",
+  "team",
+  "members",
+  "notifications",
+  "integrations",
   "static",
   "assets",
   "public",

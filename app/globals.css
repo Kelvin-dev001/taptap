@@ -2,13 +2,143 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---------------------------------------------------------------------------
+   Hornbill TapTap design tokens — Sprint UI-1
+   Light-mode only for this phase (D-012, CLAUDE.md §30.17). The charcoal
+   surfaces below are SURFACES, not a dark theme: they are used deliberately
+   for hero metrics and AI cards on an otherwise light page.
+
+   Colour rule (D-012): --primary is the vivid brand orange and is only ever
+   used for fills that carry NO text (sparklines, bars, toggle-on, status dots,
+   progress, focus rings). White text on it is 2.80:1 and fails WCAG AA, so any
+   orange that sits behind a label — or is itself text — uses --primary-strong
+   (#C2560A, 4.53:1 on white).
+--------------------------------------------------------------------------- */
+
 :root {
-  --background: #ffffff;
-  --foreground: #0a0a0a;
+  /* Brand ramp */
+  --color-primary-50: #fff7ed;
+  --color-primary-100: #ffedd5;
+  --color-primary-200: #fed7aa;
+  --color-primary-300: #fdba74;
+  --color-primary-400: #fb923c;
+  --color-primary-500: #f97316; /* brand */
+  --color-primary-600: #ea6a0c;
+  --color-primary-700: #c2560a; /* AA-safe with white text */
+  --color-primary-800: #9a4508;
+  --color-primary-900: #7c3806;
+  --color-primary-950: #431c02;
+
+  /* Semantic brand roles */
+  --color-primary: var(--color-primary-500);
+  --color-primary-hover: var(--color-primary-600);
+  --color-primary-active: var(--color-primary-700);
+  --color-primary-strong: var(--color-primary-700);
+  --color-primary-strong-hover: var(--color-primary-800);
+  --color-primary-soft: #fff1e6;
+  --color-primary-subtle: #fffaf5;
+
+  /* Surfaces */
+  --color-background: #fbfbfa;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #ffffff;
+  --color-surface-sunken: #f5f5f4;
+  --color-surface-inverse: #141414;
+  --color-surface-inverse-elevated: #1f1f1f;
+
+  /* Text */
+  --color-foreground: #0f0f0f;
+  --color-foreground-secondary: #525252;
+  --color-muted: #737373; /* 4.74:1 on white */
+  --color-on-inverse: #fafafa;
+  --color-on-inverse-muted: #a3a3a3; /* 8.9:1 on #141414 */
+
+  /* Lines */
+  --color-border: #eaeaea;
+  --color-border-strong: #d4d4d4;
+
+  /* Semantic states — all AA-verified on white */
+  --color-success: #15803d; /* 5.01:1 */
+  --color-success-soft: #f0fdf4;
+  --color-warning: #b45309; /* 4.52:1 */
+  --color-warning-soft: #fffbeb;
+  --color-danger: #dc2626; /* 4.83:1 */
+  --color-danger-soft: #fef2f2;
+  --color-info: #1d4ed8; /* 7.06:1 */
+  --color-info-soft: #eff6ff;
+
+  /* Motion */
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-slow: 240ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decelerate: cubic-bezier(0, 0, 0, 1);
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  -webkit-font-smoothing: antialiased;
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background: var(--color-background);
+    color: var(--color-foreground);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* One focus treatment for the whole product. :focus-visible only, so a
+     mouse click never leaves a ring behind but every keyboard path shows one.
+     WCAG 2.2 — 2.4.7 Focus Visible, 2.4.13 Focus Appearance. */
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* Numerals must not jitter as metrics tick over. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+}
+
+@layer components {
+  /* Keyboard-only skip target for the app shell (UI-2 consumes it). */
+  .skip-link {
+    position: absolute;
+    left: -9999px;
+    z-index: 100;
+  }
+  .skip-link:focus {
+    left: 1rem;
+    top: 1rem;
+    padding: 0.5rem 1rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-strong);
+    border-radius: 8px;
+  }
+}
+
+/* Reduced motion: neutralise duration and movement, but KEEP opacity changes
+   so state transitions remain legible rather than invisible.
+   WCAG 2.2 — 2.3.3 Animation from Interactions. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Suppress press/hover micro-scale only. This must NOT be a blanket
+     `transform: none`: dialogs are centred with -translate-x-1/2, and the
+     switch thumb moves by translate — removing those breaks layout and hides
+     state rather than calming motion. */
+  [data-motion-press]:active {
+    transform: none !important;
+  }
 }

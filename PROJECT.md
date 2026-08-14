@@ -6,9 +6,10 @@
 > decision changes.
 
 **Last updated:** 2026-08-15
-**Current phase:** **UI/UX transformation — Sprint UI-0 complete** (audit & design-system
-architecture, 2026-08-15); awaiting approval for UI-1. Build sprints 0–5 are code-complete
-— MVP feature-complete, with Sprint 5 hardware still pending physical verification.
+**Current phase:** **UI/UX transformation — Sprint UI-1 complete** (design-system foundation,
+2026-08-15); awaiting approval for UI-2 (application shell). Build sprints 0–5 are
+code-complete — MVP feature-complete, with Sprint 5 hardware still pending physical
+verification.
 **Target:** MVP live / first paying customers within ~3 months (by late October 2026)
 **Company:** Hornbill — an existing company that owns `hornbilltech.co.ke`. The root
 domain already hosts a separate project, so TapTap will run on the
@@ -83,6 +84,7 @@ else is out of v1.**
 - `docs/sprint-4-billing.md` — Sprint 4 (billing) — complete
 - `docs/sprint-5-hardware-compliance.md` — Sprint 5 (hardware & compliance) — built
 - `docs/sprint-ui-0-audit.md` — UI/UX audit & design-system architecture (UI-0) — complete
+- `docs/sprint-ui-1-design-system.md` — design-system foundation (UI-1) — complete
 - `docs/reference/` — supplied UI reference mockup (visual direction, not a pixel spec)
 - `docs/sprint-0-discovery.md` — full discovery: PRD, data model, security, pricing, GTM, risks
 - `docs/decision-log.md` — running ADR-lite record of decisions
