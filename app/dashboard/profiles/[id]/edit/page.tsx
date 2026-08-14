@@ -1,6 +1,6 @@
 import { redirect, notFound } from "next/navigation";
-import Link from "next/link";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { PageHeader } from "@/components/shell/page-header";
 import Editor from "./editor";
 import type { Block, PageConfig, Theme } from "@/lib/profile";
 
@@ -41,14 +41,12 @@ export default async function EditPage({
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-10">
-      <Link
-        href="/dashboard"
-        className="text-sm text-neutral-500 hover:text-neutral-900"
-      >
-        ← Dashboard
-      </Link>
-      <h1 className="mb-6 mt-2 text-2xl font-bold">Edit /{page.slug}</h1>
+    <>
+      <PageHeader
+        title={page.title || `/${page.slug}`}
+        description={`Editing /${page.slug}`}
+        breadcrumbs={[{ label: "Tap Profiles", href: "/dashboard/profiles" }]}
+      />
       <Editor
         pageId={page.id}
         accountId={profile.account_id}
@@ -61,6 +59,6 @@ export default async function EditPage({
         initialTheme={(page.theme ?? {}) as Theme}
         initialBlocks={(links ?? []) as Block[]}
       />
-    </main>
+    </>
   );
 }

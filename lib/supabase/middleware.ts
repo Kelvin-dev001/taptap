@@ -30,6 +30,24 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Turn requests away at the edge rather than letting page code run
+  // unauthenticated. Layouts and pages render concurrently in the App Router,
+  // so a redirect in the dashboard layout does not stop a page from executing
+  // its queries first — this does.
+  if (!user) {
+    const signIn = request.nextUrl.clone();
+    signIn.pathname = "/login";
+    const redirectResponse = NextResponse.redirect(signIn);
+    // Carry over any refreshed auth cookies set above.
+    response.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie);
+    });
+    return redirectResponse;
+  }
+
   return response;
 }

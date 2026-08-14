@@ -86,7 +86,7 @@ export async function savePageAction(
     if (insErr) return { error: insErr.message };
   }
 
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/profiles");
   revalidatePath(`/${existing.slug}`);
   return { success: "Saved." };
 }

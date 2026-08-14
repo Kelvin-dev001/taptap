@@ -35,7 +35,7 @@ export async function rebindTagAction(formData: FormData) {
     .update({ smart_page_id: pageId, status: "assigned" })
     .eq("id", tagId);
 
-  revalidatePath("/dashboard/tags");
+  revalidatePath("/dashboard/devices");
 }
 
 export async function setTagStatusAction(formData: FormData) {
@@ -50,5 +50,5 @@ export async function setTagStatusAction(formData: FormData) {
   if (!user) return;
 
   await supabase.from("nfc_tags").update({ status }).eq("id", tagId);
-  revalidatePath("/dashboard/tags");
+  revalidatePath("/dashboard/devices");
 }

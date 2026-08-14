@@ -4,7 +4,7 @@
  * Import from "@/components/ui" rather than reaching into individual files, so
  * the set of blessed primitives stays visible in one place.
  *
- * Added in UI-2: Tabs, Dropdown, Tooltip, Popover, Sidebar, Topbar, PageHeader.
+ * Shell composites (AppShell, PageHeader, nav) live in components/shell.
  */
 export { Button, buttonVariants, type ButtonProps } from "./button";
 export { IconButton, type IconButtonProps } from "./icon-button";
@@ -30,3 +30,14 @@ export {
 export { Drawer, DrawerTrigger, DrawerClose, DrawerContent } from "./drawer";
 export { ToastProvider, useToast } from "./toast";
 export { SaveState, type SaveStatus } from "./save-state";
+export {
+  Dropdown,
+  DropdownTrigger,
+  DropdownContent,
+  DropdownItem,
+  DropdownLabel,
+  DropdownSeparator,
+} from "./dropdown";
+export { Tooltip, TooltipProvider } from "./tooltip";
+export { Popover, PopoverTrigger, PopoverClose, PopoverContent } from "./popover";
+export { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs";

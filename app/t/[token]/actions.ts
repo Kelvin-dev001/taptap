@@ -24,5 +24,5 @@ export async function claimTagAction(
   });
   if (error) return { error: error.message };
 
-  redirect("/dashboard/tags");
+  redirect("/dashboard/devices");
 }
