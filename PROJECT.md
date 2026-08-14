@@ -5,8 +5,10 @@
 > re-reading the original master-prompt PDF. Update this file whenever a major
 > decision changes.
 
-**Last updated:** 2026-07-22
-**Current phase:** Sprint 5 — Hardware & compliance built, pending live verification (2026-07-24). **All 5 build sprints code-complete — MVP feature-complete.** Sprints 0–4 done.
+**Last updated:** 2026-08-15
+**Current phase:** **UI/UX transformation — Sprint UI-0 complete** (audit & design-system
+architecture, 2026-08-15); awaiting approval for UI-1. Build sprints 0–5 are code-complete
+— MVP feature-complete, with Sprint 5 hardware still pending physical verification.
 **Target:** MVP live / first paying customers within ~3 months (by late October 2026)
 **Company:** Hornbill — an existing company that owns `hornbilltech.co.ke`. The root
 domain already hosts a separate project, so TapTap will run on the
@@ -52,6 +54,10 @@ expand across East Africa, then the continent.
 | D-008 | **Framework:** pin Next 16.2 (Active LTS) + React 19; migrated off EOL Next 14 |
 | D-009 | **NFC identity:** permanent token URL `/t/<token>` per card (never re-encode); slugs kept for sharing |
 | D-010 | **Secrets:** Supabase publishable/secret keys; `.env.example` holds placeholders only (real values in `.env.local` + Vercel) |
+| D-011 | **Design system:** vendored Radix + CVA in `components/ui/` — we own the files, not a component framework |
+| D-012 | **Brand colour:** `#F97316` for text-free fills; `#C2560A` for white-label buttons and orange text (white on `#F97316` is 2.80:1 — fails AA) |
+| D-013 | **Routing:** app routes nest under `/dashboard/*`; `/[slug]` root catch-all means new nav names must be reserved pre-launch |
+| D-014 | **Typography:** Inter via `next/font`, self-hosted |
 
 ## MVP scope (one line)
 
@@ -76,8 +82,11 @@ else is out of v1.**
 - `docs/sprint-3-analytics-leads.md` — Sprint 3 (analytics & leads) — complete
 - `docs/sprint-4-billing.md` — Sprint 4 (billing) — complete
 - `docs/sprint-5-hardware-compliance.md` — Sprint 5 (hardware & compliance) — built
+- `docs/sprint-ui-0-audit.md` — UI/UX audit & design-system architecture (UI-0) — complete
+- `docs/reference/` — supplied UI reference mockup (visual direction, not a pixel spec)
 - `docs/sprint-0-discovery.md` — full discovery: PRD, data model, security, pricing, GTM, risks
 - `docs/decision-log.md` — running ADR-lite record of decisions
+- `CLAUDE.md` — operating instructions for the AI engineering partner
 
 ## Working rules (from the master prompt)
 

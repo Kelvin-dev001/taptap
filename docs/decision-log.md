@@ -177,5 +177,89 @@ must match unquoted `KEY=value` env lines, not just quoted assignments in source
 
 ---
 
+### D-011 — Design system is vendored Radix + CVA, not a component framework
+**Date:** 2026-08-15 · **Status:** Accepted
+
+**Context:** The UI transformation needs ~26 reusable components at WCAG 2.2 AA. CLAUDE.md
+§3 forbids introducing a large component framework without first proving Tailwind can't
+carry the design system. Today there is no `components/ui/` layer at all and the same
+utility strings are duplicated across ~20 sites.
+
+**Decision:** Build `components/ui/` by **vendoring** component source into the repo
+(shadcn-style), composed over headless `@radix-ui/react-*` primitives, with variants typed
+via `class-variance-authority`. Hornbill owns every component file; Radix contributes only
+behavior — focus traps, roving tabindex, ARIA wiring.
+
+**Why not hand-roll:** focus trapping, roving tabindex, `aria-expanded` wiring, layered
+Escape/outside-click and scroll-lock are solved problems and the usual source of a11y
+regressions. Why not a styled framework (MUI/Chakra/Mantine): they impose a theme system we
+would fight, and ship far more than we need. Radix is unstyled, per-primitive and
+tree-shakeable (~35–45KB for the seven we use), so it is not the "large framework" §3 warns
+about.
+
+**Consequences:** components are editable in-repo, no upgrade lock-in. `components/ui/`
+becomes the only place base styling is declared.
+
+---
+
+### D-012 — Brand orange split into a fill token and an AA-safe text/button token
+**Date:** 2026-08-15 · **Status:** Accepted
+
+**Context:** Hornbill orange sampled from the reference mockup is `#F97316`. Computed
+against WCAG relative luminance, **white on `#F97316` is 2.80:1** — it fails AA for normal
+text *and* misses the 3:1 large-text floor. The mockup uses white-on-vivid-orange for the
+primary button on nearly every screen. CLAUDE.md §24 targets WCAG 2.2 AA and §30.15 makes
+it non-negotiable, so the reference cannot be followed literally here.
+
+**Decision:** Split the accent into two tokens.
+`--primary` = `#F97316` for fills that carry **no text** (sparklines, chart bars, toggle-on,
+status dots, icon tiles, progress, mobile FAB, focus rings).
+`--primary-strong` = `#C2560A` for **button fills with white labels** (4.53:1) and for any
+orange **text** on white. Large hero CTAs on public pages may keep vivid `#F97316` with
+charcoal `#1A1A1A` text (6.21:1).
+
+Same audit retires `text-green-600` `#16A34A` (**3.30:1**, currently used for "current plan"
+and success messages) in favour of `#15803D` (5.01:1), and `text-neutral-400` (2.52:1).
+`text-red-600` (4.83:1) and `text-neutral-500` (4.74:1) pass and stay.
+
+**Consequences:** the product still reads as vividly orange — the accent is unchanged
+wherever it appears without text. Every token pairing is contrast-verified before use.
+
+---
+
+### D-013 — App routes nest under `/dashboard/*`; the root catch-all forces slug reservation
+**Date:** 2026-08-15 · **Status:** Accepted
+
+**Context:** The new sidebar IA needs routes for profiles, devices, analytics, customers and
+settings. `/[slug]` is a **root catch-all**, so every top-level route permanently consumes a
+customer-facing name.
+
+**Decision:** Nest all authenticated routes under `/dashboard/*`. Zero collision risk, and
+`middleware.ts`'s existing `/dashboard/:path*` matcher covers them unchanged.
+
+**Separately and urgently:** `RESERVED_SLUGS` is missing `analytics`, `customers`, `devices`,
+`leads`, `qr`, `cards`, `team`, `insights`, `nfc` and `notifications`. These must be reserved
+in UI-1 — free before launch, breaking once a customer owns one.
+
+**Consequences:** slightly longer URLs than the mockup implies; route moves in UI-2 need
+redirects from the existing `/dashboard/[id]/*` paths.
+
+---
+
+### D-014 — Inter via `next/font`, self-hosted
+**Date:** 2026-08-15 · **Status:** Accepted
+
+**Context:** No font-family is declared anywhere in the codebase — the product currently
+renders in each device's system UI face, so it looks different on every phone and reads as
+generic against the premium target.
+
+**Decision:** Inter, self-hosted through `next/font`. Tabular numerals for all metrics.
+
+**Why:** `next/font` self-hosts and pre-loads, so there is no external request, no FOUT, no
+layout shift and no CSP concern. Inter stays legible at small sizes on low-end Android, which
+matters for the Kenyan SME market. No dependency is added — `next/font` ships with Next.
+
+---
+
 _Add new decisions above this line as `D-00N`, and mirror the one-liner into
 `PROJECT.md`._
