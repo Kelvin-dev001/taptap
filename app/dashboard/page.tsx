@@ -47,13 +47,6 @@ const DAY_SERIES: Series[] = [
   { key: "scan", label: "QR scans", color: "var(--color-border-strong)" },
 ];
 
-function shortDate(iso: string): string {
-  const d = new Date(iso);
-  return Number.isFinite(d.getTime())
-    ? d.toLocaleDateString(undefined, { month: "short", day: "numeric" })
-    : iso;
-}
-
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -189,7 +182,7 @@ export default async function DashboardPage({
               values: { tap: d.tap, scan: d.scan },
             }))}
             series={DAY_SERIES}
-            formatLabel={shortDate}
+            labelFormat="date"
           />
         </ChartContainer>
 

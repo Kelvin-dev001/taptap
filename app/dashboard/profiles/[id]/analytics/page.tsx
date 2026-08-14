@@ -25,13 +25,6 @@ const DAY_SERIES: Series[] = [
   { key: "all", label: "All activity", color: "var(--color-primary)" },
 ];
 
-function shortDate(iso: string): string {
-  const d = new Date(iso);
-  return Number.isFinite(d.getTime())
-    ? d.toLocaleDateString(undefined, { month: "short", day: "numeric" })
-    : iso;
-}
-
 const METRICS: { key: string; label: string }[] = [
   { key: "tap", label: "Taps" },
   { key: "scan", label: "QR scans" },
@@ -98,7 +91,7 @@ export default async function AnalyticsPage({
           <BarChart
             data={daily.map((d) => ({ label: d.date, values: { all: d.count } }))}
             series={DAY_SERIES}
-            formatLabel={shortDate}
+            labelFormat="date"
           />
         </Card>
 

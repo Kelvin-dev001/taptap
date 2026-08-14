@@ -7,6 +7,34 @@ export type Series = { key: string; label: string; color: string };
 export type BarDatum = { label: string; values: Record<string, number> };
 
 /**
+ * How to render a bar's label. This is a string rather than a formatter
+ * function on purpose: BarChart is a Client Component, and functions cannot
+ * cross the server/client boundary — passing one throws
+ * "Functions cannot be passed directly to Client Components".
+ *
+ * The date format is deliberately locale-independent. `toLocaleDateString`
+ * would format with the server's locale during SSR and the user's on hydration,
+ * producing a mismatch.
+ */
+export type LabelFormat = "raw" | "date";
+
+const MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+export function formatBarLabel(label: string, format: LabelFormat): string {
+  if (format !== "date") return label;
+  // Dates arrive as YYYY-MM-DD from Postgres; parse the parts directly so no
+  // timezone shift can move a bar to the previous day.
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(label);
+  if (!match) return label;
+  const [, , month, day] = match;
+  const monthName = MONTHS[Number(month) - 1];
+  return monthName ? `${Number(day)} ${monthName}` : label;
+}
+
+/**
  * Grouped/stacked-free bar chart over a date axis.
  *
  * CSS grid rather than SVG: bars are rectangles, and this way each bar is a real
@@ -19,15 +47,19 @@ export function BarChart({
   series,
   height = 180,
   className,
-  formatLabel = (l) => l,
+  labelFormat = "raw",
 }: {
   data: BarDatum[];
   series: Series[];
   height?: number;
   className?: string;
-  formatLabel?: (label: string) => string;
+  labelFormat?: LabelFormat;
 }) {
   const [active, setActive] = React.useState<number | null>(null);
+  const formatLabel = React.useCallback(
+    (label: string) => formatBarLabel(label, labelFormat),
+    [labelFormat],
+  );
 
   const max = Math.max(
     1,
