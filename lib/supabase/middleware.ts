@@ -41,6 +41,9 @@ export async function updateSession(request: NextRequest) {
   if (!user) {
     const signIn = request.nextUrl.clone();
     signIn.pathname = "/login";
+    // Drop the original query string — dashboard params like ?range=30 mean
+    // nothing on the sign-in page.
+    signIn.search = "";
     const redirectResponse = NextResponse.redirect(signIn);
     // Carry over any refreshed auth cookies set above.
     response.cookies.getAll().forEach((cookie) => {

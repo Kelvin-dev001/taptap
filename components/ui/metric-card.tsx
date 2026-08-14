@@ -15,10 +15,12 @@ export function MetricCard({
   value,
   delta,
   deltaLabel,
+  isNew,
   hint,
   chart,
   inverse,
   className,
+  style,
 }: {
   label: string;
   value: string | number;
@@ -26,11 +28,17 @@ export function MetricCard({
   delta?: number;
   /** What the delta compares against, e.g. "vs previous 30 days". */
   deltaLabel?: string;
+  /**
+   * Activity with no prior baseline. There is no percentage change from zero,
+   * so this renders "new" instead of a fabricated figure (see percentChange).
+   */
+  isNew?: boolean;
   hint?: string;
-  /** Slot for a sparkline (UI-3). */
   chart?: React.ReactNode;
   inverse?: boolean;
   className?: string;
+  /** Used for staggered entrance delays on the dashboard. */
+  style?: React.CSSProperties;
 }) {
   const direction = delta === undefined ? null : delta > 0 ? "up" : delta < 0 ? "down" : "flat";
   const TrendIcon = direction === "up" ? TrendingUp : direction === "down" ? TrendingDown : Minus;
@@ -39,6 +47,7 @@ export function MetricCard({
     <Card
       variant={inverse ? "inverse" : "default"}
       padding="sm"
+      style={style}
       className={cn("relative overflow-hidden", inverse && "shadow-glow", className)}
     >
       <p
@@ -74,6 +83,18 @@ export function MetricCard({
               {direction === "up" ? "increase" : direction === "down" ? "decrease" : "no change"}
               {deltaLabel ? ` ${deltaLabel}` : ""}
             </span>
+          </span>
+        )}
+
+        {direction === null && isNew && (
+          <span
+            className={cn(
+              "text-caption font-medium",
+              inverse ? "text-primary-300" : "text-success",
+            )}
+          >
+            new
+            <span className="sr-only"> — no activity in the previous period to compare against</span>
           </span>
         )}
       </div>

@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { MetricCard, Card } from "@/components/ui";
 import { PageHeader } from "@/components/shell/page-header";
-import { DailyBars, HBars } from "@/components/mini-charts";
+import { BarChart, RankedBars, type Series } from "@/components/charts/bar-chart";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +21,17 @@ type Analytics = {
  * WhatsApp message was sent (CLAUDE.md §15). The click/conversion split and a
  * date-range selector arrive in UI-7.
  */
+const DAY_SERIES: Series[] = [
+  { key: "all", label: "All activity", color: "var(--color-primary)" },
+];
+
+function shortDate(iso: string): string {
+  const d = new Date(iso);
+  return Number.isFinite(d.getTime())
+    ? d.toLocaleDateString(undefined, { month: "short", day: "numeric" })
+    : iso;
+}
+
 const METRICS: { key: string; label: string }[] = [
   { key: "tap", label: "Taps" },
   { key: "scan", label: "QR scans" },
@@ -82,22 +93,26 @@ export default async function AnalyticsPage({
       </section>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <Card padding="md">
+        <Card padding="md" className="lg:col-span-2">
           <h2 className="mb-3 text-section-title text-foreground">Activity by day</h2>
-          <DailyBars data={daily.map((d) => ({ label: d.date, value: d.count }))} />
+          <BarChart
+            data={daily.map((d) => ({ label: d.date, values: { all: d.count } }))}
+            series={DAY_SERIES}
+            formatLabel={shortDate}
+          />
         </Card>
 
         <Card padding="md">
           <h2 className="mb-3 text-section-title text-foreground">Devices</h2>
-          <HBars data={devices} />
+          <RankedBars data={devices} />
         </Card>
 
-        <Card padding="md" className="lg:col-span-2">
+        <Card padding="md">
           <h2 className="mb-1 text-section-title text-foreground">Top buttons</h2>
           <p className="mb-3 text-caption text-muted">
             Counts how often each button was clicked — not whether the action was completed.
           </p>
-          <HBars data={topBlocks.map((b) => ({ label: b.label, value: b.count }))} />
+          <RankedBars data={topBlocks.map((b) => ({ label: b.label, value: b.count }))} />
         </Card>
       </div>
     </>
