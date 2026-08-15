@@ -2,12 +2,21 @@
 
 **Last updated:** 2026-08-15 · Everything below needs a person, not a commit.
 
-Code status: all UI sprints delivered, migrations `0005`–`0013` applied, 298 tests green,
-login working in production.
+Code status: all UI sprints delivered, migrations `0005`–`0013` applied, 298 tests green.
+
+**Production is live at `https://taptap.hornbilltech.co.ke` and verified end to end:**
+routes and auth redirects correct, HSTS on, branded 404 for unknown slugs, QR (PNG + SVG) and
+OG images generating, per-profile metadata working, and a real browser visit logged a `view`
+event carrying `country: KE` / `region: 30` — so geo capture works behind Vercel, which could
+never be confirmed locally.
+
+**No server-only secret reaches the browser.** The deployed bundle was scanned against the
+real values: `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_TOKEN` and all three `MPESA_*` secrets are
+absent, and the publishable key is correctly baked in.
 
 ---
 
-## 1. Set a real `ADMIN_TOKEN` — do this first
+## 1. Set a real `ADMIN_TOKEN` — the only thing blocking card minting
 
 `/admin` mints NFC card tokens and is **publicly reachable**, protected only by this secret.
 Your `.env.local` still holds `change-me-to-a-long-random-string`.
@@ -65,18 +74,19 @@ Until step 3 passes, **nobody can actually buy anything.**
 
 ---
 
-## 5. DNS for `taptap.hornbilltech.co.ke`
+## 5. DNS — ✅ DONE
 
-Scoped for Sprint 1 and still not done — you are currently on a `*.vercel.app` URL.
+`taptap.hornbilltech.co.ke` resolves, serves over HTTPS with HSTS, and
+`NEXT_PUBLIC_SITE_URL` is correctly set to it — verified by reading the URL the print sheet
+says cards and QR codes will encode:
 
-1. Vercel → project → **Domains** → add `taptap.hornbilltech.co.ke`.
-2. Add the CNAME Vercel shows to the `hornbilltech.co.ke` zone. The root domain's existing site
-   is unaffected.
-3. Set `NEXT_PUBLIC_SITE_URL=https://taptap.hornbilltech.co.ke` in Vercel and **redeploy** —
-   it is baked in at build time and is what QR codes and card URLs encode.
+```
+taptap.hornbilltech.co.ke/nebsamnew
+```
 
-⚠ **Do this before minting production cards.** Minted URLs bake in `NEXT_PUBLIC_SITE_URL` at
-mint time, so cards minted now would point at the temporary domain forever.
+This was the blocker on minting production cards, because minted URLs bake in
+`NEXT_PUBLIC_SITE_URL` at mint time. **Cards minted from now on will carry the right domain
+permanently.**
 
 ---
 
