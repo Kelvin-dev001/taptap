@@ -9,6 +9,8 @@ import {
   buttonVariants,
 } from "@/components/ui";
 import { PageHeader } from "@/components/shell/page-header";
+import { MigrationNotice } from "@/components/shell/migration-notice";
+import { isMissingSchemaError } from "@/lib/schema-guard";
 import { Sparkline } from "@/components/charts/sparkline";
 import { BarChart, RankedBars, type Series } from "@/components/charts/bar-chart";
 import { ChartContainer } from "@/components/charts/chart-container";
@@ -64,16 +66,22 @@ export default async function DashboardPage({
 
   // Migration 0008 introduces these RPCs. Until it is run they 404, and an
   // empty result would otherwise be indistinguishable from "no profiles yet" —
-  // telling an owner with live cards to create their first link. Say what
-  // actually happened instead.
+  // telling an owner with live cards to create their first link.
+  if (isMissingSchemaError(overviewError)) {
+    return (
+      <>
+        <PageHeader title="Dashboard" />
+        <MigrationNotice migration="0008_dashboard_rpcs.sql" />
+      </>
+    );
+  }
+
   if (overviewError) {
     return (
       <>
         <PageHeader title="Dashboard" />
-        <Alert tone="warning" title="Dashboard data is unavailable">
-          The reporting functions are missing from the database. Run{" "}
-          <code className="rounded bg-surface-sunken px-1">0008_dashboard_rpcs.sql</code> in the
-          Supabase SQL editor, then reload. Your profiles and cards are unaffected.
+        <Alert tone="danger" title="Could not load your dashboard">
+          {overviewError.message}
         </Alert>
       </>
     );

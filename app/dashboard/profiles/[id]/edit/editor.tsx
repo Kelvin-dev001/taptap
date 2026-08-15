@@ -1,18 +1,57 @@
 "use client";
 
-import { useState } from "react";
+import * as React from "react";
 import Link from "next/link";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
+import { ExternalLink, Upload, Palette, Search, Sparkles } from "lucide-react";
 import { createBrowserSupabase } from "@/lib/supabase/client";
-import { BLOCK_DEFS } from "@/lib/blocks";
+import {
+  Button,
+  Card,
+  Field,
+  Input,
+  Textarea,
+  Alert,
+  Badge,
+  SaveState,
+  SwitchField,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  useToast,
+  type SaveStatus,
+} from "@/components/ui";
+import { MobilePreview } from "@/components/builder/mobile-preview";
+import { BlockPicker } from "@/components/builder/block-picker";
+import { SortableAction, type EditorBlock } from "@/components/builder/sortable-action";
+import { defaultLabel } from "@/lib/blocks";
 import type {
   Block,
   BlockType,
   Contact,
   PageConfig,
+  PublicPage,
   Theme,
   ThemePreset,
+  PublishStatus,
 } from "@/lib/profile";
-import { savePageAction } from "./actions";
+import { savePageAction, publishPageAction, unpublishPageAction } from "./actions";
 
 type Props = {
   pageId: string;
@@ -25,369 +64,582 @@ type Props = {
   initialConfig: PageConfig;
   initialTheme: Theme;
   initialBlocks: Block[];
+  initialStatus: PublishStatus;
+  initialPublishedAt: string | null;
+  leadCaptureAllowed: boolean;
 };
 
 let keyCounter = 0;
-type UIBlock = Block & { _key: number };
-
-const inputCls = "w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm";
+const nextKey = () => `b${keyCounter++}`;
 
 export default function Editor(props: Props) {
-  const [mode, setMode] = useState<"page" | "redirect">(props.initialMode);
-  const [title, setTitle] = useState(props.initialTitle);
-  const [redirectUrl, setRedirectUrl] = useState(props.initialRedirectUrl);
-  const [bio, setBio] = useState(props.initialConfig.bio ?? "");
-  const [avatarUrl, setAvatarUrl] = useState(props.initialConfig.avatarUrl ?? "");
-  const [contact, setContact] = useState<Contact>(
-    props.initialConfig.contact ?? {},
-  );
-  const [accent, setAccent] = useState(props.initialTheme.accent ?? "#111827");
-  const [preset, setPreset] = useState<ThemePreset>(
-    props.initialTheme.preset ?? "light",
-  );
-  const [leadEnabled, setLeadEnabled] = useState(
-    props.initialConfig.leadForm?.enabled ?? false,
-  );
-  const [leadHeadline, setLeadHeadline] = useState(
-    props.initialConfig.leadForm?.headline ?? "",
-  );
-  const [leadButton, setLeadButton] = useState(
-    props.initialConfig.leadForm?.buttonLabel ?? "",
-  );
-  const [blocks, setBlocks] = useState<UIBlock[]>(
-    (props.initialBlocks ?? []).map((b) => ({ ...b, _key: keyCounter++ })),
-  );
-  const [busy, setBusy] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const toast = useToast();
 
-  function addBlock() {
+  const [mode, setMode] = React.useState(props.initialMode);
+  const [title, setTitle] = React.useState(props.initialTitle);
+  const [redirectUrl, setRedirectUrl] = React.useState(props.initialRedirectUrl);
+  const [config, setConfig] = React.useState<PageConfig>(props.initialConfig);
+  const [theme, setTheme] = React.useState<Theme>(props.initialTheme);
+  const [blocks, setBlocks] = React.useState<EditorBlock[]>(
+    (props.initialBlocks ?? []).map((b) => ({ ...b, key: nextKey() })),
+  );
+  const [expanded, setExpanded] = React.useState<string | null>(null);
+
+  const [status, setStatus] = React.useState<PublishStatus>(props.initialStatus);
+  const [publishedAt, setPublishedAt] = React.useState(props.initialPublishedAt);
+  const [saveStatus, setSaveStatus] = React.useState<SaveStatus>("idle");
+  const [dirty, setDirty] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [uploading, setUploading] = React.useState<"avatar" | "cover" | null>(null);
+
+  // Any edit marks the draft ahead of what is saved.
+  function touch() {
+    setDirty(true);
+    setSaveStatus("idle");
+  }
+
+  const patchConfig = (patch: Partial<PageConfig>) => {
+    setConfig((c) => ({ ...c, ...patch }));
+    touch();
+  };
+  const patchTheme = (patch: Partial<Theme>) => {
+    setTheme((t) => ({ ...t, ...patch }));
+    touch();
+  };
+  const patchContact = (patch: Partial<Contact>) => {
+    setConfig((c) => ({ ...c, contact: { ...c.contact, ...patch } }));
+    touch();
+  };
+
+  /** Warn before losing unsaved work — UI-0 UX problem #4. */
+  React.useEffect(() => {
+    if (!dirty) return;
+    const handler = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    // Makes reordering fully keyboard-operable (WCAG 2.1.1).
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function onDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setBlocks((prev) => {
+      const from = prev.findIndex((b) => b.key === active.id);
+      const to = prev.findIndex((b) => b.key === over.id);
+      return from < 0 || to < 0 ? prev : arrayMove(prev, from, to);
+    });
+    touch();
+  }
+
+  function addBlock(type: BlockType) {
+    const key = nextKey();
     setBlocks((prev) => [
       ...prev,
-      { _key: keyCounter++, type: "custom", label: "", value: "", sort_order: prev.length },
+      { key, type, label: defaultLabel(type), value: "", sort_order: prev.length, is_active: true },
     ]);
-  }
-  function updateBlock(key: number, patch: Partial<UIBlock>) {
-    setBlocks((prev) => prev.map((b) => (b._key === key ? { ...b, ...patch } : b)));
-  }
-  function removeBlock(key: number) {
-    setBlocks((prev) => prev.filter((b) => b._key !== key));
-  }
-  function move(key: number, dir: -1 | 1) {
-    setBlocks((prev) => {
-      const idx = prev.findIndex((b) => b._key === key);
-      const j = idx + dir;
-      if (idx < 0 || j < 0 || j >= prev.length) return prev;
-      const copy = [...prev];
-      [copy[idx], copy[j]] = [copy[j], copy[idx]];
-      return copy;
-    });
+    setExpanded(key);
+    touch();
   }
 
-  async function onAvatar(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    setMsg(null);
+  async function upload(file: File, kind: "avatar" | "cover") {
+    setUploading(kind);
+    setError(null);
     try {
       const supabase = createBrowserSupabase();
       const ext = file.name.split(".").pop() || "png";
-      const path = `${props.accountId}/${props.pageId}/avatar-${Date.now()}.${ext}`;
-      const { error } = await supabase.storage
+      const path = `${props.accountId}/${props.pageId}/${kind}-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
         .from("page-assets")
         .upload(path, file, { upsert: true });
-      if (error) {
-        setMsg(error.message);
+      if (upErr) {
+        setError(upErr.message);
       } else {
         const { data } = supabase.storage.from("page-assets").getPublicUrl(path);
-        setAvatarUrl(data.publicUrl);
+        patchConfig(kind === "avatar" ? { avatarUrl: data.publicUrl } : { coverUrl: data.publicUrl });
       }
     } catch {
-      setMsg("Upload failed.");
+      setError("Upload failed. Please try again.");
     }
-    setUploading(false);
+    setUploading(null);
   }
 
-  async function save() {
-    setBusy(true);
-    setMsg(null);
-    const config: PageConfig = {
-      bio: bio || undefined,
-      avatarUrl: avatarUrl || undefined,
-      contact,
-      leadForm: {
-        enabled: leadEnabled,
-        headline: leadHeadline || undefined,
-        buttonLabel: leadButton || undefined,
-      },
-    };
-    const theme: Theme = { preset, accent };
-    const payloadBlocks: Block[] = blocks.map((b, i) => ({
-      type: b.type,
-      label: b.label,
-      value: b.value,
-      sort_order: i,
-    }));
+  /** The object the preview renders — identical in shape to the public page. */
+  const previewPage: PublicPage = React.useMemo(
+    () => ({
+      id: props.pageId,
+      title,
+      mode,
+      redirect_url: redirectUrl,
+      config,
+      theme,
+      links: blocks.map((b, i) => ({ ...b, sort_order: i })),
+    }),
+    [props.pageId, title, mode, redirectUrl, config, theme, blocks],
+  );
+
+  async function save(): Promise<boolean> {
+    setSaveStatus("saving");
+    setError(null);
     const res = await savePageAction(props.pageId, {
       title,
       mode,
       redirectUrl,
       config,
       theme,
-      blocks: payloadBlocks,
+      blocks: blocks.map((b, i) => ({
+        type: b.type,
+        label: b.label,
+        value: b.value,
+        sort_order: i,
+        is_active: b.is_active !== false,
+      })),
     });
-    setBusy(false);
-    setMsg(res.error ?? res.success ?? "Saved.");
+    if (res.error) {
+      setSaveStatus("error");
+      setError(res.error);
+      return false;
+    }
+    setSaveStatus("saved");
+    setDirty(false);
+    window.setTimeout(() => setSaveStatus("idle"), 2000);
+    return true;
   }
 
+  async function publish() {
+    // Publishing an unsaved draft would put the previous version live, which is
+    // never what the button appears to promise.
+    if (dirty && !(await save())) return;
+
+    const res = await publishPageAction(props.pageId);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+    setStatus("published");
+    setPublishedAt(res.publishedAt ?? new Date().toISOString());
+    toast({
+      title: "Page published",
+      description: "Anyone tapping your card now sees these changes.",
+      tone: "success",
+    });
+  }
+
+  async function unpublish() {
+    const res = await unpublishPageAction(props.pageId);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+    setStatus("draft");
+    toast({
+      title: "Page unpublished",
+      description: "The link now shows a not-found page until you publish again.",
+      tone: "warning",
+    });
+  }
+
+  const liveUrl = `${props.siteBase}/${props.slug}`;
+
   return (
-    <div className="flex flex-col gap-6">
-      {/* Mode */}
-      <section className="rounded-xl border border-neutral-200 p-4">
-        <h2 className="mb-3 font-semibold">Mode</h2>
-        <div className="flex gap-4 text-sm">
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              checked={mode === "page"}
-              onChange={() => setMode("page")}
-            />
-            Smart page
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              checked={mode === "redirect"}
-              onChange={() => setMode("redirect")}
-            />
-            Single redirect
-          </label>
+    <div className="flex flex-col gap-4">
+      {/* Status bar */}
+      <Card padding="sm" className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <Badge variant={status === "published" ? "success" : "neutral"} dot>
+            {status === "published" ? "Live" : "Draft"}
+          </Badge>
+          {status === "published" && publishedAt && (
+            <span className="text-caption text-muted">
+              Published {new Date(publishedAt).toLocaleDateString()}
+            </span>
+          )}
+          {dirty && status === "published" && (
+            <span className="text-caption text-warning">Unpublished changes</span>
+          )}
         </div>
-      </section>
 
-      {mode === "redirect" ? (
-        <section className="rounded-xl border border-neutral-200 p-4">
-          <h2 className="mb-3 font-semibold">Redirect destination</h2>
-          <input
-            className={inputCls}
-            placeholder="https://g.page/r/… or https://wa.me/2547…"
-            value={redirectUrl}
-            onChange={(e) => setRedirectUrl(e.target.value)}
-          />
-        </section>
-      ) : (
-        <>
-          {/* Profile */}
-          <section className="rounded-xl border border-neutral-200 p-4">
-            <h2 className="mb-3 font-semibold">Profile</h2>
-            <div className="flex flex-col gap-3">
-              <input
-                className={inputCls}
-                placeholder="Title (e.g. Java House Nairobi)"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-              />
-              <textarea
-                className={inputCls}
-                placeholder="Short bio"
-                rows={2}
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-              />
-              <div className="flex items-center gap-3">
-                {avatarUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={avatarUrl}
-                    alt=""
-                    className="h-12 w-12 rounded-full object-cover"
-                  />
-                )}
-                <input type="file" accept="image/*" onChange={onAvatar} />
-                {uploading && <span className="text-sm text-neutral-500">Uploading…</span>}
-              </div>
-            </div>
-          </section>
+        <div className="flex flex-wrap items-center gap-2">
+          <SaveState status={saveStatus} />
+          <Button variant="secondary" size="sm" onClick={save} disabled={!dirty}>
+            Save draft
+          </Button>
+          <Button size="sm" onClick={publish}>
+            {status === "published" ? "Publish changes" : "Publish"}
+          </Button>
+          {status === "published" && (
+            <Button variant="ghost" size="sm" onClick={unpublish}>
+              Unpublish
+            </Button>
+          )}
+          <Link
+            href={liveUrl}
+            target="_blank"
+            className="inline-flex items-center gap-1 text-caption text-primary-strong hover:underline"
+          >
+            View live
+            <ExternalLink className="h-3 w-3" aria-hidden="true" />
+          </Link>
+        </div>
+      </Card>
 
-          {/* Contact (vCard) */}
-          <section className="rounded-xl border border-neutral-200 p-4">
-            <h2 className="mb-3 font-semibold">Contact card (vCard)</h2>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {(
-                [
-                  ["fullName", "Full name"],
-                  ["org", "Organisation"],
-                  ["title", "Job title"],
-                  ["phone", "Phone"],
-                  ["email", "Email"],
-                  ["website", "Website"],
-                ] as [keyof Contact, string][]
-              ).map(([field, label]) => (
-                <input
-                  key={field}
-                  className={inputCls}
-                  placeholder={label}
-                  value={contact[field] ?? ""}
-                  onChange={(e) =>
-                    setContact((c) => ({ ...c, [field]: e.target.value }))
-                  }
-                />
-              ))}
-            </div>
-          </section>
+      {error && <Alert tone="danger">{error}</Alert>}
 
-          {/* Theme */}
-          <section className="rounded-xl border border-neutral-200 p-4">
-            <h2 className="mb-3 font-semibold">Theme</h2>
-            <div className="flex items-center gap-4 text-sm">
-              <label className="flex items-center gap-2">
-                Preset
-                <select
-                  className="rounded-lg border border-neutral-300 px-2 py-1"
-                  value={preset}
-                  onChange={(e) => setPreset(e.target.value as ThemePreset)}
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+        {/* Editing surface */}
+        <div className="flex flex-col gap-4">
+          <Card padding="sm">
+            <Tabs value={mode} onValueChange={(v) => { setMode(v as "page" | "redirect"); touch(); }}>
+              <TabsList aria-label="Page type">
+                <TabsTrigger value="page">Smart page</TabsTrigger>
+                <TabsTrigger value="redirect">Single redirect</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="redirect">
+                <Field
+                  label="Redirect destination"
+                  hint="Every tap goes straight here. Nothing else is shown."
                 >
-                  <option value="light">Light</option>
-                  <option value="dark">Dark</option>
-                </select>
-              </label>
-              <label className="flex items-center gap-2">
-                Button colour
-                <input
-                  type="color"
-                  value={accent}
-                  onChange={(e) => setAccent(e.target.value)}
-                />
-              </label>
-            </div>
-          </section>
-
-          {/* Lead capture */}
-          <section className="rounded-xl border border-neutral-200 p-4">
-            <h2 className="mb-3 font-semibold">Lead capture</h2>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={leadEnabled}
-                onChange={(e) => setLeadEnabled(e.target.checked)}
-              />
-              Show a lead form on this page
-            </label>
-            {leadEnabled && (
-              <div className="mt-3 flex flex-col gap-2">
-                <input
-                  className={inputCls}
-                  placeholder="Headline (e.g. Get in touch)"
-                  value={leadHeadline}
-                  onChange={(e) => setLeadHeadline(e.target.value)}
-                />
-                <input
-                  className={inputCls}
-                  placeholder="Button label (default: Send)"
-                  value={leadButton}
-                  onChange={(e) => setLeadButton(e.target.value)}
-                />
-              </div>
-            )}
-          </section>
-
-          {/* Blocks */}
-          <section className="rounded-xl border border-neutral-200 p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="font-semibold">Action buttons</h2>
-              <button
-                onClick={addBlock}
-                className="rounded-lg border border-neutral-300 px-3 py-1 text-sm hover:bg-neutral-50"
-              >
-                + Add
-              </button>
-            </div>
-            <div className="flex flex-col gap-3">
-              {blocks.map((b) => (
-                <div
-                  key={b._key}
-                  className="flex flex-col gap-2 rounded-lg border border-neutral-200 p-3"
-                >
-                  <div className="flex gap-2">
-                    <select
-                      className="rounded-lg border border-neutral-300 px-2 py-1 text-sm"
-                      value={b.type}
-                      onChange={(e) =>
-                        updateBlock(b._key, { type: e.target.value as BlockType })
-                      }
-                    >
-                      {BLOCK_DEFS.map((d) => (
-                        <option key={d.type} value={d.type}>
-                          {d.label}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="ml-auto flex gap-1">
-                      <button
-                        onClick={() => move(b._key, -1)}
-                        className="rounded border border-neutral-300 px-2 text-sm"
-                        aria-label="Move up"
-                      >
-                        ↑
-                      </button>
-                      <button
-                        onClick={() => move(b._key, 1)}
-                        className="rounded border border-neutral-300 px-2 text-sm"
-                        aria-label="Move down"
-                      >
-                        ↓
-                      </button>
-                      <button
-                        onClick={() => removeBlock(b._key)}
-                        className="rounded border border-neutral-300 px-2 text-sm text-red-600"
-                        aria-label="Remove"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-                  <input
-                    className={inputCls}
-                    placeholder="Button label"
-                    value={b.label}
-                    onChange={(e) => updateBlock(b._key, { label: e.target.value })}
+                  <Input
+                    value={redirectUrl}
+                    onChange={(e) => { setRedirectUrl(e.target.value); touch(); }}
+                    placeholder="https://g.page/r/… or https://wa.me/2547…"
+                    inputMode="url"
                   />
-                  {b.type !== "contact" && (
-                    <input
-                      className={inputCls}
-                      placeholder={
-                        BLOCK_DEFS.find((d) => d.type === b.type)?.placeholder ?? "Value"
-                      }
-                      value={b.value}
-                      onChange={(e) => updateBlock(b._key, { value: e.target.value })}
+                </Field>
+              </TabsContent>
+
+              <TabsContent value="page">
+                <p className="text-caption text-muted">
+                  Build a page with your details and action buttons below.
+                </p>
+              </TabsContent>
+            </Tabs>
+          </Card>
+
+          {mode === "page" && (
+            <>
+              <Card padding="md">
+                <h2 className="mb-4 text-section-title text-foreground">Your business</h2>
+                <div className="flex flex-col gap-4">
+                  <Field label="Business name">
+                    <Input
+                      value={title}
+                      onChange={(e) => { setTitle(e.target.value); touch(); }}
+                      placeholder="Java House Westlands"
                     />
-                  )}
-                </div>
-              ))}
-              {blocks.length === 0 && (
-                <p className="text-sm text-neutral-500">No buttons yet — add one.</p>
-              )}
-            </div>
-          </section>
-        </>
-      )}
+                  </Field>
+                  <Field label="Tagline" hint="One short line under your name">
+                    <Input
+                      value={config.tagline ?? ""}
+                      onChange={(e) => patchConfig({ tagline: e.target.value })}
+                      placeholder="Coffee shop · Westlands"
+                    />
+                  </Field>
+                  <Field label="About">
+                    <Textarea
+                      value={config.bio ?? ""}
+                      onChange={(e) => patchConfig({ bio: e.target.value })}
+                      rows={2}
+                      placeholder="What you do, in a sentence."
+                    />
+                  </Field>
 
-      <div className="flex items-center gap-4">
-        <button
-          onClick={save}
-          disabled={busy}
-          className="rounded-lg bg-neutral-900 px-5 py-2.5 font-medium text-white hover:bg-neutral-700 disabled:opacity-50"
-        >
-          {busy ? "Saving…" : "Save"}
-        </button>
-        <Link
-          href={`${props.siteBase}/${props.slug}`}
-          target="_blank"
-          className="text-sm text-blue-600 hover:underline"
-        >
-          View live page ↗
-        </Link>
-        {msg && <span className="text-sm text-neutral-600">{msg}</span>}
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <ImageField
+                      label="Logo"
+                      url={config.avatarUrl}
+                      busy={uploading === "avatar"}
+                      onPick={(f) => upload(f, "avatar")}
+                      onClear={() => patchConfig({ avatarUrl: undefined })}
+                    />
+                    <ImageField
+                      label="Cover image"
+                      url={config.coverUrl}
+                      busy={uploading === "cover"}
+                      onPick={(f) => upload(f, "cover")}
+                      onClear={() => patchConfig({ coverUrl: undefined })}
+                    />
+                  </div>
+                </div>
+              </Card>
+
+              <Card padding="md">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-section-title text-foreground">Actions</h2>
+                    <p className="text-caption text-muted">
+                      Drag to reorder. The first action is the main button.
+                    </p>
+                  </div>
+                  <BlockPicker onAdd={addBlock} />
+                </div>
+
+                {blocks.length === 0 ? (
+                  <p className="rounded-lg border border-dashed border-border-strong p-6 text-center text-body-sm text-muted">
+                    No actions yet — add WhatsApp or a Google review link to start.
+                  </p>
+                ) : (
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={onDragEnd}
+                    modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+                  >
+                    <SortableContext
+                      items={blocks.map((b) => b.key)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <ul className="flex flex-col gap-2">
+                        {blocks.map((block) => (
+                          <SortableAction
+                            key={block.key}
+                            block={block}
+                            expanded={expanded === block.key}
+                            onToggleExpanded={() =>
+                              setExpanded((k) => (k === block.key ? null : block.key))
+                            }
+                            onChange={(patch) => {
+                              setBlocks((prev) =>
+                                prev.map((b) => (b.key === block.key ? { ...b, ...patch } : b)),
+                              );
+                              touch();
+                            }}
+                            onRemove={() => {
+                              setBlocks((prev) => prev.filter((b) => b.key !== block.key));
+                              touch();
+                            }}
+                          />
+                        ))}
+                      </ul>
+                    </SortableContext>
+                  </DndContext>
+                )}
+              </Card>
+
+              {/* Advanced — collapsed so Simple Mode stays simple (§12). */}
+              <details className="group rounded-xl border border-border bg-surface">
+                <summary className="flex cursor-pointer items-center gap-2 p-4 text-section-title text-foreground [&::-webkit-details-marker]:hidden">
+                  <Sparkles className="h-4 w-4 text-muted" aria-hidden="true" />
+                  Advanced
+                  <span className="ml-auto text-caption font-normal text-muted">
+                    Contact card, theme, lead form, SEO
+                  </span>
+                </summary>
+
+                <div className="flex flex-col gap-5 border-t border-border p-4">
+                  <section>
+                    <h3 className="mb-3 flex items-center gap-1.5 text-card-title text-foreground">
+                      Contact card (vCard)
+                    </h3>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {(
+                        [
+                          ["fullName", "Full name"],
+                          ["org", "Organisation"],
+                          ["title", "Job title"],
+                          ["phone", "Phone"],
+                          ["email", "Email"],
+                          ["website", "Website"],
+                        ] as [keyof Contact, string][]
+                      ).map(([field, label]) => (
+                        <Field key={field} label={label}>
+                          <Input
+                            value={config.contact?.[field] ?? ""}
+                            onChange={(e) => patchContact({ [field]: e.target.value })}
+                          />
+                        </Field>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section>
+                    <h3 className="mb-3 flex items-center gap-1.5 text-card-title text-foreground">
+                      <Palette className="h-3.5 w-3.5 text-muted" aria-hidden="true" />
+                      Theme
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-4">
+                      <Field label="Style">
+                        <select
+                          value={theme.preset ?? "light"}
+                          onChange={(e) => patchTheme({ preset: e.target.value as ThemePreset })}
+                          className="h-10 rounded-lg border border-border-strong bg-surface px-3 text-body-sm"
+                        >
+                          <option value="light">Light</option>
+                          <option value="dark">Dark</option>
+                        </select>
+                      </Field>
+                      <Field label="Button colour">
+                        <input
+                          type="color"
+                          value={theme.accent ?? "#111827"}
+                          onChange={(e) => patchTheme({ accent: e.target.value })}
+                          className="h-10 w-16 cursor-pointer rounded-lg border border-border-strong bg-surface p-1"
+                        />
+                      </Field>
+                    </div>
+                    <p className="mt-2 text-caption text-muted">
+                      Button text switches between dark and light automatically to stay readable.
+                    </p>
+                  </section>
+
+                  <section>
+                    <h3 className="mb-3 text-card-title text-foreground">Lead capture</h3>
+                    {props.leadCaptureAllowed ? (
+                      <div className="flex flex-col gap-3">
+                        <SwitchField
+                          label="Show a lead form"
+                          description="Collect name, phone and email from visitors."
+                          checked={config.leadForm?.enabled ?? false}
+                          onCheckedChange={(v) =>
+                            patchConfig({ leadForm: { ...config.leadForm, enabled: v } })
+                          }
+                        />
+                        {config.leadForm?.enabled && (
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <Field label="Headline">
+                              <Input
+                                value={config.leadForm?.headline ?? ""}
+                                onChange={(e) =>
+                                  patchConfig({
+                                    leadForm: { ...config.leadForm, headline: e.target.value },
+                                  })
+                                }
+                                placeholder="Get in touch"
+                              />
+                            </Field>
+                            <Field label="Button label">
+                              <Input
+                                value={config.leadForm?.buttonLabel ?? ""}
+                                onChange={(e) =>
+                                  patchConfig({
+                                    leadForm: { ...config.leadForm, buttonLabel: e.target.value },
+                                  })
+                                }
+                                placeholder="Send"
+                              />
+                            </Field>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <Alert tone="info">
+                        Lead capture is available on the Pro plan.{" "}
+                        <Link href="/dashboard/billing" className="underline">
+                          See plans
+                        </Link>
+                      </Alert>
+                    )}
+                  </section>
+
+                  <section>
+                    <h3 className="mb-3 flex items-center gap-1.5 text-card-title text-foreground">
+                      <Search className="h-3.5 w-3.5 text-muted" aria-hidden="true" />
+                      Search &amp; sharing
+                    </h3>
+                    <div className="flex flex-col gap-3">
+                      <Field label="Page title" hint="Shown in search results and when shared">
+                        <Input
+                          value={config.seo?.title ?? ""}
+                          onChange={(e) =>
+                            patchConfig({ seo: { ...config.seo, title: e.target.value } })
+                          }
+                          placeholder={title || "Your business name"}
+                        />
+                      </Field>
+                      <Field label="Description">
+                        <Textarea
+                          rows={2}
+                          value={config.seo?.description ?? ""}
+                          onChange={(e) =>
+                            patchConfig({ seo: { ...config.seo, description: e.target.value } })
+                          }
+                          placeholder="A sentence describing your business."
+                        />
+                      </Field>
+                    </div>
+                  </section>
+                </div>
+              </details>
+            </>
+          )}
+        </div>
+
+        {/* Preview */}
+        {mode === "page" ? (
+          <MobilePreview page={previewPage} dirty={dirty} className="lg:sticky lg:top-20" />
+        ) : (
+          <Card padding="md" className="lg:sticky lg:top-20">
+            <h2 className="mb-2 text-card-title text-foreground">Redirect</h2>
+            <p className="text-body-sm text-muted">
+              Every tap on <span className="text-foreground">/{props.slug}</span> goes straight to
+              your destination — there is no page to preview.
+            </p>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ImageField({
+  label,
+  url,
+  busy,
+  onPick,
+  onClear,
+}: {
+  label: string;
+  url?: string;
+  busy: boolean;
+  onPick: (file: File) => void;
+  onClear: () => void;
+}) {
+  const inputId = React.useId();
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-body-sm font-medium text-foreground">{label}</span>
+      <div className="flex items-center gap-3">
+        {url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={url} alt="" className="h-12 w-12 rounded-lg border border-border object-cover" />
+        ) : (
+          <span className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border-strong text-muted">
+            <Upload className="h-4 w-4" aria-hidden="true" />
+          </span>
+        )}
+        <div className="flex flex-col gap-1">
+          <label
+            htmlFor={inputId}
+            className="cursor-pointer text-caption font-medium text-primary-strong hover:underline"
+          >
+            {busy ? "Uploading…" : url ? "Replace" : "Upload"}
+          </label>
+          <input
+            id={inputId}
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onPick(file);
+              e.target.value = "";
+            }}
+          />
+          {url && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="text-left text-caption text-muted hover:text-danger"
+            >
+              Remove
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

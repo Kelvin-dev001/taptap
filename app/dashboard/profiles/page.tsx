@@ -3,8 +3,11 @@ import { IdCard, ExternalLink, Pencil, ChartNoAxesColumn, Users, QrCode } from "
 import { createServerSupabase } from "@/lib/supabase/server";
 import { Card, Badge, EmptyState, buttonVariants } from "@/components/ui";
 import { PageHeader } from "@/components/shell/page-header";
+import { MigrationNotice } from "@/components/shell/migration-notice";
+import { isMissingSchemaError } from "@/lib/schema-guard";
 import { cn } from "@/lib/cn";
 import CreateProfileForm from "./create-profile-form";
+import { ProfileActionsMenu } from "./profile-actions-menu";
 
 export const dynamic = "force-dynamic";
 
@@ -15,15 +18,27 @@ type PageRow = {
   mode: "page" | "redirect";
   redirect_url: string | null;
   is_active: boolean;
+  status: "draft" | "published";
 };
 
 export default async function ProfilesPage() {
   // Auth is enforced once in app/dashboard/layout.tsx.
   const supabase = await createServerSupabase();
-  const { data: pages } = await supabase
+  const { data: pages, error: pagesError } = await supabase
     .from("smart_pages")
-    .select("id, slug, title, mode, redirect_url, is_active")
+    .select("id, slug, title, mode, redirect_url, is_active, status")
     .order("created_at", { ascending: false });
+
+  // `status` arrives with migration 0009; without this guard the list would
+  // render as "no links yet" for an account that has plenty.
+  if (isMissingSchemaError(pagesError)) {
+    return (
+      <>
+        <PageHeader title="Tap Profiles" />
+        <MigrationNotice migration="0009_publish_and_action_state.sql" />
+      </>
+    );
+  }
 
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
   const rows = (pages ?? []) as PageRow[];
@@ -64,9 +79,24 @@ export default async function ProfilesPage() {
                       {base ? `${base.replace(/^https?:\/\//, "")}/${p.slug}` : `/${p.slug}`}
                     </span>
                   </div>
-                  <Badge variant={p.is_active ? "success" : "neutral"} dot>
-                    {p.is_active ? "Active" : "Inactive"}
-                  </Badge>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {/* Two independent states: `status` is publish, `is_active`
+                        is the on/off switch. A page can be published but
+                        deactivated, so both are shown rather than merged. */}
+                    <Badge
+                      variant={
+                        !p.is_active ? "neutral" : p.status === "published" ? "success" : "warning"
+                      }
+                      dot
+                    >
+                      {!p.is_active ? "Inactive" : p.status === "published" ? "Live" : "Draft"}
+                    </Badge>
+                    <ProfileActionsMenu
+                      pageId={p.id}
+                      name={p.title || `/${p.slug}`}
+                      isActive={p.is_active}
+                    />
+                  </div>
                 </div>
 
                 <p className="truncate text-caption text-muted">

@@ -82,3 +82,50 @@ export async function createProfileAction(
 
   return { success: `Created /${check.slug}.` };
 }
+
+export type ProfileActionResult = { error?: string };
+
+/**
+ * Audit item B12 — carried since UI-0. There was no way to remove a link, so a
+ * mistyped slug was permanent and a business closing down could not take its
+ * page offline. No migration needed: RLS already limits both to the owner's
+ * account, and `links`/`events` cascade or null out by foreign key.
+ */
+export async function deleteProfileAction(pageId: string): Promise<ProfileActionResult> {
+  const supabase = await createServerSupabase();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+
+  // Deleting frees the slug, and any NFC card bound to this page falls back to
+  // its unassigned state (nfc_tags.smart_page_id is ON DELETE SET NULL) rather
+  // than pointing at nothing.
+  const { error } = await supabase.from("smart_pages").delete().eq("id", pageId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/profiles");
+  revalidatePath("/dashboard");
+  return {};
+}
+
+/** Soft on/off switch, independent of publish status. */
+export async function setProfileActiveAction(
+  pageId: string,
+  isActive: boolean,
+): Promise<ProfileActionResult> {
+  const supabase = await createServerSupabase();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+
+  const { error } = await supabase
+    .from("smart_pages")
+    .update({ is_active: isActive })
+    .eq("id", pageId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/profiles");
+  return {};
+}

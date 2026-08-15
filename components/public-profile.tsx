@@ -1,12 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
-import Link from "next/link";
 import type { PublicPage, Block } from "@/lib/profile";
-import { resolveTheme } from "@/lib/profile";
-import { buildHref, defaultLabel } from "@/lib/blocks";
 import { buildVCard } from "@/lib/vcard";
-import LeadForm from "./lead-form";
+import { ProfileView } from "./profile/profile-view";
 
 function track(pageId: string, type: string, linkId?: string) {
   try {
@@ -29,6 +25,11 @@ function track(pageId: string, type: string, linkId?: string) {
   }
 }
 
+/**
+ * Public tap target. All rendering lives in ProfileView, which the builder's
+ * preview also uses; this wrapper only adds the behaviour that belongs on a
+ * real page — analytics and the vCard download.
+ */
 export default function PublicProfile({
   page,
   src,
@@ -36,19 +37,8 @@ export default function PublicProfile({
   page: PublicPage;
   src?: string;
 }) {
-  const theme = resolveTheme(page.theme);
-  const config = page.config ?? {};
-  const blocks = [...(page.links ?? [])].sort(
-    (a, b) => a.sort_order - b.sort_order,
-  );
-
-  useEffect(() => {
-    track(page.id, src === "qr" ? "scan" : "view");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   function downloadContact() {
-    const contact = config.contact ?? {};
+    const contact = page.config?.contact ?? {};
     const vcard = buildVCard(contact, page.title ?? undefined);
     const blob = new Blob([vcard], { type: "text/vcard" });
     const url = URL.createObjectURL(blob);
@@ -64,70 +54,21 @@ export default function PublicProfile({
     track(page.id, "download");
   }
 
-  function handleBlock(block: Block) {
-    if (block.type === "contact") {
-      downloadContact();
-      return;
-    }
-    const href = buildHref(block.type, block.value);
-    if (!href) return;
+  function onBlockClick(block: Block) {
+    // Fires alongside the anchor's own navigation — sendBeacon is built to
+    // survive the page unloading, so the click is not lost.
     track(page.id, "click", block.id);
-    // NOTE (UI-0 finding A5): these action blocks are links rendered as
-    // <button>, so they announce as "button" and lose middle-click/new-tab.
-    // The semantic fix lands with the public-page rebuild in UI-4.
-    window.location.assign(href);
   }
 
   return (
-    <main
-      style={{ backgroundColor: theme.bg, color: theme.text }}
-      className="min-h-screen"
-    >
-      <div className="mx-auto flex max-w-md flex-col items-center gap-5 px-6 py-12">
-        {config.avatarUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={config.avatarUrl}
-            alt={page.title ?? ""}
-            className="h-24 w-24 rounded-full object-cover"
-          />
-        )}
-        {page.title && <h1 className="text-2xl font-bold">{page.title}</h1>}
-        {config.bio && <p className="text-center opacity-80">{config.bio}</p>}
-
-        <div className="mt-2 flex w-full flex-col gap-3">
-          {blocks.map((b, i) => (
-            <button
-              key={b.id ?? i}
-              onClick={() => handleBlock(b)}
-              style={{ backgroundColor: theme.accent }}
-              className="w-full rounded-xl px-5 py-3 font-medium text-white transition active:scale-[0.99]"
-            >
-              {b.label || defaultLabel(b.type)}
-            </button>
-          ))}
-          {blocks.length === 0 && (
-            <p className="text-center opacity-60">No actions yet.</p>
-          )}
-        </div>
-
-        {config.leadForm?.enabled && (
-          <div className="mt-4 w-full">
-            <LeadForm
-              pageId={page.id}
-              config={config.leadForm}
-              accent={theme.accent}
-            />
-          </div>
-        )}
-
-        <footer className="mt-8 flex flex-col items-center gap-1 text-xs opacity-50">
-          <span>Powered by Hornbill TapTap</span>
-          <Link href="/privacy" className="underline">
-            Privacy
-          </Link>
-        </footer>
-      </div>
+    <main className="min-h-screen">
+      <ProfileView
+        page={page}
+        mode="live"
+        onBlockClick={onBlockClick}
+        onContactSave={downloadContact}
+        trackView={() => track(page.id, src === "qr" ? "scan" : "view")}
+      />
     </main>
   );
 }
