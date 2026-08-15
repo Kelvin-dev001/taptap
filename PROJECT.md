@@ -6,9 +6,9 @@
 > decision changes.
 
 **Last updated:** 2026-08-15
-**Current phase:** **UI/UX transformation — Sprint UI-9 complete** (Billing, 2026-08-15);
-awaiting approval for UI-10 (Insights / AI). Build sprints 0–5 are code-complete — MVP
-feature-complete. Migrations `0005`–`0011` are applied; **`0012` is pending**.
+**Current phase:** **UI/UX transformation — Sprint UI-10 complete** (Insights, 2026-08-15);
+awaiting approval for UI-11 (PWA / mobile polish). Build sprints 0–5 are code-complete — MVP
+feature-complete. Migrations `0005`–`0011` are applied; **`0012` and `0013` are pending**.
 ⚠ **Plan prices in `lib/plans.ts` are still DRAFT** and must be confirmed before launch —
 M-Pesa charges real money against them.
 ⚠ **Physical NFC verification is still outstanding** and is an acceptance requirement for
@@ -65,6 +65,7 @@ expand across East Africa, then the continent.
 | D-013 | **Routing:** app routes nest under `/dashboard/*`; `/[slug]` root catch-all means new nav names must be reserved pre-launch |
 | D-014 | **Typography:** Inter via `next/font`, self-hosted |
 | D-015 | **Leads:** a lead is a submission, not a deduplicated person; repeat enquiries surfaced by grouping, no `contacts` table (reversible) |
+| D-016 | **Insights:** deterministic rules over real counts, every finding shows its evidence; no model, and not called AI |
 
 ## MVP scope (one line)
 
@@ -99,6 +100,7 @@ else is out of v1.**
 - `docs/sprint-ui-7-analytics.md` — analytics, click-vs-conversion & export (UI-7) — complete
 - `docs/sprint-ui-8-leads.md` — lead workflow, statuses & notes (UI-8) — complete
 - `docs/sprint-ui-9-billing.md` — billing, expiry enforcement & receipts (UI-9) — complete
+- `docs/sprint-ui-10-insights.md` — deterministic insights with visible evidence (UI-10) — complete
 - `docs/reference/` — supplied UI reference mockup (visual direction, not a pixel spec)
 - `docs/sprint-0-discovery.md` — full discovery: PRD, data model, security, pricing, GTM, risks
 - `docs/decision-log.md` — running ADR-lite record of decisions

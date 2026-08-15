@@ -292,5 +292,37 @@ technically.
 
 ---
 
+### D-016 — Insights are deterministic rules, and are not called AI
+**Date:** 2026-08-15 · **Status:** Accepted
+
+**Context:** UI-0 sequenced an "AI" sprint and hard-blocked it on trustworthy data. UI-6
+and UI-7 supplied that data — source attribution, per-card taps, a real click-versus-
+confirmed split. The question at UI-10 was therefore what to build on it, not whether.
+
+**Decision:** Ship **Insights**: a rule engine over counts, with every finding carrying
+the numbers it was derived from and a link to the screen that proves them. No language
+model, and the word "AI" is not used in the product surface.
+
+**Why:** everything genuinely useful here is computable and provable — an action
+outperforming those ranked above it, a card silent while its siblings are busy, a page
+with traffic but no clicks, buttons that go nowhere, leads left waiting. A model would
+add phrasing, not knowledge, and §30.8 explicitly forbids presenting hard-coded analysis
+as AI. Labelling rules "AI" would also make them harder to trust: an owner can argue with
+a stated number, but not with an oracle.
+
+**Consequences:** two rules govern every finding — never speak from noise (each rule has
+a minimum volume, so the product does not advise rearranging a page on three clicks), and
+every claim shows its evidence. Findings can be dismissed, because a suggestion an owner
+has rejected must not keep returning. Thresholds live in `lib/insights.ts` beside the
+rules, so the whole of what the product will claim is reviewable in one file and testable
+without a database.
+
+**When a model would earn its place:** genuine anomaly detection over a long history,
+natural-language questions about the data, or generating page copy. All three are real,
+none is available from counts, and each should be a separate decision made against this
+working baseline rather than a label applied to if-statements.
+
+---
+
 _Add new decisions above this line as `D-00N`, and mirror the one-liner into
 `PROJECT.md`._

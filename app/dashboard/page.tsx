@@ -15,6 +15,8 @@ import { Sparkline } from "@/components/charts/sparkline";
 import { BarChart, RankedBars, type Series } from "@/components/charts/bar-chart";
 import { ChartContainer } from "@/components/charts/chart-container";
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
+import { InsightsPanel } from "@/components/insights/insights-panel";
+import { computeInsights, emptyReason, type InsightInputs } from "@/lib/insights";
 import { RangeTabs } from "@/components/dashboard/range-tabs";
 import {
   percentChange,
@@ -58,11 +60,15 @@ export default async function DashboardPage({
   const days = parseRange(range);
 
   const supabase = await createServerSupabase();
-  const [{ data: overviewData, error: overviewError }, { data: activityData }] =
-    await Promise.all([
-      supabase.rpc("get_dashboard_overview", { p_days: days }),
-      supabase.rpc("get_recent_activity", { p_limit: 8 }),
-    ]);
+  const [
+    { data: overviewData, error: overviewError },
+    { data: activityData },
+    { data: insightData },
+  ] = await Promise.all([
+    supabase.rpc("get_dashboard_overview", { p_days: days }),
+    supabase.rpc("get_recent_activity", { p_limit: 8 }),
+    supabase.rpc("get_insight_inputs", { p_days: days }),
+  ]);
 
   // Migration 0008 introduces these RPCs. Until it is run they 404, and an
   // empty result would otherwise be indistinguishable from "no profiles yet" —
@@ -92,6 +98,12 @@ export default async function DashboardPage({
   const previous = o.previous ?? {};
   const daily = o.daily ?? [];
   const activity = (activityData ?? []) as ActivityItem[];
+
+  // Insights are computed from facts in lib/insights.ts, never in SQL, so the
+  // rules stay testable and reviewable in one place. A missing RPC (migration
+  // 0013 not yet run) simply means no panel rather than a broken dashboard.
+  const insightInputs = (insightData ?? null) as InsightInputs | null;
+  const insights = insightInputs ? computeInsights(insightInputs) : [];
 
   const valueOf = (key: EventType) =>
     key === "lead" ? (o.leads ?? 0) : (totals[key] ?? 0);
@@ -176,6 +188,16 @@ export default async function DashboardPage({
           );
         })}
       </section>
+
+      {insightInputs && (
+        <div className="mt-4">
+          <InsightsPanel
+            insights={insights}
+            emptyReason={emptyReason(insightInputs)}
+            hasDismissed={(insightInputs.dismissed ?? []).length > 0}
+          />
+        </div>
+      )}
 
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
         <ChartContainer
