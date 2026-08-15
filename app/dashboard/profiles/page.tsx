@@ -10,7 +10,8 @@ import { templateOf, templateDef } from "@/lib/templates";
 import type { PageConfig } from "@/lib/profile";
 import CreateProfileForm from "./create-profile-form";
 import { ProfileActionsMenu } from "./profile-actions-menu";
-import { TypeFilter, parseProfileFilter } from "./type-filter";
+import { parseProfileFilter } from "@/lib/profile-filter";
+import { TypeFilter } from "./type-filter";
 
 export const dynamic = "force-dynamic";
 
