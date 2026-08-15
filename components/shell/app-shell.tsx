@@ -6,7 +6,7 @@ import { NavLinks } from "./nav-links";
 import { Wordmark, Logo } from "./logo";
 import { PlanCard } from "./plan-card";
 import { AccountMenu } from "./account-menu";
-import { MobileNav } from "./mobile-nav";
+import { MobileNavigation } from "./mobile-nav";
 import { CommandPalette, type PaletteProfile } from "./command-palette";
 
 /**
@@ -59,10 +59,6 @@ export function AppShell({
 
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-surface/85 px-4 backdrop-blur-sm sm:px-6">
-            <MobileNav>
-              <PlanCard plan={plan} renewsOn={renewsOn} />
-            </MobileNav>
-
             <Link href="/dashboard" className="rounded-lg lg:hidden" aria-label="Hornbill TapTap">
               <Logo />
             </Link>
@@ -80,9 +76,20 @@ export function AppShell({
             </div>
           </header>
 
-          <main id="main" className="min-w-0 flex-1 scroll-mt-16 px-4 py-6 sm:px-6 lg:px-8">
+          <main
+            id="main"
+            className={[
+              "min-w-0 flex-1 scroll-mt-16 px-4 py-6 sm:px-6 lg:px-8",
+              // Clear the fixed mobile tab bar and the iPhone home indicator.
+              "pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-6",
+            ].join(" ")}
+          >
             <div className="mx-auto w-full max-w-5xl">{children}</div>
           </main>
+
+          <MobileNavigation>
+            <PlanCard plan={plan} renewsOn={renewsOn} />
+          </MobileNavigation>
         </div>
       </div>
     </TooltipProvider>

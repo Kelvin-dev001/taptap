@@ -39,6 +39,17 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   "notifications",
   "integrations",
   "print", // /print/qr — printable QR sheets (UI-6)
+  // PWA and metadata routes (UI-11). `icon`, `apple-icon`, `manifest` and `sw`
+  // are served by Next's file conventions at the root, so a customer must never
+  // be able to claim them.
+  "offline",
+  "icon",
+  "apple-icon",
+  "opengraph-image",
+  "manifest",
+  "sw",
+  "robots",
+  "sitemap",
   "static",
   "assets",
   "public",

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { after } from "next/server";
 import { headers } from "next/headers";
@@ -9,6 +10,53 @@ import PublicProfile from "@/components/public-profile";
 import type { PublicPage } from "@/lib/profile";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Per-profile metadata.
+ *
+ * UI-4 added SEO fields to the builder and nothing ever read them, so every
+ * shared link previewed as "Hornbill TapTap" — on a product whose entire
+ * distribution is people sharing links in WhatsApp, that is the single most
+ * visible thing a profile has.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug: rawSlug } = await params;
+  const slug = normalizeSlug(rawSlug);
+  if (!slug) return {};
+
+  const supabase = createEdgeClient();
+  const { data } = await supabase.rpc("get_public_page", { p_slug: slug });
+  const page = data as PublicPage | null;
+  // A redirect-mode link is never rendered, so it needs no preview.
+  if (!page || page.mode === "redirect") return {};
+
+  const config = page.config ?? {};
+  const title = config.seo?.title?.trim() || page.title || `/${slug}`;
+  const description =
+    config.seo?.description?.trim() ||
+    config.bio?.trim() ||
+    config.tagline?.trim() ||
+    `Tap to connect with ${page.title ?? "this business"}.`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "profile",
+      siteName: "Hornbill TapTap",
+    },
+    twitter: { card: "summary_large_image", title, description },
+    // A smart page is a live shopfront: it should be indexable, unlike the
+    // dashboard behind it.
+    robots: { index: true, follow: true },
+  };
+}
 
 export default async function SlugPage({
   params,
