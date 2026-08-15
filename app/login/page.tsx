@@ -29,30 +29,38 @@ export default function LoginPage() {
     setError(null);
     setMessage(null);
 
-    const supabase = createBrowserSupabase();
+    // Everything here runs in one try: a misconfigured build makes
+    // createBrowserSupabase() throw, and an unhandled rejection would leave the
+    // button spinning with nothing said — which is exactly how "login is not
+    // working" looks from the outside.
+    try {
+      const supabase = createBrowserSupabase();
 
-    if (mode === "signin") {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      setLoading(false);
+      if (mode === "signin") {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          setError(error.message);
+          return;
+        }
+        router.push("/dashboard");
+        router.refresh();
+        return;
+      }
+
+      const { error } = await supabase.auth.signUp({ email, password });
       if (error) {
         setError(error.message);
         return;
       }
-      router.push("/dashboard");
-      router.refresh();
-      return;
+      setMessage(
+        "Account created. If email confirmation is on, confirm via email, then sign in.",
+      );
+      setMode("signin");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not sign in. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    const { error } = await supabase.auth.signUp({ email, password });
-    setLoading(false);
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    setMessage(
-      "Account created. If email confirmation is on, confirm via email, then sign in.",
-    );
-    setMode("signin");
   }
 
   return (
