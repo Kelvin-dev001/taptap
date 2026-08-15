@@ -6,9 +6,9 @@
 > decision changes.
 
 **Last updated:** 2026-08-15
-**Current phase:** **UI/UX transformation — Sprint UI-7 complete** (Analytics, 2026-08-15);
-awaiting approval for UI-8 (Leads / Customers). Build sprints 0–5 are code-complete — MVP
-feature-complete. Migrations `0005`–`0010` are applied; **`0011` is pending**.
+**Current phase:** **UI/UX transformation — Sprint UI-8 complete** (Leads / Customers,
+2026-08-15); awaiting approval for UI-9 (Billing). Build sprints 0–5 are code-complete — MVP
+feature-complete. Migrations `0005`–`0011` are applied; **`0012` is pending**.
 ⚠ **Physical NFC verification is still outstanding** and is an acceptance requirement for
 UI-6 — see `docs/sprint-ui-6-nfc-qr.md`.
 ⚠ Migrations `0005`, `0007` and `0009` are written but **not yet run** in Supabase
@@ -62,6 +62,7 @@ expand across East Africa, then the continent.
 | D-012 | **Brand colour:** `#F97316` for text-free fills; `#C2560A` for white-label buttons and orange text (white on `#F97316` is 2.80:1 — fails AA) |
 | D-013 | **Routing:** app routes nest under `/dashboard/*`; `/[slug]` root catch-all means new nav names must be reserved pre-launch |
 | D-014 | **Typography:** Inter via `next/font`, self-hosted |
+| D-015 | **Leads:** a lead is a submission, not a deduplicated person; repeat enquiries surfaced by grouping, no `contacts` table (reversible) |
 
 ## MVP scope (one line)
 
@@ -94,6 +95,7 @@ else is out of v1.**
 - `docs/sprint-ui-5-smart-cards.md` — Smart Business Cards as a template facet (UI-5) — complete
 - `docs/sprint-ui-6-nfc-qr.md` — NFC device lifecycle, tap attribution & QR print (UI-6) — software complete
 - `docs/sprint-ui-7-analytics.md` — analytics, click-vs-conversion & export (UI-7) — complete
+- `docs/sprint-ui-8-leads.md` — lead workflow, statuses & notes (UI-8) — complete
 - `docs/reference/` — supplied UI reference mockup (visual direction, not a pixel spec)
 - `docs/sprint-0-discovery.md` — full discovery: PRD, data model, security, pricing, GTM, risks
 - `docs/decision-log.md` — running ADR-lite record of decisions

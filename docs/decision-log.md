@@ -261,5 +261,36 @@ matters for the Kenyan SME market. No dependency is added — `next/font` ships 
 
 ---
 
+### D-015 — A lead is a submission, not a deduplicated person
+**Date:** 2026-08-15 · **Status:** Accepted (reversible)
+
+**Context:** UI-8 turns the lead inbox into a workflow, which forces a question that
+decides whether TapTap is heading toward a CRM: does "Customers" mean *people*
+(deduplicated across submissions, with their own lifecycle) or *submissions*?
+
+**Decision:** A lead stays a **submission**. `leads` gains `status`, `note` and
+`updated_at`; no `contacts` table is introduced. Repeat enquiries are surfaced by
+counting other submissions sharing a phone or email at query time, so an owner still
+sees "3 previous enquiries" without a second entity existing.
+
+**Why:** duplicate submissions are rare at SME scale, and every field needed to
+promote submissions into contacts is already captured — so this stays reversible.
+Building the contact lifecycle now would be the premature expansion §19 and §30.19
+warn against, and it would commit the product to a CRM shape before a single customer
+has asked for one. Grouping at query time also means no migration is wasted if the
+answer turns out to be different.
+
+**Consequences:** status is per-submission, so a person who enquires twice has two
+statuses — correct for a follow-up workflow, wrong for a relationship view. When
+customers start asking for the relationship view, promote to a `contacts` table with
+submissions linked to it; the existing rows carry everything that migration needs.
+
+**Related:** the same migration adds the missing `leads` UPDATE policy and restricts
+it by column grant, so owners annotate but cannot rewrite what a customer submitted —
+see the migration header for why that distinction matters legally as well as
+technically.
+
+---
+
 _Add new decisions above this line as `D-00N`, and mirror the one-liner into
 `PROJECT.md`._
