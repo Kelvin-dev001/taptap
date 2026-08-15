@@ -1,6 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { planFor } from "@/lib/plans";
+import { effectivePlan, subscriptionState } from "@/lib/plans";
 import { PageHeader } from "@/components/shell/page-header";
 import { MigrationNotice } from "@/components/shell/migration-notice";
 import { isMissingSchemaError } from "@/lib/schema-guard";
@@ -39,7 +39,10 @@ export default async function EditPage({
       .select("id, type, label, value, sort_order, is_active")
       .eq("smart_page_id", id)
       .order("sort_order", { ascending: true }),
-    supabase.from("subscriptions").select("plan_code").maybeSingle(),
+    supabase
+      .from("subscriptions")
+      .select("plan_code, status, current_period_end")
+      .maybeSingle(),
   ]);
 
   // `status`, `published_at` and `links.is_active` arrive with migration 0009.
@@ -60,7 +63,9 @@ export default async function EditPage({
   if (!page) notFound();
 
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
-  const plan = planFor(sub?.plan_code);
+  const plan = effectivePlan(sub);
+  const state = subscriptionState(sub);
+  const planLapsed = state === "expired" || state === "inactive";
 
   return (
     <>
@@ -83,6 +88,7 @@ export default async function EditPage({
         initialStatus={((page.status as PublishStatus) ?? "published")}
         initialPublishedAt={page.published_at ?? null}
         leadCaptureAllowed={plan.limits.leadCapture}
+        planLapsed={planLapsed}
       />
     </>
   );

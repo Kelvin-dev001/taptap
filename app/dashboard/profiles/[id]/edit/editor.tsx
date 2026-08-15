@@ -37,6 +37,7 @@ import {
   useToast,
   type SaveStatus,
 } from "@/components/ui";
+import { EntitlementNotice } from "@/components/billing/plan-status";
 import { MobilePreview } from "@/components/builder/mobile-preview";
 import { BlockPicker } from "@/components/builder/block-picker";
 import { SortableAction, type EditorBlock } from "@/components/builder/sortable-action";
@@ -74,6 +75,8 @@ type Props = {
   initialStatus: PublishStatus;
   initialPublishedAt: string | null;
   leadCaptureAllowed: boolean;
+  /** True when the account HAD a paid plan that has since ended (B13). */
+  planLapsed: boolean;
 };
 
 let keyCounter = 0;
@@ -554,6 +557,11 @@ export default function Editor(props: Props) {
                           </div>
                         )}
                       </div>
+                    ) : props.planLapsed ? (
+                      // A lapsed plan is a different problem from never having
+                      // had one, and "upgrade to Pro" is confusing advice for
+                      // someone who already bought Pro.
+                      <EntitlementNotice feature="Lead capture" />
                     ) : (
                       <Alert tone="info">
                         Lead capture is available on the Pro plan.{" "}

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { planFor } from "@/lib/plans";
+import { effectivePlan } from "@/lib/plans";
 import { AppShell } from "@/components/shell/app-shell";
 import { signOutAction } from "./actions";
 
@@ -25,7 +25,10 @@ export default async function DashboardLayout({
   // All three are RLS-scoped to the caller's account.
   const [{ data: profile }, { data: sub }, { data: pages }] = await Promise.all([
     supabase.from("profiles").select("account_id").eq("id", user.id).single(),
-    supabase.from("subscriptions").select("plan_code, current_period_end").maybeSingle(),
+    supabase
+      .from("subscriptions")
+      .select("plan_code, status, current_period_end")
+      .maybeSingle(),
     supabase
       .from("smart_pages")
       .select("id, slug, title")
@@ -36,7 +39,9 @@ export default async function DashboardLayout({
     ? await supabase.from("accounts").select("name").eq("id", profile.account_id).single()
     : { data: null };
 
-  const plan = planFor(sub?.plan_code);
+  // The sidebar shows what the account can actually use today, not what it
+  // once bought — otherwise a lapsed plan still reads as "Pro".
+  const plan = effectivePlan(sub);
   const renewsOn = sub?.current_period_end
     ? new Date(sub.current_period_end).toLocaleDateString()
     : null;

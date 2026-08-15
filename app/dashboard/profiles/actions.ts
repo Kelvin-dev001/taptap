@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { validateSlug } from "@/lib/slug";
 import { isSafeDestination } from "@/lib/url";
-import { planFor, withinProfileLimit } from "@/lib/plans";
+import { effectivePlan, withinProfileLimit } from "@/lib/plans";
 import { seedBlocks, type ProfileTemplate, type SeedSource } from "@/lib/templates";
 import { defaultLabel } from "@/lib/blocks";
 import { isMissingSchemaError } from "@/lib/schema-guard";
@@ -50,9 +50,10 @@ export async function createProfileAction(
     .eq("account_id", profile.account_id);
   const { data: planSub } = await supabase
     .from("subscriptions")
-    .select("plan_code")
+    .select("plan_code, status, current_period_end")
     .maybeSingle();
-  const plan = planFor(planSub?.plan_code);
+  // effectivePlan, not planFor: a lapsed plan must stop granting limits (B13).
+  const plan = effectivePlan(planSub);
   if (!withinProfileLimit(plan, count ?? 0)) {
     return {
       error: `Your ${plan.name} plan allows ${plan.limits.maxProfiles} link(s). Upgrade in Billing to add more.`,

@@ -6,9 +6,11 @@
 > decision changes.
 
 **Last updated:** 2026-08-15
-**Current phase:** **UI/UX transformation — Sprint UI-8 complete** (Leads / Customers,
-2026-08-15); awaiting approval for UI-9 (Billing). Build sprints 0–5 are code-complete — MVP
+**Current phase:** **UI/UX transformation — Sprint UI-9 complete** (Billing, 2026-08-15);
+awaiting approval for UI-10 (Insights / AI). Build sprints 0–5 are code-complete — MVP
 feature-complete. Migrations `0005`–`0011` are applied; **`0012` is pending**.
+⚠ **Plan prices in `lib/plans.ts` are still DRAFT** and must be confirmed before launch —
+M-Pesa charges real money against them.
 ⚠ **Physical NFC verification is still outstanding** and is an acceptance requirement for
 UI-6 — see `docs/sprint-ui-6-nfc-qr.md`.
 ⚠ Migrations `0005`, `0007` and `0009` are written but **not yet run** in Supabase
@@ -96,6 +98,7 @@ else is out of v1.**
 - `docs/sprint-ui-6-nfc-qr.md` — NFC device lifecycle, tap attribution & QR print (UI-6) — software complete
 - `docs/sprint-ui-7-analytics.md` — analytics, click-vs-conversion & export (UI-7) — complete
 - `docs/sprint-ui-8-leads.md` — lead workflow, statuses & notes (UI-8) — complete
+- `docs/sprint-ui-9-billing.md` — billing, expiry enforcement & receipts (UI-9) — complete
 - `docs/reference/` — supplied UI reference mockup (visual direction, not a pixel spec)
 - `docs/sprint-0-discovery.md` — full discovery: PRD, data model, security, pricing, GTM, risks
 - `docs/decision-log.md` — running ADR-lite record of decisions

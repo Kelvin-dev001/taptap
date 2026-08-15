@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { isSafeDestination } from "@/lib/url";
 import { buildHref } from "@/lib/blocks";
-import { planFor } from "@/lib/plans";
+import { effectivePlan } from "@/lib/plans";
 import type { Block, PageConfig, Theme } from "@/lib/profile";
 
 export type SavePayload = {
@@ -48,9 +48,9 @@ export async function savePageAction(
   // a paid feature by posting config.
   const { data: sub } = await supabase
     .from("subscriptions")
-    .select("plan_code")
+    .select("plan_code, status, current_period_end")
     .maybeSingle();
-  const plan = planFor(sub?.plan_code);
+  const plan = effectivePlan(sub);
   const config: PageConfig = {
     ...payload.config,
     leadForm: plan.limits.leadCapture
