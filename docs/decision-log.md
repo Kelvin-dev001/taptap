@@ -324,5 +324,55 @@ working baseline rather than a label applied to if-statements.
 
 ---
 
+### D-017 — One account per business; members deferred, sub-accounts rejected
+**Date:** 2026-08-15 · **Status:** Accepted
+
+**Context:** the first corporate customer — Magangi and Company, Certified Public
+Accountants — bought three cards for three people at one firm. That raised whether the
+platform needs a company account with **sub-accounts** beneath it, on the belief that the
+schema is locked to one user per account and would have to be reworked.
+
+**The belief was wrong, in a useful direction.** `0001_init.sql:19` comments "v1 = one user
+per account", but nothing enforces it: `profiles.account_id` is a plain indexed foreign key
+with **no unique constraint**, and all 15 RLS policies are written as set-membership tests —
+`account_id in (select account_id from public.profiles where id = auth.uid())`. That
+predicate returns one row today and would return N rows just as correctly. `profiles` is
+already a membership table that has never had a second row inserted.
+
+**Decision:** a business is **one account with many members**, never a parent/child account
+hierarchy. Team management (roles, invites, per-page assignment, UI) is **deferred, not
+designed away** — the schema already accommodates it additively.
+
+**Why sub-accounts were rejected:**
+- `subscriptions.account_id` is UNIQUE (`0001_init.sql:76`) — one subscription per account.
+  A hierarchy fragments billing with no answer to who pays.
+- ~25 ownership call sites do `.eq("account_id", profile.account_id)` against a single
+  value. Roll-up would need recursion in every one.
+- All 15 RLS policies would become recursive, which is slow and is where tenant-isolation
+  bugs come from.
+- It solves a problem the customer does not have. Magangi is one business with three staff,
+  not a holding company of three businesses.
+
+**What Magangi actually needed, and already had:** one account, three `smart_pages`, three
+`nfc_tags` each claimed to a different page, one manager maintaining all three, per-card
+analytics via `events.tag_id`. Zero code. The only gate was the plan limit — `maxProfiles`
+is 1 on Free and Starter, so three profiles requires Pro.
+
+**Consequences:** when team management is eventually built it is **members and roles on a
+single account** — `profiles.role`, an invites table, a nullable `smart_pages.owner_profile_id`
+for scoping a staff member to their own card, and a `handle_new_user()` that joins a pending
+invite instead of always minting a new account. None of that unwinds anything here.
+
+**The genuinely different case, kept separate:** a reseller or Hornbill partner
+administering many *separate* client businesses, each with its own plan and invoice. That is
+not this, it has different billing, and building a hierarchy now would prejudge it wrongly.
+
+**Open, and not a schema question:** plans meter Tap Profiles, not people, so a three-person
+firm lands on Pro purely on profile count. Per-seat pricing is the usual corporate shape and
+should be decided deliberately against the still-DRAFT prices rather than discovered during
+a sale.
+
+---
+
 _Add new decisions above this line as `D-00N`, and mirror the one-liner into
 `PROJECT.md`._

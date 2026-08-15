@@ -13,18 +13,24 @@ applied.
 Deployed and login working in production (2026-08-15).
 
 **Before launch — see `docs/launch-checklist.md` for the steps.** Nothing left is code:
-set a real `ADMIN_TOKEN` (minting is disabled until you do), rotate the exposed Daraja
-credentials, confirm the DRAFT plan prices, prove the M-Pesa callback activates a plan,
-point DNS at `taptap.hornbilltech.co.ke` **before minting production cards**, complete ODPC
-registration and the legal placeholders, and verify NFC on real hardware.
+rotate the exposed Daraja credentials, confirm the DRAFT plan prices, prove the M-Pesa
+callback activates a plan, complete ODPC registration and the legal placeholders, and
+verify NFC on real hardware.
+✅ DNS is live and `ADMIN_TOKEN` is set — minting verified in production (2026-08-15).
 ⚠ **Physical NFC verification is still outstanding** and is an acceptance requirement for
 UI-6 — see `docs/sprint-ui-6-nfc-qr.md`.
-⚠ Migrations `0005`, `0007` and `0009` are written but **not yet run** in Supabase
-(`0008` is applied).
+
+**Team management is deliberately deferred, not missing by accident (D-017).** A business is
+**one account with many members**; a sub-account hierarchy was considered and rejected. The
+schema already permits multiple members per account — `profiles.account_id` has no unique
+constraint and every RLS policy is a set-membership test — so what is absent is roles,
+invites and UI, all of which are additive. One company with several staff cards is fully
+supported today: one account, one Tap Profile per person, one card claimed to each.
+
 **Target:** MVP live / first paying customers within ~3 months (by late October 2026)
 **Company:** Hornbill — an existing company that owns `hornbilltech.co.ke`. The root
-domain already hosts a separate project, so TapTap will run on the
-`taptap.hornbilltech.co.ke` subdomain (DNS/subdomain **not yet configured** — set up in Sprint 1)
+domain already hosts a separate project, so TapTap runs on the
+`taptap.hornbilltech.co.ke` subdomain (live since 2026-08-15, D-007).
 
 ---
 
@@ -72,6 +78,7 @@ expand across East Africa, then the continent.
 | D-014 | **Typography:** Inter via `next/font`, self-hosted |
 | D-015 | **Leads:** a lead is a submission, not a deduplicated person; repeat enquiries surfaced by grouping, no `contacts` table (reversible) |
 | D-016 | **Insights:** deterministic rules over real counts, every finding shows its evidence; no model, and not called AI |
+| D-017 | **Accounts:** a business is one account with many members; team management deferred (schema already allows it), sub-account hierarchy rejected |
 
 ## MVP scope (one line)
 

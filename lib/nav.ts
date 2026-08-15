@@ -23,7 +23,11 @@ export type NavItem = {
  *
  * Deliberately absent (CLAUDE.md §13 — do not add nav for features that do not
  * exist):
- *   Team           — not built; no members/roles schema at all
+ *   Team           — deferred by D-017, not blocked by schema. `profiles.account_id`
+ *                    has no unique constraint and every RLS policy is a set-membership
+ *                    test, so an account already supports multiple members; what is
+ *                    missing is roles, invites and UI. A business is one account with
+ *                    many members — never a sub-account hierarchy.
  *   Notifications  — not built; a bell that does nothing is worse than none
  *   QR Codes       — not a destination; QR lives on a profile and on a device
  *   Smart Business Cards — a template facet of Tap Profiles, not a second
