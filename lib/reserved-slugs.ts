@@ -38,6 +38,7 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   "members",
   "notifications",
   "integrations",
+  "print", // /print/qr — printable QR sheets (UI-6)
   "static",
   "assets",
   "public",

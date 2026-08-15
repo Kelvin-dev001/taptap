@@ -4,9 +4,14 @@ import type { PublicPage, Block } from "@/lib/profile";
 import { buildVCard } from "@/lib/vcard";
 import { ProfileView } from "./profile/profile-view";
 
-function track(pageId: string, type: string, linkId?: string) {
+/** Maps the ?src= marker to a stored event source. */
+function sourceOf(src?: string): "nfc" | "qr" | "direct" {
+  return src === "nfc" ? "nfc" : src === "qr" ? "qr" : "direct";
+}
+
+function track(pageId: string, type: string, linkId?: string, source?: string) {
   try {
-    const body = JSON.stringify({ pageId, type, linkId });
+    const body = JSON.stringify({ pageId, type, linkId, source });
     if (typeof navigator !== "undefined" && navigator.sendBeacon) {
       navigator.sendBeacon(
         "/api/track",
@@ -51,13 +56,13 @@ export default function PublicProfile({
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    track(page.id, "download");
+    track(page.id, "download", undefined, sourceOf(src));
   }
 
   function onBlockClick(block: Block) {
     // Fires alongside the anchor's own navigation — sendBeacon is built to
     // survive the page unloading, so the click is not lost.
-    track(page.id, "click", block.id);
+    track(page.id, "click", block.id, sourceOf(src));
   }
 
   return (
@@ -67,7 +72,9 @@ export default function PublicProfile({
         mode="live"
         onBlockClick={onBlockClick}
         onContactSave={downloadContact}
-        trackView={() => track(page.id, src === "qr" ? "scan" : "view")}
+        trackView={() =>
+          track(page.id, src === "qr" ? "scan" : "view", undefined, sourceOf(src))
+        }
       />
     </main>
   );

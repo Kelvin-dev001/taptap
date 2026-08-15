@@ -6,9 +6,10 @@
 > decision changes.
 
 **Last updated:** 2026-08-15
-**Current phase:** **UI/UX transformation — Sprint UI-5 complete** (Smart Business Cards,
-2026-08-15); awaiting approval for UI-6 (NFC + QR). Build sprints 0–5 are code-complete —
-MVP feature-complete, with Sprint 5 hardware still pending physical verification.
+**Current phase:** **UI/UX transformation — Sprint UI-6 complete in software** (NFC + QR,
+2026-08-15); awaiting approval for UI-7 (Analytics). Build sprints 0–5 are code-complete —
+MVP feature-complete. ⚠ **Physical NFC verification is still outstanding** and is an
+acceptance requirement for UI-6 — see `docs/sprint-ui-6-nfc-qr.md`.
 ⚠ Migrations `0005`, `0007` and `0009` are written but **not yet run** in Supabase
 (`0008` is applied).
 **Target:** MVP live / first paying customers within ~3 months (by late October 2026)
@@ -90,6 +91,7 @@ else is out of v1.**
 - `docs/sprint-ui-3-dashboard.md` — dashboard & actionable metrics (UI-3) — complete
 - `docs/sprint-ui-4-builder.md` — Tap Profile builder, live preview & publish (UI-4) — complete
 - `docs/sprint-ui-5-smart-cards.md` — Smart Business Cards as a template facet (UI-5) — complete
+- `docs/sprint-ui-6-nfc-qr.md` — NFC device lifecycle, tap attribution & QR print (UI-6) — software complete
 - `docs/reference/` — supplied UI reference mockup (visual direction, not a pixel spec)
 - `docs/sprint-0-discovery.md` — full discovery: PRD, data model, security, pricing, GTM, risks
 - `docs/decision-log.md` — running ADR-lite record of decisions

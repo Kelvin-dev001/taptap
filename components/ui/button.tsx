@@ -1,4 +1,5 @@
 import * as React from "react";
+import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/cn";
 import { Spinner } from "./spinner";
@@ -48,13 +49,44 @@ export interface ButtonProps
   loading?: boolean;
   /** Announced to screen readers while `loading`. */
   loadingText?: string;
+  /**
+   * Render the child element with button styling instead of a <button>.
+   * Use for links that should look like buttons — the element stays an anchor,
+   * so it keeps link semantics, middle-click and open-in-new-tab (finding A5).
+   */
+  asChild?: boolean;
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   function Button(
-    { className, variant, size, full, loading, loadingText, children, disabled, type, ...props },
+    {
+      className,
+      variant,
+      size,
+      full,
+      loading,
+      loadingText,
+      children,
+      disabled,
+      type,
+      asChild,
+      ...props
+    },
     ref,
   ) {
+    const classes = cn(buttonVariants({ variant, size, full }), className);
+
+    if (asChild) {
+      // A slotted element is not a <button>: type, disabled and the spinner do
+      // not apply, and silently accepting `loading` here would look like it
+      // works. Callers that need those should use a real button.
+      return (
+        <Slot ref={ref} data-motion-press className={classes} {...props}>
+          {children}
+        </Slot>
+      );
+    }
+
     return (
       <button
         ref={ref}
@@ -64,7 +96,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         data-motion-press
         disabled={disabled || loading}
         aria-busy={loading || undefined}
-        className={cn(buttonVariants({ variant, size, full }), className)}
+        className={classes}
         {...props}
       >
         {loading && <Spinner className="h-4 w-4" />}

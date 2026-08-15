@@ -31,20 +31,30 @@ export default async function SlugPage({
 
   if (page.mode === "redirect") {
     if (!isSafeDestination(page.redirect_url)) notFound();
-    const eventType = src === "qr" ? "scan" : "tap";
-    const h = await headers();
-    const { device, os } = parseUA(h.get("user-agent"));
-    const country = h.get("x-vercel-ip-country");
-    // Log after the response so the redirect isn't delayed by the DB write.
-    after(async () => {
-      await supabase.rpc("log_event", {
-        p_page_id: page.id,
-        p_type: eventType,
-        p_device: device,
-        p_os: os,
-        p_country: country,
+
+    // An NFC tap was already recorded by /t/<token>, which is the only place
+    // that knows which card was involved. Logging again here would double-count
+    // every tap and attribute none of them.
+    if (src !== "nfc") {
+      const eventType = src === "qr" ? "scan" : "tap";
+      const h = await headers();
+      const { device, os } = parseUA(h.get("user-agent"));
+      const country = h.get("x-vercel-ip-country");
+      const region = h.get("x-vercel-ip-country-region");
+      // Log after the response so the redirect isn't delayed by the DB write.
+      after(async () => {
+        await supabase.rpc("log_event", {
+          p_page_id: page.id,
+          p_type: eventType,
+          p_device: device,
+          p_os: os,
+          p_country: country,
+          p_region: region,
+          p_source: src === "qr" ? "qr" : "direct",
+        });
       });
-    });
+    }
+
     redirect(page.redirect_url as string);
   }
 
