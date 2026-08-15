@@ -66,7 +66,7 @@ export default function PublicProfile({
   }
 
   return (
-    <main className="min-h-screen">
+    <main className="flex min-h-screen flex-col">
       <ProfileView
         page={page}
         mode="live"

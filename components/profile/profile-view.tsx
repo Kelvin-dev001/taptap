@@ -58,7 +58,12 @@ export function ProfileView({
   return (
     <div
       style={{ backgroundColor: theme.bg, color: theme.text }}
-      className="min-h-full w-full"
+      // `min-h-full` alone resolves to nothing when the parent only sets
+      // min-height, so the business's background stopped partway down the
+      // screen and ours showed beneath it. `flex-1` makes it fill the flex
+      // column on the live page; inside the preview's fixed-height frame the
+      // parent is not a flex container, so it has no effect there.
+      className="min-h-full w-full flex-1"
     >
       {config.coverUrl && (
         // eslint-disable-next-line @next/next/no-img-element
