@@ -10,14 +10,13 @@
 (2026-08-15). Build sprints 0–5 remain code-complete. All migrations `0005`–`0013` are
 applied.
 
-**Before launch, and only Kelvin can do these:**
-1. ⚠ **Confirm plan prices** in `lib/plans.ts` — still DRAFT, and M-Pesa charges real money
-   against them.
-2. ⚠ **Physical NFC verification** — an acceptance requirement from UI-0, steps in
-   `docs/sprint-ui-6-nfc-qr.md`.
-3. ⚠ **Hands-on testing of the profile builder** — covered by tests, never clicked through.
-4. DNS, Vercel env vars, the M-Pesa callback on a public URL, ODPC registration, and the
-   `[bracketed]` placeholders in `/privacy` and `/terms`.
+Deployed and login working in production (2026-08-15).
+
+**Before launch — see `docs/launch-checklist.md` for the steps.** Nothing left is code:
+set a real `ADMIN_TOKEN` (minting is disabled until you do), rotate the exposed Daraja
+credentials, confirm the DRAFT plan prices, prove the M-Pesa callback activates a plan,
+point DNS at `taptap.hornbilltech.co.ke` **before minting production cards**, complete ODPC
+registration and the legal placeholders, and verify NFC on real hardware.
 ⚠ **Physical NFC verification is still outstanding** and is an acceptance requirement for
 UI-6 — see `docs/sprint-ui-6-nfc-qr.md`.
 ⚠ Migrations `0005`, `0007` and `0009` are written but **not yet run** in Supabase
@@ -110,6 +109,7 @@ else is out of v1.**
 - `docs/sprint-ui-10-insights.md` — deterministic insights with visible evidence (UI-10) — complete
 - `docs/sprint-ui-11-pwa-mobile.md` — PWA, icons, link previews & mobile navigation (UI-11) — complete
 - `docs/sprint-ui-12-production-polish.md` — boundaries, audit close-out & remaining work (UI-12) — complete
+- `docs/launch-checklist.md` — **the remaining pre-launch work, all of it manual**
 - `docs/reference/` — supplied UI reference mockup (visual direction, not a pixel spec)
 - `docs/sprint-0-discovery.md` — full discovery: PRD, data model, security, pricing, GTM, risks
 - `docs/decision-log.md` — running ADR-lite record of decisions
