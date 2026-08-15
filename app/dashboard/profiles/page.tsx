@@ -6,8 +6,11 @@ import { PageHeader } from "@/components/shell/page-header";
 import { MigrationNotice } from "@/components/shell/migration-notice";
 import { isMissingSchemaError } from "@/lib/schema-guard";
 import { cn } from "@/lib/cn";
+import { templateOf, templateDef } from "@/lib/templates";
+import type { PageConfig } from "@/lib/profile";
 import CreateProfileForm from "./create-profile-form";
 import { ProfileActionsMenu } from "./profile-actions-menu";
+import { TypeFilter, parseProfileFilter } from "./type-filter";
 
 export const dynamic = "force-dynamic";
 
@@ -19,14 +22,22 @@ type PageRow = {
   redirect_url: string | null;
   is_active: boolean;
   status: "draft" | "published";
+  config: PageConfig | null;
 };
 
-export default async function ProfilesPage() {
+export default async function ProfilesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ type?: string }>;
+}) {
+  const { type } = await searchParams;
+  const filter = parseProfileFilter(type);
+
   // Auth is enforced once in app/dashboard/layout.tsx.
   const supabase = await createServerSupabase();
   const { data: pages, error: pagesError } = await supabase
     .from("smart_pages")
-    .select("id, slug, title, mode, redirect_url, is_active, status")
+    .select("id, slug, title, mode, redirect_url, is_active, status, config")
     .order("created_at", { ascending: false });
 
   // `status` arrives with migration 0009; without this guard the list would
@@ -41,13 +52,20 @@ export default async function ProfilesPage() {
   }
 
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
-  const rows = (pages ?? []) as PageRow[];
+  const all = (pages ?? []) as PageRow[];
+
+  // Filtered in memory: the list is per-account and small, and `template` lives
+  // inside the config jsonb, so a SQL filter would buy nothing here.
+  const kindOf = (p: PageRow) =>
+    p.mode === "redirect" ? "redirect" : templateOf(p.config);
+  const rows = filter === "all" ? all : all.filter((p) => kindOf(p) === filter);
 
   return (
     <>
       <PageHeader
         title="Tap Profiles"
-        description="Each profile is a permanent link that any NFC card or QR code can point to."
+        description="Business pages and personal cards — each is a permanent link that any NFC card or QR code can point to."
+        actions={<TypeFilter value={filter} />}
       />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_22rem] lg:items-start">
@@ -59,8 +77,12 @@ export default async function ProfilesPage() {
           {rows.length === 0 ? (
             <EmptyState
               icon={IdCard}
-              title="No links yet"
-              description="Create your first link and point it at a Google review, WhatsApp, or a full smart page."
+              title={all.length === 0 ? "No links yet" : "Nothing of this type yet"}
+              description={
+                all.length === 0
+                  ? "Create your first link and point it at a Google review, WhatsApp, or a full smart page."
+                  : "Change the filter, or create one using the form."
+              }
             />
           ) : (
             rows.map((p) => (
@@ -100,7 +122,9 @@ export default async function ProfilesPage() {
                 </div>
 
                 <p className="truncate text-caption text-muted">
-                  {p.mode === "redirect" ? `Redirects to ${p.redirect_url}` : "Smart page"}
+                  {p.mode === "redirect"
+                    ? `Redirects to ${p.redirect_url}`
+                    : templateDef(templateOf(p.config)).label}
                 </p>
 
                 <div className="mt-1 flex flex-wrap items-center gap-1">

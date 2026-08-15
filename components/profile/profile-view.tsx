@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import type { PublicPage, Block } from "@/lib/profile";
 import { resolveTheme, onAccentColor } from "@/lib/profile";
+import { roleLine } from "@/lib/templates";
 import { buildHref, defaultLabel, isNavigational } from "@/lib/blocks";
 import { BlockIcon } from "./block-icon";
 import LeadForm from "@/components/lead-form";
@@ -38,6 +39,7 @@ export function ProfileView({
   const config = page.config ?? {};
   const onAccent = onAccentColor(theme.accent);
   const live = mode === "live";
+  const role = roleLine(config);
 
   const blocks = React.useMemo(
     () =>
@@ -85,9 +87,10 @@ export function ProfileView({
         {page.title && (
           <h1 className="text-center text-xl font-bold leading-tight">{page.title}</h1>
         )}
-        {config.tagline && (
-          <p className="-mt-2 text-center text-sm opacity-70">{config.tagline}</p>
-        )}
+        {/* On a personal card this is built from the vCard title/company, so
+            the line under the name can never disagree with the contact the
+            visitor downloads. */}
+        {role && <p className="-mt-2 text-center text-sm opacity-70">{role}</p>}
         {config.bio && <p className="text-center text-sm opacity-80">{config.bio}</p>}
 
         <div className="mt-1 flex w-full flex-col gap-2.5">

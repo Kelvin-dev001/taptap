@@ -57,6 +57,12 @@ export type SeoConfig = {
 };
 
 export type PageConfig = {
+  /**
+   * Which template this profile follows. Lives in config so a template costs
+   * no migration; absent means "business", which is what everything created
+   * before UI-5 is. See lib/templates.ts.
+   */
+  template?: "business" | "card";
   bio?: string;
   avatarUrl?: string;
   /** Wide banner behind the avatar. */

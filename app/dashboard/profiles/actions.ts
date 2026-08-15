@@ -6,6 +6,9 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { validateSlug } from "@/lib/slug";
 import { isSafeDestination } from "@/lib/url";
 import { planFor, withinProfileLimit } from "@/lib/plans";
+import { seedBlocks, type ProfileTemplate, type SeedSource } from "@/lib/templates";
+import { defaultLabel } from "@/lib/blocks";
+import { isMissingSchemaError } from "@/lib/schema-guard";
 
 export type CreateState = { error?: string; success?: string };
 
@@ -24,6 +27,8 @@ export async function createProfileAction(
     String(formData.get("mode") ?? "redirect") === "page" ? "page" : "redirect";
   const destination = String(formData.get("destination") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim() || null;
+  const template: ProfileTemplate =
+    String(formData.get("template") ?? "business") === "card" ? "card" : "business";
 
   const check = validateSlug(rawSlug);
   if (!check.valid) return { error: check.reason };
@@ -54,6 +59,19 @@ export async function createProfileAction(
     };
   }
 
+  // Business details captured in Settings seed the new profile, so a first
+  // page is useful the moment it exists rather than an empty shell (§20).
+  // Selecting `profile` fails until migration 0007 is applied — that is not a
+  // reason to block creation, so fall back to no seed data.
+  const { data: account, error: accountError } = await supabase
+    .from("accounts")
+    .select("profile")
+    .eq("id", profile.account_id)
+    .single();
+  const seedSource: SeedSource = isMissingSchemaError(accountError)
+    ? {}
+    : ((account?.profile ?? {}) as SeedSource);
+
   const { data: created, error } = await supabase
     .from("smart_pages")
     .insert({
@@ -62,6 +80,7 @@ export async function createProfileAction(
       title,
       mode,
       redirect_url: mode === "redirect" ? destination : null,
+      config: mode === "page" ? { template } : {},
     })
     .select("id")
     .single();
@@ -70,6 +89,23 @@ export async function createProfileAction(
     // 23505 = unique_violation (slug already taken)
     if (error.code === "23505") return { error: "That link name is already taken." };
     return { error: error.message };
+  }
+
+  if (mode === "page" && created) {
+    const seeds = seedBlocks(template, seedSource, defaultLabel);
+    if (seeds.length > 0) {
+      // A failed seed must not lose the page the owner just created, so this is
+      // best-effort: they can still add actions by hand.
+      await supabase.from("links").insert(
+        seeds.map((b, i) => ({
+          smart_page_id: created.id,
+          type: b.type,
+          label: b.label,
+          value: b.value || null,
+          sort_order: i,
+        })),
+      );
+    }
   }
 
   revalidatePath("/dashboard/profiles");

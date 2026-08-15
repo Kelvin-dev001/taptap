@@ -41,6 +41,13 @@ import { MobilePreview } from "@/components/builder/mobile-preview";
 import { BlockPicker } from "@/components/builder/block-picker";
 import { SortableAction, type EditorBlock } from "@/components/builder/sortable-action";
 import { defaultLabel } from "@/lib/blocks";
+import {
+  templateOf,
+  templateDef,
+  TEMPLATE_ORDER,
+  TEMPLATES,
+  type ProfileTemplate,
+} from "@/lib/templates";
 import type {
   Block,
   BlockType,
@@ -84,6 +91,9 @@ export default function Editor(props: Props) {
     (props.initialBlocks ?? []).map((b) => ({ ...b, key: nextKey() })),
   );
   const [expanded, setExpanded] = React.useState<string | null>(null);
+
+  const template = templateOf(config);
+  const tpl = templateDef(template);
 
   const [status, setStatus] = React.useState<PublishStatus>(props.initialStatus);
   const [publishedAt, setPublishedAt] = React.useState(props.initialPublishedAt);
@@ -324,22 +334,45 @@ export default function Editor(props: Props) {
           {mode === "page" && (
             <>
               <Card padding="md">
-                <h2 className="mb-4 text-section-title text-foreground">Your business</h2>
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-section-title text-foreground">{tpl.identityHeading}</h2>
+                  <label className="flex items-center gap-2 text-caption text-muted">
+                    Template
+                    <select
+                      value={template}
+                      onChange={(e) => {
+                        patchConfig({ template: e.target.value as ProfileTemplate });
+                      }}
+                      className="h-8 rounded-lg border border-border-strong bg-surface px-2 text-body-sm text-foreground"
+                    >
+                      {TEMPLATE_ORDER.map((id) => (
+                        <option key={id} value={id}>
+                          {TEMPLATES[id].label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
                 <div className="flex flex-col gap-4">
-                  <Field label="Business name">
+                  <Field label={template === "card" ? "Your name" : "Business name"}>
                     <Input
                       value={title}
                       onChange={(e) => { setTitle(e.target.value); touch(); }}
-                      placeholder="Java House Westlands"
+                      placeholder={tpl.namePlaceholder}
                     />
                   </Field>
-                  <Field label="Tagline" hint="One short line under your name">
-                    <Input
-                      value={config.tagline ?? ""}
-                      onChange={(e) => patchConfig({ tagline: e.target.value })}
-                      placeholder="Coffee shop · Westlands"
-                    />
-                  </Field>
+                  {/* A card derives its line from the vCard title/company, so
+                      offering a separate tagline would create two sources of
+                      truth for the same statement. */}
+                  {template !== "card" && (
+                    <Field label="Tagline" hint="One short line under your name">
+                      <Input
+                        value={config.tagline ?? ""}
+                        onChange={(e) => patchConfig({ tagline: e.target.value })}
+                        placeholder="Coffee shop · Westlands"
+                      />
+                    </Field>
+                  )}
                   <Field label="About">
                     <Textarea
                       value={config.bio ?? ""}
@@ -351,7 +384,7 @@ export default function Editor(props: Props) {
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     <ImageField
-                      label="Logo"
+                      label={template === "card" ? "Photo" : "Logo"}
                       url={config.avatarUrl}
                       busy={uploading === "avatar"}
                       onPick={(f) => upload(f, "avatar")}
@@ -365,6 +398,17 @@ export default function Editor(props: Props) {
                       onClear={() => patchConfig({ coverUrl: undefined })}
                     />
                   </div>
+
+                  {/* On a card the contact details ARE the content, so they sit
+                      here rather than behind the Advanced disclosure. */}
+                  {tpl.contactFirst && (
+                    <div className="border-t border-border pt-4">
+                      <h3 className="mb-3 text-card-title text-foreground">
+                        Contact card (vCard)
+                      </h3>
+                      <ContactFields contact={config.contact} onChange={patchContact} />
+                    </div>
+                  )}
                 </div>
               </Card>
 
@@ -432,30 +476,14 @@ export default function Editor(props: Props) {
                 </summary>
 
                 <div className="flex flex-col gap-5 border-t border-border p-4">
-                  <section>
-                    <h3 className="mb-3 flex items-center gap-1.5 text-card-title text-foreground">
-                      Contact card (vCard)
-                    </h3>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {(
-                        [
-                          ["fullName", "Full name"],
-                          ["org", "Organisation"],
-                          ["title", "Job title"],
-                          ["phone", "Phone"],
-                          ["email", "Email"],
-                          ["website", "Website"],
-                        ] as [keyof Contact, string][]
-                      ).map(([field, label]) => (
-                        <Field key={field} label={label}>
-                          <Input
-                            value={config.contact?.[field] ?? ""}
-                            onChange={(e) => patchContact({ [field]: e.target.value })}
-                          />
-                        </Field>
-                      ))}
-                    </div>
-                  </section>
+                  {!tpl.contactFirst && (
+                    <section>
+                      <h3 className="mb-3 text-card-title text-foreground">
+                        Contact card (vCard)
+                      </h3>
+                      <ContactFields contact={config.contact} onChange={patchContact} />
+                    </section>
+                  )}
 
                   <section>
                     <h3 className="mb-3 flex items-center gap-1.5 text-card-title text-foreground">
@@ -582,6 +610,37 @@ export default function Editor(props: Props) {
           </Card>
         )}
       </div>
+    </div>
+  );
+}
+
+const CONTACT_FIELDS: [keyof Contact, string][] = [
+  ["fullName", "Full name"],
+  ["org", "Organisation"],
+  ["title", "Job title"],
+  ["phone", "Phone"],
+  ["email", "Email"],
+  ["website", "Website"],
+];
+
+/** Shared so the card and business layouts cannot drift apart. */
+function ContactFields({
+  contact,
+  onChange,
+}: {
+  contact?: Contact;
+  onChange: (patch: Partial<Contact>) => void;
+}) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {CONTACT_FIELDS.map(([field, label]) => (
+        <Field key={field} label={label}>
+          <Input
+            value={contact?.[field] ?? ""}
+            onChange={(e) => onChange({ [field]: e.target.value })}
+          />
+        </Field>
+      ))}
     </div>
   );
 }
