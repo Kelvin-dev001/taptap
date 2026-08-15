@@ -39,6 +39,7 @@ import {
 } from "@/components/ui";
 import { EntitlementNotice } from "@/components/billing/plan-status";
 import { MobilePreview } from "@/components/builder/mobile-preview";
+import { UnsavedChangesGuard } from "@/components/builder/unsaved-changes-guard";
 import { BlockPicker } from "@/components/builder/block-picker";
 import { SortableAction, type EditorBlock } from "@/components/builder/sortable-action";
 import { defaultLabel } from "@/lib/blocks";
@@ -123,14 +124,6 @@ export default function Editor(props: Props) {
     setConfig((c) => ({ ...c, contact: { ...c.contact, ...patch } }));
     touch();
   };
-
-  /** Warn before losing unsaved work — UI-0 UX problem #4. */
-  React.useEffect(() => {
-    if (!dirty) return;
-    const handler = (e: BeforeUnloadEvent) => e.preventDefault();
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [dirty]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -260,6 +253,9 @@ export default function Editor(props: Props) {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Covers both leaving the site and navigating within it (UI-0 problem #4). */}
+      <UnsavedChangesGuard when={dirty} />
+
       {/* Status bar */}
       <Card padding="sm" className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
