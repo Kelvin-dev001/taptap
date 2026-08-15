@@ -1,11 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { LeadFormConfig } from "@/lib/profile";
+import { onAccentColor } from "@/lib/profile";
 
-const inputCls =
-  "rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900";
-
+/**
+ * The public lead form.
+ *
+ * Closes UI-0 finding A3 — the last placeholder-as-label form in the product,
+ * and the only one a *customer* ever fills in. Placeholders vanish the moment
+ * someone types, so a screen-reader user reviewing their answers had no way to
+ * tell which field was which.
+ *
+ * Styled from the business's own theme rather than the design system: this
+ * renders inside their page, so it has to obey their accent, not ours. The
+ * label colour is computed for contrast the same way action buttons are.
+ */
 export default function LeadForm({
   pageId,
   config,
@@ -15,6 +25,7 @@ export default function LeadForm({
   config: LeadFormConfig;
   accent: string;
 }) {
+  const uid = useId();
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -34,7 +45,7 @@ export default function LeadForm({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name && !form.phone && !form.email) {
-      setError("Add your name, phone, or email.");
+      setError("Add your name, phone, or email so we can reply.");
       return;
     }
     setBusy(true);
@@ -58,48 +69,58 @@ export default function LeadForm({
 
   if (sent) {
     return (
-      <p className="text-center text-sm opacity-80">
-        Thanks — we’ll be in touch.
+      <p role="status" className="text-center text-sm opacity-80">
+        Thanks — we&rsquo;ll be in touch.
       </p>
     );
   }
 
+  const fields = [
+    { key: "name", label: "Name", type: "text", autoComplete: "name", inputMode: undefined },
+    { key: "phone", label: "Phone", type: "tel", autoComplete: "tel", inputMode: "tel" as const },
+    { key: "email", label: "Email", type: "email", autoComplete: "email", inputMode: "email" as const },
+    { key: "company", label: "Company (optional)", type: "text", autoComplete: "organization", inputMode: undefined },
+  ] as const;
+
   return (
-    <form onSubmit={submit} className="flex w-full flex-col gap-2">
+    <form onSubmit={submit} className="flex w-full flex-col gap-2.5">
       {config.headline && (
         <p className="text-center text-sm font-medium">{config.headline}</p>
       )}
-      <input
-        className={inputCls}
-        placeholder="Name"
-        value={form.name}
-        onChange={(e) => upd("name", e.target.value)}
-      />
-      <input
-        className={inputCls}
-        placeholder="Phone"
-        value={form.phone}
-        onChange={(e) => upd("phone", e.target.value)}
-      />
-      <input
-        className={inputCls}
-        placeholder="Email"
-        value={form.email}
-        onChange={(e) => upd("email", e.target.value)}
-      />
-      <input
-        className={inputCls}
-        placeholder="Company (optional)"
-        value={form.company}
-        onChange={(e) => upd("company", e.target.value)}
-      />
-      <textarea
-        className={inputCls}
-        placeholder="Message (optional)"
-        rows={2}
-        value={form.message}
-        onChange={(e) => upd("message", e.target.value)}
-      />
+
+      {fields.map((f) => (
+        <div key={f.key} className="flex flex-col gap-1">
+          <label htmlFor={`${uid}-${f.key}`} className="text-xs opacity-70">
+            {f.label}
+          </label>
+          <input
+            id={`${uid}-${f.key}`}
+            name={f.key}
+            type={f.type}
+            inputMode={f.inputMode}
+            autoComplete={f.autoComplete}
+            className="rounded-lg border border-current/20 bg-white/5 px-3 py-2 text-sm"
+            value={form[f.key]}
+            onChange={(e) => upd(f.key, e.target.value)}
+            aria-describedby={error ? `${uid}-error` : undefined}
+          />
+        </div>
+      ))}
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor={`${uid}-message`} className="text-xs opacity-70">
+          Message (optional)
+        </label>
+        <textarea
+          id={`${uid}-message`}
+          name="message"
+          rows={2}
+          className="rounded-lg border border-current/20 bg-white/5 px-3 py-2 text-sm"
+          value={form.message}
+          onChange={(e) => upd("message", e.target.value)}
+        />
+      </div>
+
       {/* honeypot — hidden from humans, bots fill it */}
       <input
         type="text"
@@ -111,16 +132,23 @@ export default function LeadForm({
         value={form.website2}
         onChange={(e) => upd("website2", e.target.value)}
       />
+
       <button
         type="submit"
         disabled={busy}
-        style={{ backgroundColor: accent }}
-        className="rounded-xl px-5 py-2.5 font-medium text-white disabled:opacity-50"
+        style={{ backgroundColor: accent, color: onAccentColor(accent) }}
+        className="mt-1 rounded-xl px-5 py-2.5 font-medium disabled:opacity-50"
       >
         {busy ? "Sending…" : config.buttonLabel || "Send"}
       </button>
-      {error && <p className="text-center text-xs text-red-500">{error}</p>}
-      <p className="text-center text-[10px] opacity-60">
+
+      {error && (
+        <p id={`${uid}-error`} role="alert" className="text-center text-xs font-medium">
+          {error}
+        </p>
+      )}
+
+      <p className="text-center text-[11px] opacity-70">
         By submitting you consent to be contacted.
       </p>
     </form>

@@ -6,12 +6,18 @@
 > decision changes.
 
 **Last updated:** 2026-08-15
-**Current phase:** **UI/UX transformation — Sprint UI-11 complete** (PWA & mobile,
-2026-08-15); awaiting approval for UI-12 (production polish, the final sprint). Build sprints
-0–5 are code-complete — MVP feature-complete. Migrations `0005`–`0011` are applied;
-**`0012` and `0013` are pending**.
-⚠ **Plan prices in `lib/plans.ts` are still DRAFT** and must be confirmed before launch —
-M-Pesa charges real money against them.
+**Current phase:** **UI/UX transformation COMPLETE** — Sprints UI-0 through UI-12 delivered
+(2026-08-15). Build sprints 0–5 remain code-complete. All migrations `0005`–`0013` are
+applied.
+
+**Before launch, and only Kelvin can do these:**
+1. ⚠ **Confirm plan prices** in `lib/plans.ts` — still DRAFT, and M-Pesa charges real money
+   against them.
+2. ⚠ **Physical NFC verification** — an acceptance requirement from UI-0, steps in
+   `docs/sprint-ui-6-nfc-qr.md`.
+3. ⚠ **Hands-on testing of the profile builder** — covered by tests, never clicked through.
+4. DNS, Vercel env vars, the M-Pesa callback on a public URL, ODPC registration, and the
+   `[bracketed]` placeholders in `/privacy` and `/terms`.
 ⚠ **Physical NFC verification is still outstanding** and is an acceptance requirement for
 UI-6 — see `docs/sprint-ui-6-nfc-qr.md`.
 ⚠ Migrations `0005`, `0007` and `0009` are written but **not yet run** in Supabase
@@ -103,6 +109,7 @@ else is out of v1.**
 - `docs/sprint-ui-9-billing.md` — billing, expiry enforcement & receipts (UI-9) — complete
 - `docs/sprint-ui-10-insights.md` — deterministic insights with visible evidence (UI-10) — complete
 - `docs/sprint-ui-11-pwa-mobile.md` — PWA, icons, link previews & mobile navigation (UI-11) — complete
+- `docs/sprint-ui-12-production-polish.md` — boundaries, audit close-out & remaining work (UI-12) — complete
 - `docs/reference/` — supplied UI reference mockup (visual direction, not a pixel spec)
 - `docs/sprint-0-discovery.md` — full discovery: PRD, data model, security, pricing, GTM, risks
 - `docs/decision-log.md` — running ADR-lite record of decisions

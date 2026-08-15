@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
-import { createEdgeClient } from "@/lib/supabase/edge";
+import { getPublicPage } from "@/lib/public-page";
 import { normalizeSlug } from "@/lib/slug";
-import { resolveTheme, type PublicPage } from "@/lib/profile";
+import { resolveTheme } from "@/lib/profile";
 import { roleLine } from "@/lib/templates";
 
 export const alt = "Hornbill TapTap profile";
@@ -27,11 +27,7 @@ export default async function OpengraphImage({
   const { slug: rawSlug } = await params;
   const slug = normalizeSlug(rawSlug);
 
-  const supabase = createEdgeClient();
-  const { data } = slug
-    ? await supabase.rpc("get_public_page", { p_slug: slug })
-    : { data: null };
-  const page = data as PublicPage | null;
+  const page = slug ? await getPublicPage(slug) : null;
 
   // A real page uses its own accent, so a shared link looks like the business.
   // With no page to read, fall back to Hornbill orange rather than the neutral

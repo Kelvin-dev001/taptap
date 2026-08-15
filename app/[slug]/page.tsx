@@ -3,11 +3,11 @@ import { notFound, redirect } from "next/navigation";
 import { after } from "next/server";
 import { headers } from "next/headers";
 import { createEdgeClient } from "@/lib/supabase/edge";
+import { getPublicPage } from "@/lib/public-page";
 import { isSafeDestination } from "@/lib/url";
 import { normalizeSlug } from "@/lib/slug";
 import { parseUA } from "@/lib/ua";
 import PublicProfile from "@/components/public-profile";
-import type { PublicPage } from "@/lib/profile";
 
 export const dynamic = "force-dynamic";
 
@@ -28,9 +28,7 @@ export async function generateMetadata({
   const slug = normalizeSlug(rawSlug);
   if (!slug) return {};
 
-  const supabase = createEdgeClient();
-  const { data } = await supabase.rpc("get_public_page", { p_slug: slug });
-  const page = data as PublicPage | null;
+  const page = await getPublicPage(slug);
   // A redirect-mode link is never rendered, so it needs no preview.
   if (!page || page.mode === "redirect") return {};
 
@@ -70,10 +68,10 @@ export default async function SlugPage({
   const slug = normalizeSlug(rawSlug);
   if (!slug) notFound();
 
-  const supabase = createEdgeClient();
-  const { data } = await supabase.rpc("get_public_page", { p_slug: slug });
-  const page = data as PublicPage | null;
+  const page = await getPublicPage(slug);
   if (!page) notFound();
+
+  const supabase = createEdgeClient();
 
   const src = typeof sp.src === "string" ? sp.src : undefined;
 

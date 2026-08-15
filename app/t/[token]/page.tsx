@@ -6,6 +6,8 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { createEdgeClient } from "@/lib/supabase/edge";
 import { isValidToken } from "@/lib/tags";
 import { parseUA } from "@/lib/ua";
+import { Button, Card } from "@/components/ui";
+import { Wordmark } from "@/components/shell/logo";
 import ClaimForm from "./claim-form";
 
 export const dynamic = "force-dynamic";
@@ -68,17 +70,19 @@ export default async function TagPage({
 
   if (!user) {
     return (
-      <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center justify-center gap-4 px-6 text-center">
-        <h1 className="text-2xl font-bold">This TapTap card isn’t set up yet</h1>
-        <p className="text-neutral-600">
-          Sign in, then tap your card again to link it to your smart page.
-        </p>
-        <Link
-          href="/login"
-          className="rounded-lg bg-neutral-900 px-5 py-2.5 font-medium text-white hover:bg-neutral-700"
-        >
-          Sign in
-        </Link>
+      <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-6 py-10">
+        <Wordmark subtitle="Business suite" />
+        <Card padding="md" className="flex flex-col gap-4">
+          <h1 className="text-page-title text-foreground">
+            This card isn&rsquo;t set up yet
+          </h1>
+          <p className="text-body-sm text-muted">
+            Sign in, then tap your card again to link it to one of your profiles.
+          </p>
+          <Button asChild full>
+            <Link href="/login">Sign in</Link>
+          </Button>
+        </Card>
       </main>
     );
   }

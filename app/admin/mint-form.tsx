@@ -12,7 +12,7 @@ function MintButton() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-lg bg-neutral-900 px-5 py-2.5 font-medium text-white hover:bg-neutral-700 disabled:opacity-50"
+      className="rounded-lg bg-primary-strong px-5 py-2.5 font-medium text-white hover:bg-primary-strong-hover disabled:opacity-50"
     >
       {pending ? "Minting…" : "Mint tokens"}
     </button>
@@ -30,7 +30,7 @@ export default function MintForm() {
           name="key"
           type="password"
           required
-          className="rounded-lg border border-neutral-300 px-3 py-2"
+          className="h-10 w-full rounded-lg border border-border-strong bg-surface px-3 text-body-sm"
         />
         <label className="text-sm font-medium">How many cards?</label>
         <input
@@ -39,7 +39,7 @@ export default function MintForm() {
           min={1}
           max={500}
           defaultValue={10}
-          className="rounded-lg border border-neutral-300 px-3 py-2"
+          className="h-10 w-full rounded-lg border border-border-strong bg-surface px-3 text-body-sm"
         />
         <MintButton />
         {state.error && <p className="text-sm text-red-600">{state.error}</p>}
@@ -53,7 +53,7 @@ export default function MintForm() {
           <textarea
             readOnly
             rows={Math.min(12, state.urls.length + 1)}
-            className="w-full rounded-lg border border-neutral-300 p-3 font-mono text-xs"
+            className="w-full rounded-lg border border-border-strong bg-surface p-3 font-mono text-xs"
             value={state.urls.join("\n")}
           />
         </div>
