@@ -4,16 +4,73 @@ import {
   defaultLabel,
   blockDef,
   isNavigational,
+  toInternational,
+  DEFAULT_COUNTRY_CODE,
   BLOCK_DEFS,
   BLOCK_GROUPS,
 } from "./blocks";
 import type { BlockType } from "./profile";
+
+describe("toInternational", () => {
+  it("swaps the trunk 0 for the country code", () => {
+    expect(toInternational("0723845244")).toBe("254723845244");
+  });
+
+  it("strips formatting and the plus", () => {
+    expect(toInternational("+254 723 845 244")).toBe("254723845244");
+    expect(toInternational("(0723) 845-244")).toBe("254723845244");
+  });
+
+  it("is idempotent", () => {
+    const once = toInternational("0723845244");
+    expect(toInternational(once)).toBe(once);
+  });
+
+  it("returns empty for a value with no digits", () => {
+    expect(toInternational("")).toBe("");
+    expect(toInternational("   ")).toBe("");
+    expect(toInternational("call me")).toBe("");
+  });
+
+  it("takes a country code so the platform can leave Kenya", () => {
+    expect(DEFAULT_COUNTRY_CODE).toBe("254");
+    // Nigeria: the same trunk-0 convention, a different code.
+    expect(toInternational("08031234567", "234")).toBe("2348031234567");
+  });
+});
 
 describe("buildHref", () => {
   it("builds tel, mailto and wa.me links", () => {
     expect(buildHref("call", "+254712345678")).toBe("tel:+254712345678");
     expect(buildHref("email", "hi@java.co.ke")).toBe("mailto:hi@java.co.ke");
     expect(buildHref("whatsapp", "+254 712 345 678")).toBe("https://wa.me/254712345678");
+  });
+
+  /**
+   * Regression: this shipped on a real customer's card. A number entered the way
+   * every Kenyan writes it produced `wa.me/0723845244`, which wa.me rejects — a
+   * dead button with nothing to warn the owner it was dead.
+   */
+  it("converts a local 07… number to international for wa.me", () => {
+    expect(buildHref("whatsapp", "0723845244")).toBe("https://wa.me/254723845244");
+    expect(buildHref("whatsapp", "0723 845 244")).toBe("https://wa.me/254723845244");
+  });
+
+  it("leaves numbers that are already international alone", () => {
+    expect(buildHref("whatsapp", "+254723845244")).toBe("https://wa.me/254723845244");
+    expect(buildHref("whatsapp", "254723845244")).toBe("https://wa.me/254723845244");
+  });
+
+  it("never emits a wa.me link with a leading zero", () => {
+    for (const input of ["0723845244", "+254723845244", "254723845244", "723845244"]) {
+      const href = buildHref("whatsapp", input);
+      expect(href).toBe("https://wa.me/254723845244");
+      expect(href).not.toMatch(/wa\.me\/0/);
+    }
+  });
+
+  it("does not rewrite tel: links — local format dials fine domestically", () => {
+    expect(buildHref("call", "0723845244")).toBe("tel:0723845244");
   });
 
   it("adds a scheme to bare domains", () => {

@@ -192,6 +192,39 @@ function digits(s: string): string {
   return s.replace(/[^\d]/g, "");
 }
 
+/**
+ * Default country for phone numbers entered in local (trunk) format.
+ *
+ * Kenya today (§22). Named rather than inlined because the billing architecture
+ * is meant to extend to other African markets, and this is the value that has to
+ * move with it — at which point it belongs on the account, not in a constant.
+ */
+export const DEFAULT_COUNTRY_CODE = "254";
+
+/**
+ * Normalise a phone number to international format, digits only.
+ *
+ * Every Kenyan writes their number as `0722…`, and wa.me rejects it: it requires
+ * a full international number with no leading zero, so `wa.me/0722…` renders a
+ * "phone number is invalid" page rather than a chat. Nothing warned about this —
+ * a business would print cards, hand them out, and never learn the button was
+ * dead. It shipped on a real customer's card before it was caught.
+ *
+ * The trunk `0` is a national prefix standing in for the country code, so
+ * replacing it is the correct transformation, not a guess. Numbers already in
+ * international form (`+254…`, `254…`) are left alone.
+ */
+export function toInternational(value: string, countryCode = DEFAULT_COUNTRY_CODE): string {
+  const d = digits(value);
+  if (!d) return "";
+  // Already international: either written with + or already carrying the code.
+  if (value.trim().startsWith("+") || d.startsWith(countryCode)) return d;
+  // Local/trunk format — swap the leading 0 for the country code.
+  if (d.startsWith("0")) return `${countryCode}${d.slice(1)}`;
+  // Anything else (a bare subscriber number) gets the code prefixed.
+  return `${countryCode}${d}`;
+}
+
 function ensureScheme(url: string): string {
   return /^https?:\/\//i.test(url) ? url : `https://${url}`;
 }
@@ -213,7 +246,8 @@ export function buildHref(type: BlockType, value: string): string | null {
     case "call":
       return v ? `tel:${v}` : null;
     case "whatsapp":
-      return v ? `https://wa.me/${digits(v)}` : null;
+      // wa.me needs international format with no leading zero — see toInternational.
+      return v ? `https://wa.me/${toInternational(v)}` : null;
     case "email":
       return v ? `mailto:${v}` : null;
     case "directions":
