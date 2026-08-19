@@ -13,12 +13,16 @@ applied.
 Deployed and login working in production (2026-08-15).
 
 **Before launch — see `docs/launch-checklist.md` for the steps.** Nothing left is code:
-rotate the exposed Daraja credentials, confirm the DRAFT plan prices, prove the M-Pesa
-callback activates a plan, complete ODPC registration and the legal placeholders, and
-verify NFC on real hardware.
-✅ DNS is live and `ADMIN_TOKEN` is set — minting verified in production (2026-08-15).
-⚠ **Physical NFC verification is still outstanding** and is an acceptance requirement for
-UI-6 — see `docs/sprint-ui-6-nfc-qr.md`.
+test Resend deliverability, prove the M-Pesa callback activates a plan, confirm the DRAFT
+plan prices, rotate the exposed Daraja credentials, and complete ODPC registration and the
+legal placeholders.
+✅ DNS live, `ADMIN_TOKEN` set, minting verified in production (2026-08-15).
+✅ **Physical NFC verification complete (2026-08-19)** — the UI-6 acceptance requirement
+open since the UI-0 audit. 26 taps across Android and iPhone, 100% carrying `source='nfc'`
+and the correct `tag_id`, zero page mismatches, and **repointing proven on real hardware**:
+one chip served two different profiles without ever being re-encoded. See
+`docs/sprint-ui-6-nfc-qr.md`.
+✅ **First paying customer live** — Magangi and Company, three personal cards (D-017).
 
 **Team management is deliberately deferred, not missing by accident (D-017).** A business is
 **one account with many members**; a sub-account hierarchy was considered and rejected. The
