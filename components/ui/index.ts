@@ -9,6 +9,7 @@
 export { Button, buttonVariants, type ButtonProps } from "./button";
 export { IconButton, type IconButtonProps } from "./icon-button";
 export { Spinner } from "./spinner";
+export { GoogleMark } from "./google-mark";
 export { Field, Label, useFieldControl } from "./field";
 export { Input, Textarea, Select, inputBaseClass } from "./input";
 export { Switch, SwitchField } from "./switch";
