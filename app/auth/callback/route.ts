@@ -26,7 +26,7 @@ export const dynamic = "force-dynamic";
  * (`https://evil.example`) and protocol-relative ones (`//evil.example`), which
  * browsers treat as absolute.
  */
-function safeNext(raw: string | null): string {
+export function safeNext(raw: string | null): string {
   if (!raw) return "/dashboard";
   if (!raw.startsWith("/") || raw.startsWith("//")) return "/dashboard";
   return raw;

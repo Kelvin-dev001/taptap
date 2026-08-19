@@ -12,6 +12,23 @@ type Mode = "signin" | "signup";
 type SentKind = "link" | "confirm";
 
 /**
+ * Google is only offered once it actually works.
+ *
+ * The provider has to be enabled in the Supabase dashboard with credentials
+ * from Google Cloud, and shipping the button before that is worse than not
+ * having it: it is the most prominent control on the screen, and it would fail
+ * for every person who trusted it. This flag lets the code land ahead of the
+ * account setup.
+ *
+ * NEXT_PUBLIC_* is inlined at build time, so turning this on requires a
+ * redeploy, not just an environment change. Read per render rather than at
+ * module scope so a test can stub it.
+ */
+function googleEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_ENABLE_GOOGLE_AUTH === "true";
+}
+
+/**
  * Sign-in / sign-up.
  *
  * Three ways in, ordered by how little they ask of the user:
@@ -261,24 +278,28 @@ export function LoginForm({ initialError }: { initialError?: string }) {
           </Alert>
         )}
 
-        <Button
-          variant="secondary"
-          full
-          size="lg"
-          onClick={onGoogle}
-          loading={busy === "google"}
-          loadingText="Opening Google"
-          disabled={busy !== null}
-        >
-          <GoogleMark className="h-[18px] w-[18px]" />
-          Continue with Google
-        </Button>
+        {googleEnabled() && (
+          <>
+            <Button
+              variant="secondary"
+              full
+              size="lg"
+              onClick={onGoogle}
+              loading={busy === "google"}
+              loadingText="Opening Google"
+              disabled={busy !== null}
+            >
+              <GoogleMark className="h-[18px] w-[18px]" />
+              Continue with Google
+            </Button>
 
-        <div className="my-5 flex items-center gap-3" aria-hidden>
-          <span className="h-px flex-1 bg-border" />
-          <span className="text-caption uppercase tracking-wide text-muted">or</span>
-          <span className="h-px flex-1 bg-border" />
-        </div>
+            <div className="my-5 flex items-center gap-3" aria-hidden>
+              <span className="h-px flex-1 bg-border" />
+              <span className="text-caption uppercase tracking-wide text-muted">or</span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+          </>
+        )}
 
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <Field label="Email" required>

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { LoginForm } from "./login-form";
@@ -85,15 +85,30 @@ describe("LoginForm", () => {
     expect(signInWithOtp.mock.calls[0][0].options.emailRedirectTo).toContain("/auth/callback");
   });
 
-  it("sends Google through the same callback", async () => {
-    const user = userEvent.setup();
+  /**
+   * The button must not exist until the provider is actually configured in
+   * Supabase. Shipped ahead of that it would be the most prominent control on
+   * the screen and fail for everyone who trusted it.
+   */
+  it("hides Google until it is switched on", () => {
     render(<LoginForm />);
+    expect(screen.queryByRole("button", { name: /continue with google/i })).toBeNull();
+  });
 
-    await user.click(screen.getByRole("button", { name: /continue with google/i }));
+  describe("with Google enabled", () => {
+    beforeEach(() => vi.stubEnv("NEXT_PUBLIC_ENABLE_GOOGLE_AUTH", "true"));
+    afterEach(() => vi.unstubAllEnvs());
 
-    await waitFor(() => expect(signInWithOAuth).toHaveBeenCalled());
-    expect(signInWithOAuth.mock.calls[0][0].provider).toBe("google");
-    expect(signInWithOAuth.mock.calls[0][0].options.redirectTo).toContain("/auth/callback");
+    it("sends Google through the same callback", async () => {
+      const user = userEvent.setup();
+      render(<LoginForm />);
+
+      await user.click(screen.getByRole("button", { name: /continue with google/i }));
+
+      await waitFor(() => expect(signInWithOAuth).toHaveBeenCalled());
+      expect(signInWithOAuth.mock.calls[0][0].provider).toBe("google");
+      expect(signInWithOAuth.mock.calls[0][0].options.redirectTo).toContain("/auth/callback");
+    });
   });
 
   it("keeps the password path available behind a toggle", async () => {
