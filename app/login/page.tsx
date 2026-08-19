@@ -1,133 +1,23 @@
-"use client";
+import { LoginForm } from "./login-form";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { createBrowserSupabase } from "@/lib/supabase/client";
-import { Button, Field, Input, Alert, Card } from "@/components/ui";
-import { Wordmark } from "@/components/shell/logo";
-
-type Mode = "signin" | "signup";
+export const dynamic = "force-dynamic";
 
 /**
- * Migrated to the design system in UI-2. Fixes UI-0 finding A4: the inputs had
- * no labels and the buttons sat outside any <form>, so pressing Enter did
- * nothing and errors were never announced. It is now a real form with a submit
- * handler, associated labels and an alert-role message.
+ * Server shell for the sign-in screen.
+ *
+ * Exists only to read the query string. /auth/callback redirects here with
+ * `?error=…` when a confirmation link has expired or was already opened, and
+ * reading that on the server keeps the form a plain client island — no
+ * useSearchParams, so no Suspense boundary, and no effect that sets state on
+ * mount.
  */
-export default function LoginPage() {
-  const router = useRouter();
-  const [mode, setMode] = useState<Mode>("signin");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string | string[] }>;
+}) {
+  const { error } = await searchParams;
+  const initialError = Array.isArray(error) ? error[0] : error;
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    setMessage(null);
-
-    // Everything here runs in one try: a misconfigured build makes
-    // createBrowserSupabase() throw, and an unhandled rejection would leave the
-    // button spinning with nothing said — which is exactly how "login is not
-    // working" looks from the outside.
-    try {
-      const supabase = createBrowserSupabase();
-
-      if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) {
-          setError(error.message);
-          return;
-        }
-        router.push("/dashboard");
-        router.refresh();
-        return;
-      }
-
-      const { error } = await supabase.auth.signUp({ email, password });
-      if (error) {
-        setError(error.message);
-        return;
-      }
-      setMessage(
-        "Account created. If email confirmation is on, confirm via email, then sign in.",
-      );
-      setMode("signin");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not sign in. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-6 py-10">
-      <Wordmark subtitle="Business suite" />
-
-      <Card padding="md">
-        <h1 className="mb-1 text-page-title text-foreground">
-          {mode === "signin" ? "Sign in" : "Create your account"}
-        </h1>
-        <p className="mb-5 text-body-sm text-muted">
-          {mode === "signin"
-            ? "Manage your Tap Profiles, cards and customers."
-            : "One account runs all your links and NFC cards."}
-        </p>
-
-        <form onSubmit={onSubmit} className="flex flex-col gap-4">
-          <Field label="Email" required error={error ?? undefined}>
-            <Input
-              type="email"
-              name="email"
-              autoComplete="email"
-              placeholder="you@business.co.ke"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </Field>
-
-          <Field label="Password" required>
-            <Input
-              type="password"
-              name="password"
-              autoComplete={mode === "signin" ? "current-password" : "new-password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-            />
-          </Field>
-
-          <Button type="submit" loading={loading} full>
-            {mode === "signin" ? "Sign in" : "Create account"}
-          </Button>
-        </form>
-
-        {message && (
-          <Alert tone="success" className="mt-4">
-            {message}
-          </Alert>
-        )}
-
-        <p className="mt-5 text-center text-body-sm text-muted">
-          {mode === "signin" ? "No account yet?" : "Already have an account?"}{" "}
-          <button
-            type="button"
-            onClick={() => {
-              setMode(mode === "signin" ? "signup" : "signin");
-              setError(null);
-              setMessage(null);
-            }}
-            className="rounded font-medium text-primary-strong hover:underline"
-          >
-            {mode === "signin" ? "Create one" : "Sign in"}
-          </button>
-        </p>
-      </Card>
-    </main>
-  );
+  return <LoginForm initialError={initialError} />;
 }
