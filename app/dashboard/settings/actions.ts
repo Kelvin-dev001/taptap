@@ -15,6 +15,18 @@ export type BusinessProfile = {
 
 export type SettingsState = { error?: string; success?: string };
 
+/**
+ * Notification preferences (migration 0014).
+ *
+ * Kept in `accounts.notify`, deliberately NOT inside `accounts.profile`:
+ * saveBusinessProfileAction replaces `profile` wholesale, so preferences stored
+ * there would be wiped the next time someone saved their business details —
+ * silently, with notifications simply ceasing.
+ */
+export type NotifyPrefs = {
+  lead?: { enabled?: boolean; to?: string | null };
+};
+
 function clean(value: FormDataEntryValue | null): string | undefined {
   const s = String(value ?? "").trim();
   return s.length > 0 ? s : undefined;
@@ -77,4 +89,53 @@ export async function saveBusinessProfileAction(
   // The shell renders the business name on every dashboard route.
   revalidatePath("/dashboard", "layout");
   return { success: "Business details saved." };
+}
+
+/**
+ * Saves notification preferences.
+ *
+ * Writes only `accounts.notify`, which the column grant in 0014 permits. The
+ * account id comes from the caller's own profile row, never from the client.
+ */
+export async function saveNotificationsAction(
+  _prev: SettingsState,
+  formData: FormData,
+): Promise<SettingsState> {
+  const supabase = await createServerSupabase();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+
+  const enabled = formData.get("leadEmailEnabled") === "on";
+  const to = clean(formData.get("leadEmailTo"));
+
+  // A typo here means the alerts stop arriving and nothing says so, which is
+  // indistinguishable from the feature being broken. Cheap check, real payoff.
+  if (to && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+    return { error: "Enter a valid email address, or leave it blank." };
+  }
+
+  const { data: me } = await supabase
+    .from("profiles")
+    .select("account_id")
+    .eq("id", user.id)
+    .single();
+  if (!me) return { error: "No account found for this user." };
+
+  const notify: NotifyPrefs = { lead: { enabled, to: to ?? null } };
+
+  const { error } = await supabase
+    .from("accounts")
+    .update({ notify })
+    .eq("id", me.account_id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/settings");
+  return {
+    success: enabled
+      ? `Lead alerts on. Sending to ${to ?? user.email}.`
+      : "Lead alerts off.",
+  };
 }

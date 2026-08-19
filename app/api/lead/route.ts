@@ -1,4 +1,6 @@
+import { after } from "next/server";
 import { createEdgeClient } from "@/lib/supabase/edge";
+import { notifyNewLead } from "@/lib/notifications/notify-lead";
 
 export const runtime = "edge";
 
@@ -28,7 +30,7 @@ export async function POST(request: Request) {
   }
 
   const supabase = createEdgeClient();
-  const { error } = await supabase.rpc("submit_lead", {
+  const { data: leadId, error } = await supabase.rpc("submit_lead", {
     p_page_id: p.pageId,
     p_name: p.name ?? null,
     p_phone: p.phone ?? null,
@@ -38,5 +40,22 @@ export async function POST(request: Request) {
   });
 
   if (error) return new Response("error", { status: 400 });
+
+  // Notify after the response, not before it.
+  //
+  // The lead is already saved, so the person who filled in the form is done —
+  // making them wait on our mail provider would add latency to the one moment
+  // that matters, on a mobile connection, for their benefit not ours. `after`
+  // also means a slow or failing Resend cannot turn a captured lead into an
+  // error on a customer's screen.
+  //
+  // Older leads created before migration 0014 have no id here; the guard keeps
+  // that a no-op rather than a crash.
+  if (typeof leadId === "string") {
+    after(async () => {
+      await notifyNewLead(leadId);
+    });
+  }
+
   return new Response(null, { status: 204 });
 }

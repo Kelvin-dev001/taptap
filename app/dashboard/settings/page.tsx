@@ -3,7 +3,9 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { Card, Alert } from "@/components/ui";
 import { PageHeader } from "@/components/shell/page-header";
 import SettingsForm from "./settings-form";
-import type { BusinessProfile } from "./actions";
+import NotificationsForm from "./notifications-form";
+import { isMissingSchemaError } from "@/lib/schema-guard";
+import type { BusinessProfile, NotifyPrefs } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -22,9 +24,23 @@ export default async function SettingsPage() {
     .eq("id", user.id)
     .single();
 
-  const { data: account } = me
+  // `notify` only exists once migration 0014 is applied. Selecting it on an
+  // un-migrated database would break the whole Settings page rather than the one
+  // card that needs it, so fall back the way profile creation already does.
+  const { data: account, error: accountError } = me
+    ? await supabase
+        .from("accounts")
+        .select("name, profile, notify")
+        .eq("id", me.account_id)
+        .single()
+    : { data: null, error: null };
+
+  const { data: legacyAccount } = isMissingSchemaError(accountError) && me
     ? await supabase.from("accounts").select("name, profile").eq("id", me.account_id).single()
     : { data: null };
+
+  const resolved = account ?? legacyAccount;
+  const notifyReady = !isMissingSchemaError(accountError);
 
   return (
     <>
@@ -37,9 +53,26 @@ export default async function SettingsPage() {
         <Card padding="md">
           <h2 className="mb-4 text-section-title text-foreground">Business details</h2>
           <SettingsForm
-            name={account?.name ?? ""}
-            profile={(account?.profile ?? {}) as BusinessProfile}
+            name={resolved?.name ?? ""}
+            profile={(resolved?.profile ?? {}) as BusinessProfile}
           />
+        </Card>
+
+        <Card padding="md">
+          <h2 className="mb-1 text-section-title text-foreground">Notifications</h2>
+          <p className="mb-4 text-body-sm text-muted">
+            A lead is only worth capturing if someone follows it up.
+          </p>
+          {notifyReady ? (
+            <NotificationsForm
+              notify={((account as { notify?: NotifyPrefs } | null)?.notify ?? {}) as NotifyPrefs}
+              ownerEmail={user.email ?? ""}
+            />
+          ) : (
+            <Alert tone="warning">
+              Run migration <code>0014_notifications.sql</code> to turn on lead alerts.
+            </Alert>
+          )}
         </Card>
 
         <Card padding="md">
