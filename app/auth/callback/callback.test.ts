@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { safeNext } from "./route";
+import { safeNext, asOtpType } from "./route";
 
 /**
  * `next` arrives from a URL inside an email, so it is attacker-controllable.
@@ -54,6 +54,25 @@ describe("safeNext", () => {
       const out = safeNext(input);
       expect(out.startsWith("/")).toBe(true);
       expect(out.startsWith("//")).toBe(false);
+    }
+  });
+});
+
+/**
+ * `type` arrives from a URL inside an email, so it is attacker-controllable.
+ * Validating it keeps an arbitrary string out of the auth SDK, and pins the set
+ * so a Supabase email template using any of them keeps working.
+ */
+describe("asOtpType", () => {
+  it("accepts every type Supabase sends to this route", () => {
+    for (const t of ["signup", "invite", "magiclink", "recovery", "email_change", "email"]) {
+      expect(asOtpType(t)).toBe(t);
+    }
+  });
+
+  it("rejects anything else", () => {
+    for (const t of ["", "admin", "bearer", "SIGNUP", "magic link", "'; drop table--", null]) {
+      expect(asOtpType(t)).toBeNull();
     }
   });
 });

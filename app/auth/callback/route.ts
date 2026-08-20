@@ -1,30 +1,55 @@
 import { NextResponse } from "next/server";
+import type { EmailOtpType } from "@supabase/supabase-js";
 import { createServerSupabase } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Email confirmation landing point.
+ * Where every authenticated link lands.
  *
- * Supabase mails a link carrying a one-time `code`, which is worthless until it
- * is exchanged for a session. Nothing in the app did that exchange, so a
- * confirmation link landed on the marketing page at `/?code=…`, the code was
- * silently ignored, and the new user was never signed in — the account existed
- * but could not be entered. This route is the missing half.
+ * Two flows arrive here, and they are not interchangeable:
  *
- * It handles every link Supabase can send here: signup confirmation, magic
- * link, OAuth, password recovery and email-change confirmation all arrive as
- * either a `code` to exchange or an `error` to report.
+ *   token_hash + type — EMAIL links (magic link, signup confirmation, recovery,
+ *     email change). Verified with verifyOtp. Carries no client-side secret, so
+ *     it works no matter where the link is opened.
+ *
+ *   code — OAuth (Google). PKCE, exchanged for a session. Correct here because
+ *     the whole round trip happens in the browser that started it, so the code
+ *     verifier is still where the SDK left it.
+ *
+ * WHY EMAIL LINKS ARE NOT PKCE: the verifier lives in the browser that
+ * REQUESTED the link, and email links are usually opened somewhere else — a
+ * mail app's in-app webview, a different browser, or a different device. None
+ * of those have it, and the exchange fails with "PKCE code verifier not found
+ * in storage". The cruel part is that it succeeds when testing in the same tab,
+ * so it looks fine until real people use it.
  */
+
+/** The only OTP types this route will act on. */
+const EMAIL_OTP_TYPES = new Set<EmailOtpType>([
+  "signup",
+  "invite",
+  "magiclink",
+  "recovery",
+  "email_change",
+  "email",
+]);
+
+/**
+ * `type` comes from a URL in an email, so it is attacker-controllable. Checking
+ * it against the known set keeps an arbitrary string out of the auth SDK.
+ */
+export function asOtpType(raw: string | null): EmailOtpType | null {
+  return raw && EMAIL_OTP_TYPES.has(raw as EmailOtpType) ? (raw as EmailOtpType) : null;
+}
 
 /**
  * Only ever redirect within this site.
  *
- * `next` arrives from a URL in an email, so it is attacker-controllable: a
- * crafted link could otherwise bounce a freshly-authenticated user to another
- * origin. Requiring a single leading slash rejects both absolute URLs
- * (`https://evil.example`) and protocol-relative ones (`//evil.example`), which
- * browsers treat as absolute.
+ * `next` also arrives from a URL in an email: a crafted link could otherwise
+ * bounce a freshly-authenticated user to another origin. Requiring a single
+ * leading slash rejects absolute URLs (`https://evil.example`) and
+ * protocol-relative ones (`//evil.example`), which browsers treat as absolute.
  */
 export function safeNext(raw: string | null): string {
   if (!raw) return "/dashboard";
@@ -34,36 +59,37 @@ export function safeNext(raw: string | null): string {
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const code = url.searchParams.get("code");
   const next = safeNext(url.searchParams.get("next"));
+  const fail = (reason: string) =>
+    NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(reason)}`, url.origin));
 
   // Supabase reports failures (expired or already-used links) on the query
   // string rather than as an exception. Surface the real reason instead of
   // leaving someone on a blank page.
   const providerError =
     url.searchParams.get("error_description") ?? url.searchParams.get("error");
-  if (providerError) {
-    return NextResponse.redirect(
-      new URL(`/login?error=${encodeURIComponent(providerError)}`, url.origin),
-    );
-  }
-
-  if (!code) {
-    return NextResponse.redirect(new URL("/login", url.origin));
-  }
+  if (providerError) return fail(providerError);
 
   const supabase = await createServerSupabase();
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
 
-  if (error) {
-    // Most often an expired link or one already opened once — both are
-    // recoverable by signing in or requesting a new email, so say so plainly.
-    return NextResponse.redirect(
-      new URL(`/login?error=${encodeURIComponent(error.message)}`, url.origin),
-    );
+  // --- Email links -----------------------------------------------------------
+  const tokenHash = url.searchParams.get("token_hash");
+  if (tokenHash) {
+    const type = asOtpType(url.searchParams.get("type"));
+    if (!type) return fail("This link is not valid. Request a new one.");
+
+    const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
+    if (error) return fail(error.message);
+    return NextResponse.redirect(new URL(next, url.origin));
   }
 
-  // exchangeCodeForSession writes the session cookies through the server
-  // client, so the redirect below lands already signed in.
-  return NextResponse.redirect(new URL(next, url.origin));
+  // --- OAuth -----------------------------------------------------------------
+  const code = url.searchParams.get("code");
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) return fail(error.message);
+    return NextResponse.redirect(new URL(next, url.origin));
+  }
+
+  return NextResponse.redirect(new URL("/login", url.origin));
 }
