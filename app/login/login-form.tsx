@@ -7,9 +7,9 @@ import { createBrowserSupabase } from "@/lib/supabase/client";
 import { Button, Field, Input, Alert, Card, GoogleMark } from "@/components/ui";
 import { Wordmark } from "@/components/shell/logo";
 
-type Mode = "signin" | "signup";
+type Mode = "signin" | "signup" | "reset";
 /** What we told the user we emailed them, so the confirmation panel can say so. */
-type SentKind = "link" | "confirm";
+type SentKind = "link" | "confirm" | "reset";
 
 /**
  * Google is only offered once it actually works.
@@ -102,6 +102,22 @@ export function LoginForm({ initialError }: { initialError?: string }) {
     try {
       const supabase = createBrowserSupabase();
 
+      // --- Password reset -----------------------------------------------------
+      if (mode === "reset") {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          // Lands on /auth/callback, which verifies the recovery token and
+          // establishes a session, then forwards to the page where the new
+          // password is actually set. `next` is validated there.
+          redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+        });
+        if (error) {
+          setError(error.message);
+          return;
+        }
+        setSent({ to: email, kind: "reset" });
+        return;
+      }
+
       // --- Magic link: the default email path ---------------------------------
       if (!usePassword) {
         const { error } = await supabase.auth.signInWithOtp({
@@ -173,9 +189,12 @@ export function LoginForm({ initialError }: { initialError?: string }) {
    */
   if (sent) {
     const isLink = sent.kind === "link";
-    const spoken = isLink
-      ? "Check your email. We sent you a sign-in link."
-      : "Account created. Check your email to activate, then sign in.";
+    const isReset = sent.kind === "reset";
+    const spoken = isReset
+      ? "Check your email. We sent you a link to set a new password."
+      : isLink
+        ? "Check your email. We sent you a sign-in link."
+        : "Account created. Check your email to activate, then sign in.";
 
     return (
       <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-6 py-10">
@@ -209,7 +228,11 @@ export function LoginForm({ initialError }: { initialError?: string }) {
               style={{ animationDelay: "120ms" }}
               aria-hidden
             >
-              {isLink ? "We sent a sign-in link to" : "We sent an activation link to"}
+              {isReset
+                ? "We sent a password reset link to"
+                : isLink
+                  ? "We sent a sign-in link to"
+                  : "We sent an activation link to"}
             </p>
             <p
               className="animate-rise-in break-all text-body font-medium text-foreground"
@@ -224,9 +247,11 @@ export function LoginForm({ initialError }: { initialError?: string }) {
               style={{ animationDelay: "220ms" }}
               aria-hidden
             >
-              {isLink
-                ? "Open it on this device and you will be signed in — no password needed."
-                : "Click the link to activate your account, then sign in."}{" "}
+              {isReset
+                ? "Open it and you can choose a new password."
+                : isLink
+                  ? "Open it and you will be signed in — no password needed."
+                  : "Click the link to activate your account, then sign in."}{" "}
               It can take a minute to arrive — check spam if you do not see it.
             </p>
 
@@ -248,11 +273,14 @@ export function LoginForm({ initialError }: { initialError?: string }) {
     );
   }
 
-  const emailActionLabel = usePassword
-    ? mode === "signin"
-      ? "Sign in"
-      : "Create account"
-    : "Email me a sign-in link";
+  const isReset = mode === "reset";
+  const emailActionLabel = isReset
+    ? "Email me a reset link"
+    : usePassword
+      ? mode === "signin"
+        ? "Sign in"
+        : "Create account"
+      : "Email me a sign-in link";
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-6 py-10">
@@ -260,12 +288,18 @@ export function LoginForm({ initialError }: { initialError?: string }) {
 
       <Card padding="md">
         <h1 className="mb-1 text-page-title text-foreground">
-          {mode === "signin" ? "Sign in" : "Create your account"}
+          {isReset
+            ? "Reset your password"
+            : mode === "signin"
+              ? "Sign in"
+              : "Create your account"}
         </h1>
         <p className="mb-5 text-body-sm text-muted">
-          {mode === "signin"
-            ? "Manage your Tap Profiles, cards and customers."
-            : "One account runs all your links and NFC cards."}
+          {isReset
+            ? "Enter your email and we will send you a link to choose a new one."
+            : mode === "signin"
+              ? "Manage your Tap Profiles, cards and customers."
+              : "One account runs all your links and NFC cards."}
         </p>
 
         {/* Form-level, not field-level. Supabase deliberately does not say which
@@ -278,7 +312,7 @@ export function LoginForm({ initialError }: { initialError?: string }) {
           </Alert>
         )}
 
-        {googleEnabled() && (
+        {googleEnabled() && !isReset && (
           <>
             <Button
               variant="secondary"
@@ -314,7 +348,7 @@ export function LoginForm({ initialError }: { initialError?: string }) {
             />
           </Field>
 
-          {usePassword && (
+          {usePassword && !isReset && (
             <div className="animate-rise-in">
               <Field label="Password" required>
                 <Input
@@ -327,6 +361,21 @@ export function LoginForm({ initialError }: { initialError?: string }) {
                   minLength={6}
                 />
               </Field>
+              {mode === "signin" && (
+                <p className="mt-2 text-right">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("reset");
+                      setError(null);
+                      setPassword("");
+                    }}
+                    className="rounded text-body-sm font-medium text-primary-strong hover:underline"
+                  >
+                    Forgot password?
+                  </button>
+                </p>
+              )}
             </div>
           )}
 
@@ -335,31 +384,48 @@ export function LoginForm({ initialError }: { initialError?: string }) {
           </Button>
         </form>
 
-        <p className="mt-4 text-center text-body-sm text-muted">
-          <button
-            type="button"
-            onClick={() => {
-              setUsePassword(!usePassword);
-              setError(null);
-            }}
-            className="rounded font-medium text-primary-strong hover:underline"
-          >
-            {usePassword ? "Email me a link instead" : "Use a password instead"}
-          </button>
-        </p>
+        {!isReset && (
+          <p className="mt-4 text-center text-body-sm text-muted">
+            <button
+              type="button"
+              onClick={() => {
+                setUsePassword(!usePassword);
+                setError(null);
+              }}
+              className="rounded font-medium text-primary-strong hover:underline"
+            >
+              {usePassword ? "Email me a link instead" : "Use a password instead"}
+            </button>
+          </p>
+        )}
 
         <p className="mt-5 border-t border-border pt-5 text-center text-body-sm text-muted">
-          {mode === "signin" ? "No account yet?" : "Already have an account?"}{" "}
-          <button
-            type="button"
-            onClick={() => {
-              setMode(mode === "signin" ? "signup" : "signin");
-              setError(null);
-            }}
-            className="rounded font-medium text-primary-strong hover:underline"
-          >
-            {mode === "signin" ? "Create one" : "Sign in"}
-          </button>
+          {isReset ? (
+            <button
+              type="button"
+              onClick={() => {
+                setMode("signin");
+                setError(null);
+              }}
+              className="rounded font-medium text-primary-strong hover:underline"
+            >
+              Back to sign in
+            </button>
+          ) : (
+            <>
+              {mode === "signin" ? "No account yet?" : "Already have an account?"}{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  setMode(mode === "signin" ? "signup" : "signin");
+                  setError(null);
+                }}
+                className="rounded font-medium text-primary-strong hover:underline"
+              >
+                {mode === "signin" ? "Create one" : "Sign in"}
+              </button>
+            </>
+          )}
         </p>
       </Card>
     </main>

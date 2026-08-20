@@ -10,10 +10,11 @@ const signInWithOtp = vi.fn();
 const signInWithOAuth = vi.fn();
 const signInWithPassword = vi.fn();
 const signUp = vi.fn();
+const resetPasswordForEmail = vi.fn();
 
 vi.mock("@/lib/supabase/client", () => ({
   createBrowserSupabase: () => ({
-    auth: { signInWithOtp, signInWithOAuth, signInWithPassword, signUp },
+    auth: { signInWithOtp, signInWithOAuth, signInWithPassword, signUp, resetPasswordForEmail },
   }),
 }));
 
@@ -23,6 +24,7 @@ beforeEach(() => {
   signInWithOAuth.mockResolvedValue({ error: null });
   signInWithPassword.mockResolvedValue({ error: null });
   signUp.mockResolvedValue({ error: null });
+  resetPasswordForEmail.mockResolvedValue({ error: null });
 });
 
 describe("LoginForm", () => {
@@ -141,5 +143,60 @@ describe("LoginForm", () => {
     expect((await screen.findByRole("alert")).textContent).toContain("rate limit");
     // Still on the form, not stranded on a success panel.
     expect(screen.getByRole("button", { name: /email me a sign-in link/i })).toBeTruthy();
+  });
+
+  describe("forgot password", () => {
+    /** Only reachable from the password path — there is nothing to reset when
+     *  signing in by link. */
+    it("is offered once the password field is shown", async () => {
+      const user = userEvent.setup();
+      render(<LoginForm />);
+
+      expect(screen.queryByRole("button", { name: /forgot password/i })).toBeNull();
+      await user.click(screen.getByRole("button", { name: /use a password instead/i }));
+      expect(screen.getByRole("button", { name: /forgot password/i })).toBeTruthy();
+    });
+
+    it("sends a reset link and confirms where it went", async () => {
+      const user = userEvent.setup();
+      render(<LoginForm />);
+
+      await user.click(screen.getByRole("button", { name: /use a password instead/i }));
+      await user.click(screen.getByRole("button", { name: /forgot password/i }));
+      await user.type(screen.getByLabelText(/email/i), "owner@macauditcpa.co.ke");
+      await user.click(screen.getByRole("button", { name: /email me a reset link/i }));
+
+      await waitFor(() => expect(resetPasswordForEmail).toHaveBeenCalled());
+      expect(resetPasswordForEmail.mock.calls[0][0]).toBe("owner@macauditcpa.co.ke");
+      expect(await screen.findByText("owner@macauditcpa.co.ke")).toBeTruthy();
+    });
+
+    /** The recovery link must land on the page that actually sets the password,
+     *  not the dashboard — otherwise the user is signed in but never prompted. */
+    it("routes the link through the callback to /reset-password", async () => {
+      const user = userEvent.setup();
+      render(<LoginForm />);
+
+      await user.click(screen.getByRole("button", { name: /use a password instead/i }));
+      await user.click(screen.getByRole("button", { name: /forgot password/i }));
+      await user.type(screen.getByLabelText(/email/i), "owner@macauditcpa.co.ke");
+      await user.click(screen.getByRole("button", { name: /email me a reset link/i }));
+
+      await waitFor(() => expect(resetPasswordForEmail).toHaveBeenCalled());
+      const opts = resetPasswordForEmail.mock.calls[0][1];
+      expect(opts.redirectTo).toContain("/auth/callback");
+      expect(opts.redirectTo).toContain("next=/reset-password");
+    });
+
+    it("never asks for a password while resetting", async () => {
+      const user = userEvent.setup();
+      render(<LoginForm />);
+
+      await user.click(screen.getByRole("button", { name: /use a password instead/i }));
+      await user.click(screen.getByRole("button", { name: /forgot password/i }));
+
+      expect(screen.queryByLabelText(/password/i)).toBeNull();
+      expect(screen.getByRole("button", { name: /back to sign in/i })).toBeTruthy();
+    });
   });
 });

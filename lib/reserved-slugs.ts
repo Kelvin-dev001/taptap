@@ -21,6 +21,12 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   "profile",
   "profiles",
   "onboarding",
+  // Real root-level routes (UI-13). `/[slug]` is a catch-all, so a route that
+  // exists silently shadows any customer who claimed the same name.
+  "reset-password",
+  "forgot-password",
+  "confirm",
+  "verify",
   // Reserved in UI-1 (D-013): `/[slug]` is a root catch-all, so every name the
   // product might one day route to must be withheld from customers BEFORE
   // launch. Free now; breaking once someone owns one.
