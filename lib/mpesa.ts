@@ -1,9 +1,48 @@
 // M-Pesa Daraja STK push. Server-only (uses Node Buffer + secret credentials).
 
-const BASE =
-  process.env.MPESA_ENV === "production"
-    ? "https://api.safaricom.co.ke"
-    : "https://sandbox.safaricom.co.ke";
+/**
+ * Values that are obviously not credentials, however they are cased.
+ *
+ * The same class of bug `lib/admin-auth.ts` was written to close, and it cost an
+ * hour before it was recognised: `.env.local` held `PASTE_YOUR_CONSUMER_KEY`
+ * verbatim, Daraja answered 400 with an empty body, and the app reported only
+ * "M-Pesa auth failed." Nothing said the credentials had never been filled in.
+ */
+const PLACEHOLDER_PATTERNS = [
+  "paste_your",
+  "your-",
+  "your_",
+  "change-me",
+  "changeme",
+  "replace",
+  "xxxx",
+  "todo",
+];
+
+export function isPlaceholderCredential(value: string): boolean {
+  const v = value.trim().toLowerCase();
+  if (v.length === 0) return true;
+  return PLACEHOLDER_PATTERNS.some((p) => v.includes(p));
+}
+
+/**
+ * Resolve and validate the Daraja environment.
+ *
+ * Strict rather than "anything that isn't production means sandbox". That
+ * default is safe in one direction and dangerous in the other: a typo like
+ * `prodution` would silently run live payments against the sandbox, and the
+ * failure would look like customers not being charged rather than like a
+ * misconfiguration.
+ */
+export function mpesaBaseUrl(env: string | undefined = process.env.MPESA_ENV): string {
+  const mode = (env ?? "sandbox").trim().toLowerCase();
+  if (mode === "production") return "https://api.safaricom.co.ke";
+  if (mode === "sandbox") return "https://sandbox.safaricom.co.ke";
+  throw new Error(
+    `MPESA_ENV must be exactly "sandbox" or "production" — got "${env}". ` +
+      "Refusing to guess which one you meant when real money is involved.",
+  );
+}
 
 /** Normalize a Kenyan number to Daraja format 2547XXXXXXXX / 2541XXXXXXXX. */
 export function normalizePhone(input: string): string | null {
@@ -27,12 +66,37 @@ async function getToken(): Promise<string> {
   const key = process.env.MPESA_CONSUMER_KEY;
   const secret = process.env.MPESA_CONSUMER_SECRET;
   if (!key || !secret) throw new Error("M-Pesa credentials not configured.");
+
+  // Named individually so the message says WHICH one to go and fix.
+  const unset = [
+    isPlaceholderCredential(key) && "MPESA_CONSUMER_KEY",
+    isPlaceholderCredential(secret) && "MPESA_CONSUMER_SECRET",
+  ].filter(Boolean);
+  if (unset.length > 0) {
+    throw new Error(
+      `${unset.join(" and ")} still hold the placeholder from .env.example. ` +
+        "Get real values from developer.safaricom.co.ke and put them in .env.local.",
+    );
+  }
+
   const auth = Buffer.from(`${key}:${secret}`).toString("base64");
   const res = await fetch(
-    `${BASE}/oauth/v1/generate?grant_type=client_credentials`,
+    `${mpesaBaseUrl()}/oauth/v1/generate?grant_type=client_credentials`,
     { headers: { Authorization: `Basic ${auth}` }, cache: "no-store" },
   );
-  if (!res.ok) throw new Error("M-Pesa auth failed.");
+
+  if (!res.ok) {
+    // Daraja answers a bad key with 400 and an EMPTY body, so the status is
+    // most of what there is to go on — and discarding it, as this used to,
+    // leaves "auth failed" with no way to tell a wrong key from an outage.
+    // Never echoes the credentials; only what came back.
+    const detail = (await res.text().catch(() => "")).trim().slice(0, 200);
+    throw new Error(
+      `M-Pesa auth failed (HTTP ${res.status}${detail ? `: ${detail}` : ", empty body"}). ` +
+        "A 400 here almost always means the consumer key or secret is wrong.",
+    );
+  }
+
   const j = (await res.json()) as { access_token?: string };
   if (!j.access_token) throw new Error("M-Pesa auth returned no token.");
   return j.access_token;
@@ -70,7 +134,7 @@ export async function stkPush(opts: {
     TransactionDesc: (opts.description || "TapTap").slice(0, 13),
   };
 
-  const res = await fetch(`${BASE}/mpesa/stkpush/v1/processrequest`, {
+  const res = await fetch(`${mpesaBaseUrl()}/mpesa/stkpush/v1/processrequest`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
