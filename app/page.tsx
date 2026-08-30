@@ -1,93 +1,97 @@
-import Link from "next/link";
-import { Nfc, QrCode, ChartNoAxesColumn } from "lucide-react";
-import { buttonVariants } from "@/components/ui";
-import { Wordmark } from "@/components/shell/logo";
-import { cn } from "@/lib/cn";
+import type { Metadata } from "next";
+import { MotionProvider } from "@/components/marketing/motion-provider";
+import { MarketingNav } from "@/components/marketing/nav";
+import { Hero } from "@/components/marketing/hero";
+import { Marquee } from "@/components/marketing/marquee";
+import { WhatIsTapTap } from "@/components/marketing/what-is-taptap";
+import { HowItWorks } from "@/components/marketing/how-it-works";
+import { Features } from "@/components/marketing/features";
+import { UseCases } from "@/components/marketing/use-cases";
+import { AnalyticsPreview } from "@/components/marketing/analytics-preview";
+import { PricingTeaser } from "@/components/marketing/pricing-teaser";
+import { Vision } from "@/components/marketing/vision";
+import { Faq } from "@/components/marketing/faq";
+import { CtaBand } from "@/components/marketing/cta-band";
+import { MarketingFooter } from "@/components/marketing/footer";
+import { Section, SectionHeading } from "@/components/marketing/section";
+import { Reveal } from "@/components/marketing/reveal";
 
-export const metadata = {
-  title: "One smart link for your business",
-  description:
-    "Hornbill TapTap turns any NFC card or QR code into a permanent link you control. Change where it points without reprinting anything.",
+const TITLE = "Hornbill TapTap — Smart NFC Business Cards & Review Stands in Kenya";
+const DESCRIPTION =
+  "One tap shares your contact, WhatsApp, Google review link and location. Smart NFC cards and stands for Kenyan businesses, from KES 1,500 with the first year included.";
+
+/**
+ * The title is set absolutely rather than through the root template: the layout
+ * appends "· Hornbill TapTap" to every page, and on the home page that would
+ * read as the brand name twice.
+ */
+export const metadata: Metadata = {
+  title: { absolute: TITLE },
+  description: DESCRIPTION,
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    type: "website",
+    siteName: "Hornbill TapTap",
+    locale: "en_KE",
+  },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
+  robots: { index: true, follow: true },
 };
 
 /**
- * Public landing page. Migrated to the design system in UI-12 — it had been on
- * pre-design-system styling since Sprint 1 and is the first thing anyone sees.
+ * The public landing page.
  *
- * Says what the product does in the terms the charter uses (D-001): the
- * hardware is an interaction method, the software is the product.
+ * A Server Component that composes mostly-server sections. `MotionProvider` is
+ * a client boundary but its children are passed through as already-rendered
+ * server output, so the animation runtime loads once for the page rather than
+ * dragging every section onto the client.
+ *
+ * The only genuinely client sections are the ones that need input or scroll
+ * position: the nav, the hero sequence, the use-case tabs, and the reveal
+ * wrappers. The FAQ, features, pricing and footer ship no JavaScript.
  */
 export default function Home() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center gap-10 px-6 py-16">
-      <Wordmark subtitle="Business suite" />
+    <MotionProvider>
+      {/* Skip link is the first focusable element (WCAG 2.4.1). */}
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2 focus:text-body-sm focus:shadow-md focus:outline-none focus:ring-2 focus:ring-primary"
+      >
+        Skip to content
+      </a>
 
-      <div className="flex flex-col gap-4">
-        <h1 className="text-display text-foreground">
-          One smart link for your business
-        </h1>
-        <p className="text-body text-foreground-secondary">
-          Tap or scan to connect. Point any NFC card or QR code at a page you control — a
-          Google review, WhatsApp, your menu, or a full digital business card. Change where it
-          goes at any time; the card never needs reprinting.
-        </p>
-      </div>
+      <MarketingNav />
 
-      <ul className="flex flex-col gap-3">
-        <Feature icon={Nfc} title="Cards you never re-encode">
-          Repoint a card from your dashboard and every future tap follows.
-        </Feature>
-        <Feature icon={QrCode} title="QR that prints properly">
-          Vector codes sized for stickers, stands and menus.
-        </Feature>
-        <Feature icon={ChartNoAxesColumn} title="Numbers you can act on">
-          See which card, which action and which time of day actually works.
-        </Feature>
-      </ul>
+      <main id="main">
+        <Hero />
+        <Marquee />
+        <WhatIsTapTap />
+        <HowItWorks />
+        <Features />
 
-      <div className="flex flex-wrap gap-3">
-        <Link href="/login" className={cn(buttonVariants({ size: "lg" }))}>
-          Get started
-        </Link>
-        <Link
-          href="/dashboard"
-          className={cn(buttonVariants({ variant: "secondary", size: "lg" }))}
-        >
-          Sign in
-        </Link>
-      </div>
+        <Section id="use-cases" label="Use cases" tone="sunken">
+          <Reveal>
+            <SectionHeading
+              eyebrow="Use cases"
+              title="Built for the way Kenyan businesses actually work."
+              sub="Wherever a customer meets your business, TapTap turns that moment into an action."
+              align="center"
+            />
+          </Reveal>
+          <UseCases />
+        </Section>
 
-      <footer className="flex flex-wrap gap-4 border-t border-border pt-6 text-caption text-muted">
-        <Link href="/privacy" className="hover:text-foreground">
-          Privacy
-        </Link>
-        <Link href="/terms" className="hover:text-foreground">
-          Terms
-        </Link>
-        <span>Nairobi, Kenya</span>
-      </footer>
-    </main>
-  );
-}
+        <AnalyticsPreview />
+        <PricingTeaser />
+        <Vision />
+        <Faq />
+        <CtaBand />
+      </main>
 
-function Feature({
-  icon: Icon,
-  title,
-  children,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <li className="flex items-start gap-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-soft">
-        <Icon className="h-4 w-4 text-primary-strong" />
-      </span>
-      <span className="flex flex-col">
-        <span className="text-card-title text-foreground">{title}</span>
-        <span className="text-body-sm text-muted">{children}</span>
-      </span>
-    </li>
+      <MarketingFooter />
+    </MotionProvider>
   );
 }

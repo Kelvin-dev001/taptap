@@ -160,6 +160,13 @@ const config: Config = {
         spin: {
           to: { transform: "rotate(360deg)" },
         },
+        /* Marketing marquee. The track is rendered twice and this moves it by
+           exactly half its width, so the second copy lands where the first
+           began and the loop has no seam. */
+        marquee: {
+          from: { transform: "translateX(0)" },
+          to: { transform: "translateX(-50%)" },
+        },
       },
       animation: {
         "fade-in": "fade-in var(--duration-base) var(--ease-standard)",
@@ -172,6 +179,8 @@ const config: Config = {
         "rise-in": "rise-in var(--duration-base) var(--ease-decelerate) both",
         shimmer: "shimmer 1.6s infinite",
         spin: "spin 0.7s linear infinite",
+        // Slow enough to read a word as it passes, rather than a blur.
+        marquee: "marquee 46s linear infinite",
       },
     },
   },
