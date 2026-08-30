@@ -3,11 +3,8 @@
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Button, Field, Input, Alert, SwitchField } from "@/components/ui";
-import {
-  saveNotificationsAction,
-  type NotifyPrefs,
-  type SettingsState,
-} from "./actions";
+import { saveNotificationsAction, type SettingsState } from "./actions";
+import type { NotifyPrefs } from "@/lib/notifications/preferences";
 
 const initial: SettingsState = {};
 

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { isSafeDestination } from "@/lib/url";
+import { mergeNotifyPrefs } from "@/lib/notifications/preferences";
 
 export type BusinessProfile = {
   category?: string;
@@ -14,18 +15,6 @@ export type BusinessProfile = {
 };
 
 export type SettingsState = { error?: string; success?: string };
-
-/**
- * Notification preferences (migration 0014).
- *
- * Kept in `accounts.notify`, deliberately NOT inside `accounts.profile`:
- * saveBusinessProfileAction replaces `profile` wholesale, so preferences stored
- * there would be wiped the next time someone saved their business details —
- * silently, with notifications simply ceasing.
- */
-export type NotifyPrefs = {
-  lead?: { enabled?: boolean; to?: string | null };
-};
 
 function clean(value: FormDataEntryValue | null): string | undefined {
   const s = String(value ?? "").trim();
@@ -63,6 +52,10 @@ export async function saveBusinessProfileAction(
     }
   }
 
+  // Written wholesale, and that is correct HERE: this form owns every field in
+  // BusinessProfile, so a merge would be a no-op plus a query. It stops being
+  // correct the moment anything else writes into `profile` — which is exactly
+  // what happened to `notify`, and why saveNotificationsAction now merges.
   const profile: BusinessProfile = {
     category: clean(formData.get("category")),
     location: clean(formData.get("location")),
@@ -123,7 +116,25 @@ export async function saveNotificationsAction(
     .single();
   if (!me) return { error: "No account found for this user." };
 
-  const notify: NotifyPrefs = { lead: { enabled, to: to ?? null } };
+  // Read-modify-write, not replace. This form owns the `lead` section and
+  // nothing else, so every other key in `notify` has to survive it — see
+  // mergeNotifyPrefs for why that matters more than it currently looks.
+  //
+  // The read and the write are not atomic. Two people saving Settings in the
+  // same instant could lose one of the changes, which is accepted here: it is
+  // one owner editing their own preferences, the window is milliseconds, and
+  // the alternative — a jsonb-merge RPC — is a migration and a function for a
+  // race nobody has. Worth revisiting if team management (D-017) ever puts
+  // several people in one account's Settings.
+  const { data: current } = await supabase
+    .from("accounts")
+    .select("notify")
+    .eq("id", me.account_id)
+    .single();
+
+  const notify = mergeNotifyPrefs(current?.notify, {
+    lead: { enabled, to: to ?? null },
+  });
 
   const { error } = await supabase
     .from("accounts")

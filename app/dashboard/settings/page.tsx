@@ -5,7 +5,8 @@ import { PageHeader } from "@/components/shell/page-header";
 import SettingsForm from "./settings-form";
 import NotificationsForm from "./notifications-form";
 import { isMissingSchemaError } from "@/lib/schema-guard";
-import type { BusinessProfile, NotifyPrefs } from "./actions";
+import type { BusinessProfile } from "./actions";
+import type { NotifyPrefs } from "@/lib/notifications/preferences";
 
 export const dynamic = "force-dynamic";
 

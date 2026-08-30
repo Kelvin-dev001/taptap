@@ -1,12 +1,13 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { composeLeadEmail, type LeadForEmail } from "./lead-email";
+import { leadEmailEnabled, leadEmailRecipient, type NotifyPrefs } from "./preferences";
 import { sendEmail } from "./send";
 
 /** Shape returned by the lead_notification_target RPC (migration 0014). */
 type Target = {
   accountId: string;
   businessName: string;
-  notify: { lead?: { enabled?: boolean; to?: string | null } } | null;
+  notify: NotifyPrefs | null;
   slug: string;
   pageTitle: string | null;
   ownerEmail: string | null;
@@ -17,27 +18,6 @@ export type NotifyOutcome =
   | { status: "sent"; to: string }
   | { status: "skipped"; reason: string }
   | { status: "failed"; error: string };
-
-/**
- * Notifications are opt-OUT.
- *
- * A business that has never opened Settings is exactly the one that most needs
- * telling a lead arrived, so an absent preference means on. Only an explicit
- * `enabled: false` turns it off.
- */
-export function leadEmailEnabled(notify: Target["notify"]): boolean {
-  return notify?.lead?.enabled !== false;
-}
-
-/**
- * Who gets it: the address they chose, else the owner's verified sign-up
- * address. A custom address is the account's own decision about where their
- * customers' details are routed — they are the data controller.
- */
-export function leadEmailRecipient(target: Pick<Target, "notify" | "ownerEmail">): string | null {
-  const custom = target.notify?.lead?.to?.trim();
-  return custom || target.ownerEmail?.trim() || null;
-}
 
 /**
  * Send the new-lead notification for one lead.
