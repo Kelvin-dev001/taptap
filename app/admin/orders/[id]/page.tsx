@@ -105,7 +105,11 @@ export default async function OrderDetailPage({
           <Card padding="md">
             <h2 className="mb-1 text-section-title text-foreground">Move this order</h2>
             <p className="mb-4 text-body-sm text-muted">{meta.description}.</p>
-            <AdvanceOrder orderId={order.id} status={order.status} />
+            <AdvanceOrder
+              orderId={order.id}
+              status={order.status}
+              isPaid={order.payment_status === "paid"}
+            />
           </Card>
 
           <Card padding="md">

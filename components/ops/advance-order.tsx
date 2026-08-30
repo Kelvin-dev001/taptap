@@ -3,7 +3,12 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { Button, Alert } from "@/components/ui";
-import { allowedTransitions, ORDER_STATUS_META, type OrderStatus } from "@/lib/orders";
+import {
+  allowedTransitions,
+  availableTransitions,
+  ORDER_STATUS_META,
+  type OrderStatus,
+} from "@/lib/orders";
 import { advanceOrderAction, type OpsResult } from "@/app/admin/order-actions";
 
 const initial: OpsResult = {};
@@ -33,22 +38,32 @@ function MoveButton({ label, tone }: { label: string; tone: "primary" | "seconda
  * illegal one unreachable instead of rejected, and it works identically with a
  * keyboard, a screen reader and a mouse (§24).
  *
- * The legality shown here comes from the same `allowedTransitions` the server
- * re-checks, so the two can never disagree about what is offered.
+ * What is offered comes from the same `availableTransitions` the server re-checks
+ * through `transitionBlockedReason`, so the two can never disagree — and that
+ * includes the payment gate: an unpaid order is offered nothing but
+ * cancellation past `content_received`, because hiding a button is presentation
+ * and the server is what actually refuses.
  */
 export function AdvanceOrder({
   orderId,
   status,
+  isPaid,
   compact,
 }: {
   orderId: string;
   status: OrderStatus;
+  /** Whether a payment for this order has actually cleared. */
+  isPaid: boolean;
   /** Board cards show only the forward move; the detail page shows everything. */
   compact?: boolean;
 }) {
   const [state, action] = useActionState(advanceOrderAction, initial);
 
-  const moves = allowedTransitions(status);
+  const moves = availableTransitions(status, isPaid);
+  // Offered nothing but cancellation while the money is outstanding — spending
+  // design time or a blank card on an unpaid order is the thing being prevented.
+  const withheldForPayment =
+    !isPaid && allowedTransitions(status).length > moves.length;
   if (moves.length === 0) {
     return compact ? null : (
       <p className="text-caption text-muted">
@@ -82,6 +97,12 @@ export function AdvanceOrder({
           </form>
         ))}
       </div>
+
+      {withheldForPayment && !compact && (
+        <p className="text-caption text-muted">
+          Production stages open up once the payment clears. Cancel it if it is not going to.
+        </p>
+      )}
 
       {state.error && <Alert tone="danger">{state.error}</Alert>}
       {state.success && <Alert tone="success">{state.success}</Alert>}

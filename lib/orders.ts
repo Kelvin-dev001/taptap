@@ -122,6 +122,57 @@ export function isTerminal(status: OrderStatus): boolean {
 }
 
 /**
+ * The furthest an unpaid order may travel.
+ *
+ * Acknowledging that an order exists and that the customer has sent their
+ * content costs nothing. Everything past that point spends something real —
+ * design time, a blank card, printing, postage — so it waits for the money.
+ *
+ * Found the hard way: TT004 reached `delivered` with a failed payment, because
+ * the board displayed a "Not paid" badge and displaying is not enforcing. In a
+ * real workshop that is a card encoded and posted to someone who never paid.
+ */
+export const UNPAID_CEILING: OrderStatus = "content_received";
+
+export function requiresPayment(to: OrderStatus): boolean {
+  // Cancelling an unpaid order is exactly what should happen to it.
+  if (to === "cancelled") return false;
+  const index = FULFILMENT_PIPELINE.indexOf(to);
+  // Off-pipeline stages (revision_requested) are only reachable from deep in
+  // the paid section anyway, but default to requiring payment rather than
+  // assuming — the safe answer for a stage this does not recognise is "no".
+  if (index < 0) return true;
+  return index > FULFILMENT_PIPELINE.indexOf(UNPAID_CEILING);
+}
+
+/**
+ * Why a move is not allowed, or null if it is.
+ *
+ * One function so the console and the server action cannot disagree about what
+ * is permitted — the UI uses it to decide what to offer, the action re-checks it
+ * against the order's current state, and there is no second copy of the rule to
+ * drift.
+ */
+export function transitionBlockedReason(
+  from: OrderStatus,
+  to: OrderStatus,
+  isPaid: boolean,
+): string | null {
+  if (!canTransition(from, to)) {
+    return `${ORDER_STATUS_META[from].label} cannot move to ${ORDER_STATUS_META[to].label}.`;
+  }
+  if (!isPaid && requiresPayment(to)) {
+    return `${ORDER_STATUS_META[to].label} needs the payment to have cleared. Cancel it instead if it is not going to.`;
+  }
+  return null;
+}
+
+/** The moves that may actually be made right now, payment included. */
+export function availableTransitions(from: OrderStatus, isPaid: boolean): OrderStatus[] {
+  return allowedTransitions(from).filter((to) => !transitionBlockedReason(from, to, isPaid));
+}
+
+/**
  * Fulfilment and payment are separate state machines, joined only in the views.
  *
  * An order's `status` says where it is in production; whether it has been paid

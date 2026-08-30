@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { requireStaff } from "@/lib/staff";
-import { canTransition, isOrderStatus, ORDER_STATUS_META } from "@/lib/orders";
+import { transitionBlockedReason, isOrderStatus, ORDER_STATUS_META } from "@/lib/orders";
 
 export type OpsResult = { error?: string; success?: string };
 
@@ -34,22 +34,24 @@ export async function advanceOrderAction(
 
   const { data: order } = await supabase
     .from("orders")
-    .select("id, number, status")
+    .select("id, number, status, payments(status)")
     .eq("id", orderId)
     .single();
   if (!order) return { error: "Order not found." };
 
   if (!isOrderStatus(order.status)) return { error: "Order is in an unknown stage." };
 
-  // Re-checked server-side against the CURRENT status, not the one the form was
-  // rendered with. Two staff working the same board would otherwise be able to
-  // apply a move that was legal when the page loaded and is not any more.
-  if (!canTransition(order.status, to)) {
-    return {
-      error: `${order.number} cannot go from ${ORDER_STATUS_META[order.status].label} to ${
-        ORDER_STATUS_META[to].label
-      }. Someone may have moved it already.`,
-    };
+  const isPaid = ((order.payments ?? []) as { status: string }[]).some(
+    (p) => p.status === "paid",
+  );
+
+  // Re-checked server-side against the CURRENT status and the CURRENT payment,
+  // not what the form was rendered with. Two staff working the same board would
+  // otherwise be able to apply a move that was legal when the page loaded and is
+  // not any more — and hiding a button is presentation, never enforcement.
+  const blocked = transitionBlockedReason(order.status, to, isPaid);
+  if (blocked) {
+    return { error: `${order.number}: ${blocked}` };
   }
 
   const { error } = await supabase.from("orders").update({ status: to }).eq("id", orderId);

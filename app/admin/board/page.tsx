@@ -138,7 +138,12 @@ export default async function BoardPage() {
                           <Badge variant="neutral">Not paid</Badge>
                         )}
 
-                        <AdvanceOrder orderId={order.id} status={order.status} compact />
+                        <AdvanceOrder
+                          orderId={order.id}
+                          status={order.status}
+                          isPaid={order.payment_status === "paid"}
+                          compact
+                        />
                       </li>
                     );
                   })}

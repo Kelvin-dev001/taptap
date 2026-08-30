@@ -9,6 +9,10 @@ import {
   nextStatus,
   isTerminal,
   customerFacingStatus,
+  requiresPayment,
+  transitionBlockedReason,
+  availableTransitions,
+  UNPAID_CEILING,
   daysAtStage,
   isStuck,
   pipelineProgress,
@@ -229,5 +233,85 @@ describe("PRODUCT_KIND", () => {
   it("maps every seeded product to a device kind", () => {
     expect(PRODUCT_KIND.smart_card).toBe("card");
     expect(PRODUCT_KIND.smart_stand).toBe("stand");
+  });
+});
+
+/**
+ * The payment gate.
+ *
+ * Found in production: TT004 reached `delivered` carrying a FAILED payment,
+ * because the board displayed a "Not paid" badge and displaying is not
+ * enforcing. In a workshop that is a card designed, encoded, printed and posted
+ * to someone who never paid for it.
+ */
+describe("payment gate", () => {
+  it("lets an order be acknowledged before the money arrives", () => {
+    expect(requiresPayment("new")).toBe(false);
+    expect(requiresPayment(UNPAID_CEILING)).toBe(false);
+  });
+
+  it("requires payment for everything that spends something", () => {
+    for (const status of [
+      "design",
+      "awaiting_approval",
+      "approved",
+      "in_production",
+      "qc",
+      "ready_for_dispatch",
+      "dispatched",
+      "delivered",
+    ] as const) {
+      expect(requiresPayment(status)).toBe(true);
+    }
+  });
+
+  /** Cancelling an unpaid order is precisely what should happen to it. */
+  it("never requires payment to cancel", () => {
+    expect(requiresPayment("cancelled")).toBe(false);
+  });
+
+  /** revision_requested sits off the pipeline, so indexOf gives -1. The safe
+      answer for a stage the rule does not recognise is "payment required". */
+  it("defaults an off-pipeline stage to requiring payment", () => {
+    expect(requiresPayment("revision_requested")).toBe(true);
+  });
+
+  it("blocks the exact move that produced TT004", () => {
+    expect(transitionBlockedReason("dispatched", "delivered", false)).toMatch(/payment/i);
+    expect(transitionBlockedReason("dispatched", "delivered", true)).toBeNull();
+  });
+
+  it("explains an illegal move differently from an unpaid one", () => {
+    expect(transitionBlockedReason("new", "delivered", true)).toMatch(/cannot move/i);
+    expect(transitionBlockedReason("content_received", "design", false)).toMatch(/payment/i);
+  });
+
+  it("narrows the offered moves to cancellation while unpaid", () => {
+    expect(availableTransitions("content_received", false)).toEqual(["cancelled"]);
+    expect(availableTransitions("content_received", true)).toEqual(["design", "cancelled"]);
+  });
+
+  it("still allows the first acknowledgement unpaid", () => {
+    expect(availableTransitions("new", false)).toEqual(["content_received", "cancelled"]);
+  });
+
+  /** An unpaid order must never be able to reach a terminal success state. */
+  it("leaves no unpaid route to delivered", () => {
+    let reachable: OrderStatus[] = ["new"];
+    const seen = new Set<OrderStatus>(reachable);
+    while (reachable.length) {
+      const next: OrderStatus[] = [];
+      for (const from of reachable) {
+        for (const to of availableTransitions(from, false)) {
+          if (seen.has(to)) continue;
+          seen.add(to);
+          next.push(to);
+        }
+      }
+      reachable = next;
+    }
+    expect(seen.has("delivered")).toBe(false);
+    expect(seen.has("in_production")).toBe(false);
+    expect(seen.has("cancelled")).toBe(true);
   });
 });
