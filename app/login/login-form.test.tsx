@@ -200,3 +200,55 @@ describe("LoginForm", () => {
     });
   });
 });
+
+/**
+ * Where you land after signing in.
+ *
+ * `requireStaff` sends signed-out staff to `/login?next=/admin`. Before this
+ * the param was decorative — the form always went to /dashboard — so following
+ * the gate signed you in and dropped you somewhere else, which reads as the
+ * link having failed rather than having worked.
+ *
+ * The value is validated by the server page (`safeNext`), so by the time it
+ * reaches the form it is already known to be a same-origin path.
+ */
+describe("LoginForm — where it sends you", () => {
+  it("returns to the dashboard by default", async () => {
+    const user = userEvent.setup();
+    render(<LoginForm />);
+
+    await user.click(screen.getByRole("button", { name: /use a password instead/i }));
+    await user.type(screen.getByLabelText(/email/i), "owner@macauditcpa.co.ke");
+    await user.type(screen.getByLabelText(/password/i), "hunter2hunter2");
+    await user.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard"));
+  });
+
+  it("returns to where the gate sent you from", async () => {
+    const user = userEvent.setup();
+    render(<LoginForm next="/admin" />);
+
+    await user.click(screen.getByRole("button", { name: /use a password instead/i }));
+    await user.type(screen.getByLabelText(/email/i), "owner@macauditcpa.co.ke");
+    await user.type(screen.getByLabelText(/password/i), "hunter2hunter2");
+    await user.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/admin"));
+  });
+
+  /** A magic link is opened from an inbox, so the destination has to survive
+      the round trip through the email rather than living in component state. */
+  it("carries the destination through the email round trip", async () => {
+    const user = userEvent.setup();
+    render(<LoginForm next="/admin/orders" />);
+
+    await user.type(screen.getByLabelText(/email/i), "owner@macauditcpa.co.ke");
+    await user.click(screen.getByRole("button", { name: /email me a sign-in link/i }));
+
+    await waitFor(() => expect(signInWithOtp).toHaveBeenCalled());
+    const redirect = signInWithOtp.mock.calls[0][0].options.emailRedirectTo as string;
+    expect(redirect).toContain("/auth/callback");
+    expect(redirect).toContain(`next=${encodeURIComponent("/admin/orders")}`);
+  });
+});

@@ -50,7 +50,14 @@ function googleEnabled(): boolean {
  * links that way, and seeding it through a prop keeps this an ordinary client
  * island with no Suspense boundary and no state-setting effect.
  */
-export function LoginForm({ initialError }: { initialError?: string }) {
+export function LoginForm({
+  initialError,
+  next = "/dashboard",
+}: {
+  initialError?: string;
+  /** Where to land after signing in. Already validated by the server page. */
+  next?: string;
+}) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
@@ -61,8 +68,18 @@ export function LoginForm({ initialError }: { initialError?: string }) {
   const [busy, setBusy] = useState<"google" | "email" | null>(null);
   const [sent, setSent] = useState<{ to: string; kind: SentKind } | null>(null);
 
+  /**
+   * Where the email link or OAuth round trip comes back to.
+   *
+   * `next` rides along so a magic link opened from the inbox lands where the
+   * person was actually going — without it, staff following the /admin gate
+   * sign in successfully and are dropped on the dashboard, which reads as the
+   * link having failed.
+   */
   const redirectTo = () =>
-    typeof window === "undefined" ? undefined : `${window.location.origin}/auth/callback`;
+    typeof window === "undefined"
+      ? undefined
+      : `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
 
   /**
    * Everything runs inside one try: a misconfigured build makes
@@ -146,7 +163,7 @@ export function LoginForm({ initialError }: { initialError?: string }) {
           setError(error.message);
           return;
         }
-        router.push("/dashboard");
+        router.push(next);
         router.refresh();
         return;
       }

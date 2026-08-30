@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { safeNext } from "@/lib/safe-next";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { createServerSupabase } from "@/lib/supabase/server";
 
@@ -43,19 +44,7 @@ export function asOtpType(raw: string | null): EmailOtpType | null {
   return raw && EMAIL_OTP_TYPES.has(raw as EmailOtpType) ? (raw as EmailOtpType) : null;
 }
 
-/**
- * Only ever redirect within this site.
- *
- * `next` also arrives from a URL in an email: a crafted link could otherwise
- * bounce a freshly-authenticated user to another origin. Requiring a single
- * leading slash rejects absolute URLs (`https://evil.example`) and
- * protocol-relative ones (`//evil.example`), which browsers treat as absolute.
- */
-export function safeNext(raw: string | null): string {
-  if (!raw) return "/dashboard";
-  if (!raw.startsWith("/") || raw.startsWith("//")) return "/dashboard";
-  return raw;
-}
+export { safeNext };
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
