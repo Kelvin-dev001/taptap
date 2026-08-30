@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { mintTagsAction, type MintResult } from "./actions";
+import { mintTagsAction, type MintResult } from "../actions";
 
 const initial: MintResult = {};
 

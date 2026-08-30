@@ -498,5 +498,57 @@ out of blanks must never fail a payment already taken.
 
 ---
 
+### D-020 — The board advances by menu, not by drag; staff auth replaces the shared token
+**Date:** 2026-08-30 · **Status:** Accepted · **Builds on:** D-019
+
+**Context:** 6b made hardware buyable and left fulfilment to be advanced by hand in SQL. The
+console is what makes that a job rather than a chore. The original brief specified a
+production **Kanban** with drag-and-drop.
+
+**Decision: no drag.** The board keeps its columns, counts, ageing and stuck flags, but a
+card moves via a control listing only the moves `allowedTransitions()` permits.
+
+**Why, and this is not the lazy reading:** transitions are **constrained**. Most drops onto
+most columns would have to be refused — you cannot drag a `new` order onto `dispatched` —
+and an interaction whose answer is usually "no" is a bad interaction regardless of how it
+looks. Rendering only the legal moves makes an illegal one *unreachable* rather than
+*rejected*. It is also the accessible option rather than a fallback to one: multi-container
+dnd-kit is the library's hardest area, cross-column keyboard support harder still, and §24
+does not accept a board that works properly only with a mouse. dnd-kit stays a dependency
+for the profile builder, which is single-container vertical sort and a genuinely good fit.
+
+**The whole `/admin` area now requires a `staff` row.** `ADMIN_TOKEN` survives as a *second*
+factor on minting alone. It was never fit to gate a multi-user tool: one shared secret with
+no identity cannot answer "who moved this order", which makes the `order_events` audit log
+worthless, and its rate limiter is in-memory per serverless instance. The gate lives in the
+layout rather than per page, so a new route cannot be added unprotected by omission.
+
+**`requireStaff` fails CLOSED on a missing schema**, the opposite of the choice
+`loadBillingContext` makes. That asymmetry is deliberate: over-granting a customer their own
+paid features for a few minutes during a migration is a shrug; over-granting access to every
+customer's orders is not.
+
+**`orders_overview` is a view with `security_invoker = true`.** Without it a Postgres view
+runs with its owner's privileges and silently bypasses the RLS on the tables underneath —
+which would have exposed every customer's orders to every signed-in user. With invoker
+rights it inherits `orders_select_own` exactly: staff see all, a customer sees their own.
+
+**Stuck and stage counts are computed in TypeScript, not SQL.** `ops_overview()` returns only
+what genuinely needs the database — counts over tables that grow without limit, and the
+cross-account reconciliation list. Open orders are few by definition, so the console reads
+them and applies the tested `isStuck()`. A second copy of that rule in SQL would drift from
+the first, and the rule is the kind that gets tuned.
+
+**Consequences:** `Table` and `Pagination` finally exist as design-system primitives — listed
+in §9 since UI-1 and never built, because until now every list was a customer looking at a
+handful of their own records, which a card list serves better. Orders are the first case a
+card list genuinely cannot serve. Both are reusable well beyond ops.
+
+**The D-018 reconciliation leftover now has a home:** accounts on a legacy paid plan holding
+no devices are listed on the ops overview, where they can actually be worked off rather than
+living in a query someone has to remember to run.
+
+---
+
 _Add new decisions above this line as `D-00N`, and mirror the one-liner into
 `PROJECT.md`._

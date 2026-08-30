@@ -1,7 +1,7 @@
 # Launch checklist
 
 **Last updated:** 2026-08-30 · Everything still open needs a person, not a commit —
-except migration `0017`, which needs applying.
+except migrations `0017` and `0018`, which need applying.
 
 Code status: all UI sprints delivered plus UI-13 and Sprint 6a (per-identity billing +
 renewal reminders). Migrations `0005`–`0014` applied; **`0015` and `0016` are written and
@@ -149,10 +149,14 @@ Still unproven only because Resend deliverability itself is unproven — see §1
 
 ## Recommended next
 
-**Sprint 6c — the operations console** (`docs/sprint-6-operations-prompt.md`). 6b made
-hardware buyable; fulfilment is still advanced by hand in SQL. 6c adds the staff console,
-Kanban, order detail and ops metrics — plus the `Table` and `Pagination` primitives the
-design system has been missing since UI-1.
+~~**Sprint 6c — the operations console.**~~ **Built** (migration `0018`, D-020). Before
+deploying it, run the `staff` insert in `docs/sprint-6c-ops-console.md` — `/admin` now
+requires a staff row and there is deliberately no UI to grant one, so without it you lock
+yourself out of card minting.
+
+**Next after that:** team management (D-017) is the largest thing still deferred — roles,
+invites and per-profile assignment on a single account. Nothing is blocking it; the schema
+has always allowed it.
 
 ~~**Renewal reminder emails.**~~ **Built** (migration `0016`, 2026-08-30). Daily cron at
 06:00 UTC / 09:00 EAT, warning at 30 days, 7 days, on the day, and again if a card actually

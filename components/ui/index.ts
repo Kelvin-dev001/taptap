@@ -42,3 +42,15 @@ export {
 export { Tooltip, TooltipProvider } from "./tooltip";
 export { Popover, PopoverTrigger, PopoverClose, PopoverContent } from "./popover";
 export { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs";
+export {
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableHeader,
+  TableCell,
+  TableEmpty,
+  SortableHeader,
+  type SortDirection,
+} from "./table";
+export { Pagination } from "./pagination";

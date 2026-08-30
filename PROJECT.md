@@ -6,11 +6,12 @@
 > decision changes.
 
 **Last updated:** 2026-08-30
-**Current phase:** **Sprint 6b — order-to-cash (D-019), built and awaiting migration `0017`
-+ acceptance.** Sprint 6a (per-identity billing, D-018) and renewal reminders shipped;
+**Current phase:** **Sprint 6c — operations console (D-020), built and awaiting migrations
+`0017`/`0018` + acceptance.** Sprint 6a (per-identity billing, D-018) and renewal reminders shipped;
 migrations `0015`/`0016` applied 2026-08-30. UI/UX transformation complete (UI-0 → UI-12, 2026-08-15),
 plus UI-13 (lead-arrival email) and the auth follow-ups. Build sprints 0–5 remain
-code-complete. Migrations `0005`–`0016` are applied; **`0017` is not yet applied**.
+code-complete. Migrations `0005`–`0016` are applied; **`0017` and `0018` are not yet
+applied**.
 
 Deployed and login working in production (2026-08-15).
 
@@ -85,6 +86,7 @@ expand across East Africa, then the continent.
 | D-015 | **Leads:** a lead is a submission, not a deduplicated person; repeat enquiries surfaced by grouping, no `contacts` table (reversible) |
 | D-016 | **Insights:** deterministic rules over real counts, every finding shows its evidence; no model, and not called AI |
 | D-017 | **Accounts:** a business is one account with many members; team management deferred (schema already allows it), sub-account hierarchy rejected |
+| D-020 | **Ops console:** the board advances by menu, not drag — transitions are constrained, so illegal moves are unreachable rather than rejected. `/admin` requires a `staff` row; `ADMIN_TOKEN` is now only a second factor on minting |
 | D-019 | **Orders:** the Order is the spine — checkout creates it, payment provisions identities, staff fulfil it. Terms start at payment; cancelling switches the identity off. Staff are their own table, not `profiles.role` |
 | D-018 | **Billing:** per identity (the tag), not per-account plans. Hardware includes 12 months; KES 1,000/device/year after. Consolidated renewal is an action over true per-identity terms, not a shared date. Revises D-006 |
 
@@ -126,7 +128,8 @@ else is out of v1.**
 - `docs/sprint-ui-12-production-polish.md` — boundaries, audit close-out & remaining work (UI-12) — complete
 - `docs/sprint-6a-pricing-billing.md` — per-identity pricing & billing (D-018) — built, awaiting migration
 - `docs/sprint-6b-order-to-cash.md` — checkout, orders & identity provisioning (D-019) — built, awaiting migration
-- `docs/sprint-6-operations-prompt.md` — the operations console (Sprint 6c) — **next**
+- `docs/sprint-6c-ops-console.md` — staff console, orders table, board & metrics (D-020) — built, awaiting migration
+- `docs/sprint-6-operations-prompt.md` — the brief Sprint 6b/6c were built from
 - `docs/launch-checklist.md` — **the remaining pre-launch work, all of it manual**
 - `docs/reference/` — supplied UI reference mockup (visual direction, not a pixel spec)
 - `docs/sprint-0-discovery.md` — full discovery: PRD, data model, security, pricing, GTM, risks
