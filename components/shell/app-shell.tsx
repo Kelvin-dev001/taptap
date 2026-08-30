@@ -1,10 +1,11 @@
 import * as React from "react";
 import Link from "next/link";
 import { TooltipProvider } from "@/components/ui";
-import type { Plan } from "@/lib/plans";
+import type { SegmentDefinition } from "@/lib/pricing";
+import type { BillingSummary } from "@/lib/identity";
 import { NavLinks } from "./nav-links";
 import { Wordmark, Logo } from "./logo";
-import { PlanCard } from "./plan-card";
+import { BillingCard } from "./billing-card";
 import { AccountMenu } from "./account-menu";
 import { MobileNavigation } from "./mobile-nav";
 import { CommandPalette, type PaletteProfile } from "./command-palette";
@@ -23,7 +24,8 @@ import { CommandPalette, type PaletteProfile } from "./command-palette";
 export function AppShell({
   businessName,
   email,
-  plan,
+  segment,
+  summary,
   renewsOn,
   profiles,
   signOutAction,
@@ -31,7 +33,8 @@ export function AppShell({
 }: {
   businessName: string;
   email: string;
-  plan: Plan;
+  segment: SegmentDefinition;
+  summary: BillingSummary;
   renewsOn?: string | null;
   profiles: PaletteProfile[];
   signOutAction: () => Promise<void>;
@@ -54,7 +57,7 @@ export function AppShell({
               <NavLinks />
             </nav>
           </div>
-          <PlanCard plan={plan} renewsOn={renewsOn} />
+          <BillingCard segment={segment} summary={summary} renewsOn={renewsOn} />
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
@@ -88,7 +91,7 @@ export function AppShell({
           </main>
 
           <MobileNavigation>
-            <PlanCard plan={plan} renewsOn={renewsOn} />
+            <BillingCard segment={segment} summary={summary} renewsOn={renewsOn} />
           </MobileNavigation>
         </div>
       </div>

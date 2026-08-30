@@ -136,8 +136,12 @@ export function ProfileView({
           </div>
         )}
 
+        {/* Custom branding was advertised from Sprint 4 and enforced nowhere —
+            this footer rendered for every account, paid or not. The entitlement
+            is real as of D-018; the privacy link is not part of it and always
+            stays, because it is a legal route rather than a brand mark. */}
         <footer className="mt-6 flex flex-col items-center gap-1 text-[11px] opacity-50">
-          <span>Powered by Hornbill TapTap</span>
+          {!page.custom_branding && <span>Powered by Hornbill TapTap</span>}
           {live && (
             <Link href="/privacy" className="underline">
               Privacy

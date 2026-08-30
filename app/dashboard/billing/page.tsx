@@ -1,67 +1,63 @@
+import { redirect } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
-import {
-  effectivePlan,
-  purchasedPlan,
-  subscriptionState,
-  type SubscriptionRow,
-} from "@/lib/plans";
+import { loadBillingContext } from "@/lib/billing-context";
 import { PageHeader } from "@/components/shell/page-header";
-import { PlanStatus } from "@/components/billing/plan-status";
+import { MigrationNotice } from "@/components/shell/migration-notice";
+import { BillingOverview } from "@/components/billing/billing-overview";
+import { IdentityList } from "@/components/billing/identity-list";
 import { PaymentHistory } from "@/components/billing/payment-history";
 import type { PaymentRow } from "@/lib/payments";
-import BillingPlans from "./billing-plans";
 
 export const dynamic = "force-dynamic";
 
 export default async function BillingPage() {
   const supabase = await createServerSupabase();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
-  const [{ data: sub }, { data: paymentsData }] = await Promise.all([
-    supabase
-      .from("subscriptions")
-      .select("plan_code, status, current_period_end")
-      .maybeSingle(),
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("account_id")
+    .eq("id", user.id)
+    .single();
+
+  const [billing, { data: paymentsData }] = await Promise.all([
+    loadBillingContext(supabase, profile?.account_id),
     // RLS limits this to the caller's own account (payments_select_own, 0004).
     supabase
       .from("payments")
-      .select("id, plan_code, provider, reference, amount, currency, status, created_at, raw")
+      .select(
+        "id, plan_code, kind, quantity, provider, reference, amount, currency, status, created_at, raw",
+      )
       .order("created_at", { ascending: false })
       .limit(50),
   ]);
 
-  const subscription = (sub ?? null) as SubscriptionRow | null;
-  const state = subscriptionState(subscription);
-  const effective = effectivePlan(subscription);
-  const purchased = purchasedPlan(subscription);
   const payments = (paymentsData ?? []) as PaymentRow[];
 
   return (
     <>
-      <PageHeader
-        title="Billing"
-        description="Your plan, payments and receipts."
-      />
+      <PageHeader title="Billing" description="Your devices, renewals and receipts." />
 
       <div className="flex max-w-3xl flex-col gap-4">
-        <PlanStatus
-          state={state}
-          purchased={purchased}
-          effective={effective}
-          subscription={subscription}
-        />
+        {billing.migrationPending && (
+          <MigrationNotice migration="0015_per_identity_billing.sql" />
+        )}
 
-        <section id="plans" className="scroll-mt-20">
-          <h2 className="mb-3 text-section-title text-foreground">
-            {state === "expired" ? "Renew or change plan" : "Plans"}
-          </h2>
-          <BillingPlans currentPlan={effective.code} />
-        </section>
+        <BillingOverview segment={billing.segment} summary={billing.summary} />
+
+        <IdentityList
+          identities={billing.identities}
+          dueIds={billing.summary.due.map((t) => t.id)}
+        />
 
         <PaymentHistory payments={payments} />
 
         <p className="text-caption text-muted">
-          Paid annually via M-Pesa. You&rsquo;ll get an STK prompt on your phone to enter your
-          PIN; your plan activates once Safaricom confirms the payment.
+          Paid by M-Pesa. You&rsquo;ll get an STK prompt on your phone to enter your PIN;
+          devices renew once Safaricom confirms the payment.
         </p>
       </div>
     </>

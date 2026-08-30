@@ -1,7 +1,12 @@
 import { notFound, redirect } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { planFor, formatKes } from "@/lib/plans";
-import { mpesaReceiptNumber, mpesaTransactionDate, type PaymentRow } from "@/lib/payments";
+import { formatKes } from "@/lib/pricing";
+import {
+  mpesaReceiptNumber,
+  mpesaTransactionDate,
+  describePayment,
+  type PaymentRow,
+} from "@/lib/payments";
 import { PrintButton } from "../qr/print-button";
 
 export const dynamic = "force-dynamic";
@@ -50,13 +55,12 @@ export default async function ReceiptPage({
     ? await supabase.from("accounts").select("name").eq("id", profile.account_id).single()
     : { data: null };
 
-  const plan = planFor(payment.plan_code);
   const receiptNo = mpesaReceiptNumber(payment.raw);
   const paidAt = mpesaTransactionDate(payment.raw) ?? new Date(payment.created_at);
 
   const rows: [string, string][] = [
     ["Receipt for", account?.name ?? "Your business"],
-    ["Plan", `${plan.name} — 12 months`],
+    ["For", describePayment(payment)],
     ["Amount", formatKes(payment.amount)],
     ["Paid on", paidAt.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })],
     ["Method", payment.provider === "mpesa" ? "M-Pesa" : payment.provider],

@@ -49,11 +49,20 @@ export function AnalyticsReport({
   data,
   days,
   showPages,
+  depth = "full",
 }: {
   data: Analytics;
   days: RangeDays;
   showPages?: boolean;
+  /**
+   * How much of the report this account is entitled to (D-018). `basic` keeps
+   * the headline counts, the daily trend and top actions — enough to see that
+   * the product works. `full` adds attribution, per-card, location and timing,
+   * which is what a device unlocks.
+   */
+  depth?: "basic" | "full";
 }) {
+  const full = depth === "full";
   const totals = data.totals ?? {};
   const previous = data.previous ?? {};
 
@@ -150,6 +159,7 @@ export function AnalyticsReport({
 
       <div className="grid gap-4 lg:grid-cols-2">
         {/* How people arrived */}
+        {full && (
         <Card padding="md">
           <h2 className="mb-1 text-card-title text-foreground">How visitors arrived</h2>
           <p className="mb-4 text-caption text-muted">
@@ -168,8 +178,10 @@ export function AnalyticsReport({
             </p>
           )}
         </Card>
+        )}
 
         {/* Which physical card */}
+        {full && (
         <Card padding="md">
           <h2 className="mb-1 text-card-title text-foreground">Which card</h2>
           <p className="mb-4 text-caption text-muted">
@@ -189,6 +201,7 @@ export function AnalyticsReport({
             />
           )}
         </Card>
+        )}
 
         {/* Most-clicked */}
         <Card padding="md">
@@ -206,6 +219,7 @@ export function AnalyticsReport({
         </Card>
 
         {/* Where */}
+        {full && (
         <Card padding="md">
           <h2 className="mb-1 text-card-title text-foreground">Where visitors are</h2>
           <p className="mb-4 text-caption text-muted">
@@ -218,9 +232,11 @@ export function AnalyticsReport({
             }))}
           />
         </Card>
+        )}
       </div>
 
       {/* Time of day */}
+      {full && (
       <ChartContainer
         title="When visitors tap"
         note="Hour of day, East Africa Time (UTC+3)"
@@ -251,6 +267,7 @@ export function AnalyticsReport({
           </p>
         )}
       </ChartContainer>
+      )}
 
       {/* Per profile */}
       {showPages && (data.top_pages ?? []).length > 0 && (

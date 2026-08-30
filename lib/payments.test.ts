@@ -3,7 +3,9 @@ import {
   mpesaReceiptNumber,
   mpesaTransactionDate,
   isPaymentStatus,
+  describePayment,
   PAYMENT_STATUS_META,
+  type PaymentRow,
 } from "./payments";
 
 /** The shape Daraja actually posts back on a successful STK push. */
@@ -97,5 +99,45 @@ describe("payment status", () => {
       expect(meta.description.length).toBeGreaterThan(0);
     }
     expect(PAYMENT_STATUS_META.pending.description).toMatch(/PIN/);
+  });
+});
+
+describe("describePayment", () => {
+  const row = (over: Partial<PaymentRow> = {}): PaymentRow => ({
+    id: "p1",
+    provider: "mpesa",
+    reference: "ws_CO_1",
+    amount: 1000,
+    currency: "KES",
+    status: "paid",
+    created_at: "2026-08-30T00:00:00Z",
+    ...over,
+  });
+
+  it("counts the devices a renewal covered", () => {
+    expect(describePayment(row({ kind: "renewal", quantity: 1 }))).toBe(
+      "Annual renewal · 1 device",
+    );
+    expect(describePayment(row({ kind: "renewal", quantity: 3 }))).toBe(
+      "Annual renewal · 3 devices",
+    );
+  });
+
+  it("says that hardware includes the first year", () => {
+    expect(describePayment(row({ kind: "hardware", quantity: 1 }))).toMatch(/includes 12 months/);
+    expect(describePayment(row({ kind: "hardware", quantity: 2 }))).toMatch(/\(2\)/);
+  });
+
+  /**
+   * Sprint 4 rows predate the kind/quantity split. A receipt for one must still
+   * describe what was bought rather than rendering blank.
+   */
+  it("still describes a pre-D-018 plan payment", () => {
+    expect(describePayment(row({ plan_code: "pro" }))).toBe("pro plan · 12 months");
+    expect(describePayment(row())).toBe("Payment");
+  });
+
+  it("treats a missing quantity as one", () => {
+    expect(describePayment(row({ kind: "renewal", quantity: null }))).toMatch(/1 device/);
   });
 });

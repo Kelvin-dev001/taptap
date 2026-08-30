@@ -8,6 +8,7 @@ import { isValidToken } from "@/lib/tags";
 import { parseUA } from "@/lib/ua";
 import { Button, Card } from "@/components/ui";
 import { Wordmark } from "@/components/shell/logo";
+import { InactiveNotice } from "@/components/profile/inactive-notice";
 import ClaimForm from "./claim-form";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +33,31 @@ export default async function TagPage({
   const { data } = await supabase.rpc("resolve_tag", { p_token: token });
   const result = data as TagResolution | null;
   if (!result) notFound();
+
+  // A lapsed card (D-018). The tap is still logged — people tapping a dead card
+  // is exactly what an owner needs to see — then handed to the slug route,
+  // which owns the single rendering of the inactive state.
+  if (result.status === "expired") {
+    if (result.page_id && result.tag_id) {
+      const h = await headers();
+      const { device, os } = parseUA(h.get("user-agent"));
+      const edge = createEdgeClient();
+      after(async () => {
+        await edge.rpc("log_event", {
+          p_page_id: result.page_id,
+          p_type: "tap",
+          p_device: device,
+          p_os: os,
+          p_country: h.get("x-vercel-ip-country"),
+          p_region: h.get("x-vercel-ip-country-region"),
+          p_source: "nfc",
+          p_tag_id: result.tag_id,
+        });
+      });
+    }
+    if (result.slug) redirect(`/${result.slug}?src=nfc`);
+    return <InactiveNotice />;
+  }
 
   if (result.status === "assigned") {
     if (!result.slug) notFound();

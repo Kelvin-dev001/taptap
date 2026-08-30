@@ -5,10 +5,11 @@
 > re-reading the original master-prompt PDF. Update this file whenever a major
 > decision changes.
 
-**Last updated:** 2026-08-15
-**Current phase:** **UI/UX transformation COMPLETE** — Sprints UI-0 through UI-12 delivered
-(2026-08-15). Build sprints 0–5 remain code-complete. All migrations `0005`–`0013` are
-applied.
+**Last updated:** 2026-08-30
+**Current phase:** **Sprint 6a — per-identity pricing & billing (D-018), built and awaiting
+migration `0015` + acceptance.** UI/UX transformation complete (UI-0 → UI-12, 2026-08-15),
+plus UI-13 (lead-arrival email) and the auth follow-ups. Build sprints 0–5 remain
+code-complete. Migrations `0005`–`0014` are applied; **`0015` is not yet applied**.
 
 Deployed and login working in production (2026-08-15).
 
@@ -71,7 +72,7 @@ expand across East Africa, then the continent.
 | D-003 | **Architecture:** Next.js + Supabase only. No standalone Express. Dedicated edge-cached redirect service. |
 | D-004 | **Resourcing:** solo, bootstrapped — optimize for speed, low cost, managed services, minimal ops |
 | D-005 | **Storage:** Supabase Storage (not Cloudinary) in v1 — one fewer vendor |
-| D-006 | **Billing:** annual-first via M-Pesa STK push / Paystack; defer M-Pesa Ratiba recurring |
+| D-006 | **Billing:** annual-first via M-Pesa STK push / Paystack; defer M-Pesa Ratiba recurring — *superseded by D-018* |
 | D-007 | **Domain:** run on `taptap.hornbilltech.co.ke` subdomain (root hosts another project); configure in Sprint 1 |
 | D-008 | **Framework:** pin Next 16.2 (Active LTS) + React 19; migrated off EOL Next 14 |
 | D-009 | **NFC identity:** permanent token URL `/t/<token>` per card (never re-encode); slugs kept for sharing |
@@ -83,6 +84,7 @@ expand across East Africa, then the continent.
 | D-015 | **Leads:** a lead is a submission, not a deduplicated person; repeat enquiries surfaced by grouping, no `contacts` table (reversible) |
 | D-016 | **Insights:** deterministic rules over real counts, every finding shows its evidence; no model, and not called AI |
 | D-017 | **Accounts:** a business is one account with many members; team management deferred (schema already allows it), sub-account hierarchy rejected |
+| D-018 | **Billing:** per identity (the tag), not per-account plans. Hardware includes 12 months; KES 1,000/device/year after. Consolidated renewal is an action over true per-identity terms, not a shared date. Revises D-006 |
 
 ## MVP scope (one line)
 
@@ -96,7 +98,7 @@ else is out of v1.**
 - **Backend:** Next.js route handlers + **Supabase** (Postgres, Auth, Row-Level Security, Edge Functions)
 - **Storage:** Supabase Storage (Cloudinary deferred — see D-005)
 - **Redirect service:** edge-cached route (must not cold-start)
-- **Payments:** M-Pesa (Daraja) + card rail (Paystack/Flutterwave); billing model TBD (D-006)
+- **Payments:** M-Pesa (Daraja) + card rail (Paystack/Flutterwave); per-identity billing (D-018)
 
 ## How the docs fit together
 
@@ -120,6 +122,8 @@ else is out of v1.**
 - `docs/sprint-ui-10-insights.md` — deterministic insights with visible evidence (UI-10) — complete
 - `docs/sprint-ui-11-pwa-mobile.md` — PWA, icons, link previews & mobile navigation (UI-11) — complete
 - `docs/sprint-ui-12-production-polish.md` — boundaries, audit close-out & remaining work (UI-12) — complete
+- `docs/sprint-6a-pricing-billing.md` — per-identity pricing & billing (D-018) — built, awaiting migration
+- `docs/sprint-6-operations-prompt.md` — order-to-cash & operations console — **next**
 - `docs/launch-checklist.md` — **the remaining pre-launch work, all of it manual**
 - `docs/reference/` — supplied UI reference mockup (visual direction, not a pixel spec)
 - `docs/sprint-0-discovery.md` — full discovery: PRD, data model, security, pricing, GTM, risks

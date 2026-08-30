@@ -1,8 +1,10 @@
 # Launch checklist
 
-**Last updated:** 2026-08-19 · Everything still open needs a person, not a commit.
+**Last updated:** 2026-08-30 · Everything still open needs a person, not a commit —
+except migration `0015`, which needs applying.
 
-Code status: all UI sprints delivered, migrations `0005`–`0013` applied, 323 tests green.
+Code status: all UI sprints delivered plus UI-13 and Sprint 6a (per-identity billing).
+Migrations `0005`–`0014` applied; **`0015` is written and not yet applied**. 388 tests green.
 Production live and verified at `https://taptap.hornbilltech.co.ke`.
 
 ---
@@ -59,30 +61,36 @@ because Daraja cannot reach `localhost`.
 
 1. Set `MPESA_CALLBACK_URL` to `https://taptap.hornbilltech.co.ke/api/mpesa/callback` in the
    Daraja app **and** in Vercel.
-2. Subscribe to a paid plan from Billing using a sandbox test number.
-3. Confirm a `payments` row moves `pending` → `paid`, `subscriptions.current_period_end`
-   moves a year out, and the plan badge changes.
+2. From Billing, select a device and **Renew** using a sandbox test number.
+   (Requires `0015` applied and at least one claimed card — see §3.)
+3. Confirm a `payments` row moves `pending` → `paid`, the renewed device's
+   `nfc_tags.term_end` moves a year out, and the Billing screen updates.
+4. **Replay the same callback** and confirm `term_end` does **not** move twice. The
+   `payment_tags` link exists precisely so a replay extends the same devices; this is the
+   one thing tests cannot cover without a live database.
 
 Until this passes, **nobody can buy anything** — Magangi's Pro was granted by hand.
 
 ---
 
-## 3. Confirm the plan prices
+## 3. ~~Confirm the plan prices~~ — SETTLED (D-018, 2026-08-30)
 
-`lib/plans.ts` has carried a DRAFT marker since Sprint 4. M-Pesa charges real money against
-these numbers.
+Prices are confirmed and the model changed with them: billing is **per identity**, not per
+account plan. Smart Card KES 1,500 and Smart Stand KES 2,000, each including the first
+twelve months; KES 1,000 per active device per year after that. `PRICES_ARE_DRAFT` and
+`lib/plans.ts` are both gone.
 
-| Plan | Current DRAFT | Confirmed |
-|---|---|---|
-| Starter | KES 5,000 / yr | ☐ |
-| Pro | KES 15,000 / yr | ☐ |
-| Business | KES 40,000 / yr | ☐ |
+**What replaced this item — apply migration `0015`.**
 
-Delete `PRICES_ARE_DRAFT` when settled.
+1. Run the Phase 0 reconciliation query first (read-only). Its last column flags any paid
+   account holding **zero claimed devices** — those convert to no identities at all and need
+   a decision per account. Nothing invents an identity for a card that does not exist.
+2. Apply `0015_per_identity_billing.sql` in the Supabase SQL editor.
+3. Tap a lapsed card and confirm the branded "not active right now" screen renders rather
+   than a 404.
 
-**Decide the model, not just the numbers.** Plans meter Tap Profiles, not people, so a
-three-person firm lands on Pro purely on profile count — that is how Magangi was priced.
-Per-seat is the usual corporate shape. Worth settling before the next firm asks.
+Until `0015` is applied the app runs in its fail-open path: every account keeps the
+capabilities it had, and Billing shows a migration notice.
 
 ---
 
@@ -126,10 +134,20 @@ The button is hidden until step 3, so it can never fail in front of a user.
 
 ---
 
-## Recommended first thing after launch
+## ~~Recommended first thing after launch: notifications~~ — SHIPPED
 
-**Notifications.** The only item from the original feature list both absent and repeatedly
-missed: a lead arrives and nobody is told. Magangi has already received one. Everything
-needed exists — the lead workflow, the business phone and WhatsApp in Settings, and a
-stale-lead insight that already names who has not been replied to. It needs a provider
-decision, and Resend now answers it for email.
+Lead-arrival email landed in **Sprint UI-13** (`e6d3f03`, 2026-08-19) with migration `0014`:
+a lead arrives, the business is emailed, and notification preferences live in Settings.
+Still unproven only because Resend deliverability itself is unproven — see §1.
+
+## Recommended next
+
+**Sprint 6 — order-to-cash and the operations console**
+(`docs/sprint-6-operations-prompt.md`). Sprint 6a priced hardware but built no checkout for
+it, so buying a card is still a manual conversation and fulfilment is untracked. That is the
+gap between "we know what it costs" and "someone can buy one".
+
+**Renewal reminder emails.** Deferred from 6a. The thresholds exist
+(`RENEWAL_WARNING_DAYS`, `GRACE_DAYS`) and Resend is wired, but sending on a schedule needs
+a cron route and a cadence decision. Worth doing before the first renewal falls due — which,
+for Magangi, is a year from their term start.

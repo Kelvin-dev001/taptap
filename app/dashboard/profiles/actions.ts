@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { validateSlug } from "@/lib/slug";
 import { isSafeDestination } from "@/lib/url";
-import { effectivePlan, withinProfileLimit } from "@/lib/plans";
+import { MAX_PROFILES_PER_ACCOUNT } from "@/lib/pricing";
 import { seedBlocks, type ProfileTemplate, type SeedSource } from "@/lib/templates";
 import { defaultLabel } from "@/lib/blocks";
 import { isMissingSchemaError } from "@/lib/schema-guard";
@@ -43,20 +43,17 @@ export async function createProfileAction(
     .single();
   if (!profile) return { error: "No account found for this user." };
 
-  // Enforce the plan's profile limit server-side.
+  // Profiles are free under the per-identity model (D-018) — you pay for
+  // devices, not pages. This cap is an abuse guard, not a plan gate: it exists
+  // so one account cannot mint thousands, and it sits far above any real
+  // business's usage, so it is never advertised as a limit.
   const { count } = await supabase
     .from("smart_pages")
     .select("id", { count: "exact", head: true })
     .eq("account_id", profile.account_id);
-  const { data: planSub } = await supabase
-    .from("subscriptions")
-    .select("plan_code, status, current_period_end")
-    .maybeSingle();
-  // effectivePlan, not planFor: a lapsed plan must stop granting limits (B13).
-  const plan = effectivePlan(planSub);
-  if (!withinProfileLimit(plan, count ?? 0)) {
+  if ((count ?? 0) >= MAX_PROFILES_PER_ACCOUNT) {
     return {
-      error: `Your ${plan.name} plan allows ${plan.limits.maxProfiles} link(s). Upgrade in Billing to add more.`,
+      error: `You have reached ${MAX_PROFILES_PER_ACCOUNT} profiles. Contact support if you genuinely need more.`,
     };
   }
 

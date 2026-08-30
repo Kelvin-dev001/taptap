@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { effectivePlan } from "@/lib/plans";
+import { loadBillingContext } from "@/lib/billing-context";
 import { AppShell } from "@/components/shell/app-shell";
 import { signOutAction } from "./actions";
 
@@ -22,35 +22,28 @@ export default async function DashboardLayout({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // All three are RLS-scoped to the caller's account.
-  const [{ data: profile }, { data: sub }, { data: pages }] = await Promise.all([
+  // Both are RLS-scoped to the caller's account.
+  const [{ data: profile }, { data: pages }] = await Promise.all([
     supabase.from("profiles").select("account_id").eq("id", user.id).single(),
-    supabase
-      .from("subscriptions")
-      .select("plan_code, status, current_period_end")
-      .maybeSingle(),
     supabase
       .from("smart_pages")
       .select("id, slug, title")
       .order("created_at", { ascending: false }),
   ]);
 
-  const { data: account } = profile
-    ? await supabase.from("accounts").select("name").eq("id", profile.account_id).single()
-    : { data: null };
-
-  // The sidebar shows what the account can actually use today, not what it
-  // once bought — otherwise a lapsed plan still reads as "Pro".
-  const plan = effectivePlan(sub);
-  const renewsOn = sub?.current_period_end
-    ? new Date(sub.current_period_end).toLocaleDateString()
+  // The sidebar shows what the account can actually use today, not what it once
+  // bought — a lapsed device must stop reading as an active one (D-018).
+  const billing = await loadBillingContext(supabase, profile?.account_id);
+  const renewsOn = billing.summary.renewsOn
+    ? new Date(billing.summary.renewsOn).toLocaleDateString()
     : null;
 
   return (
     <AppShell
-      businessName={account?.name ?? "My business"}
+      businessName={billing.businessName}
       email={user.email ?? ""}
-      plan={plan}
+      segment={billing.segment}
+      summary={billing.summary}
       renewsOn={renewsOn}
       profiles={pages ?? []}
       signOutAction={signOutAction}

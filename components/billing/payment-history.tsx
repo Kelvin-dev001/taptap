@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { Receipt, ExternalLink } from "lucide-react";
 import { Card, Badge, EmptyState } from "@/components/ui";
-import { planFor, formatKes } from "@/lib/plans";
+import { formatKes } from "@/lib/pricing";
 import {
   PAYMENT_STATUS_META,
   isPaymentStatus,
   mpesaReceiptNumber,
+  describePayment,
   type PaymentRow,
 } from "@/lib/payments";
 
@@ -24,7 +25,7 @@ export function PaymentHistory({ payments }: { payments: PaymentRow[] }) {
         <EmptyState
           icon={Receipt}
           title="No payments yet"
-          description="Once you subscribe, every payment and its receipt appears here."
+          description="Once you buy or renew a device, every payment and its receipt appears here."
         />
       </Card>
     );
@@ -42,7 +43,7 @@ export function PaymentHistory({ payments }: { payments: PaymentRow[] }) {
             <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
               <div className="flex min-w-0 flex-col">
                 <span className="text-body-sm font-medium text-foreground">
-                  {planFor(p.plan_code).name} plan · {formatKes(p.amount)}
+                  {describePayment(p)} · {formatKes(p.amount)}
                 </span>
                 <span className="text-caption text-muted">
                   {new Date(p.created_at).toLocaleDateString(undefined, {

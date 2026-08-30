@@ -8,6 +8,7 @@ import { isSafeDestination } from "@/lib/url";
 import { normalizeSlug } from "@/lib/slug";
 import { parseUA } from "@/lib/ua";
 import PublicProfile from "@/components/public-profile";
+import { InactiveNotice } from "@/components/profile/inactive-notice";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +71,13 @@ export default async function SlugPage({
 
   const page = await getPublicPage(slug);
   if (!page) notFound();
+
+  // Every device pointing here has lapsed past its grace window (D-018). The
+  // page is not deleted and not a 404 — it says so plainly, because the person
+  // reading it is usually the cardholder's customer, not the account owner.
+  if (page.billing_state === "expired") {
+    return <InactiveNotice title={page.title} />;
+  }
 
   const supabase = createEdgeClient();
 

@@ -37,7 +37,7 @@ import {
   useToast,
   type SaveStatus,
 } from "@/components/ui";
-import { EntitlementNotice } from "@/components/billing/plan-status";
+import { EntitlementNotice } from "@/components/billing/entitlement-notice";
 import { MobilePreview } from "@/components/builder/mobile-preview";
 import { UnsavedChangesGuard } from "@/components/builder/unsaved-changes-guard";
 import { BlockPicker } from "@/components/builder/block-picker";

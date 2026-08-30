@@ -93,6 +93,14 @@ export type PublicPage = {
   config: PageConfig;
   theme: Theme;
   links: Block[];
+  /**
+   * Whether the devices pointing at this page still have a paid term (D-018).
+   * Added by `get_public_page` in migration 0015; absent on older schemas, in
+   * which case the page is served normally.
+   */
+  billing_state?: "live" | "expired";
+  /** Whether the "Powered by Hornbill TapTap" footer may be hidden. */
+  custom_branding?: boolean;
 };
 
 export const DEFAULT_THEME: Required<Pick<Theme, "accent" | "bg" | "text">> = {

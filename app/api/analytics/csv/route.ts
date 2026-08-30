@@ -1,4 +1,5 @@
 import { createServerSupabase } from "@/lib/supabase/server";
+import { loadBillingContext } from "@/lib/billing-context";
 import { toCsv } from "@/lib/csv";
 import { parseRange } from "@/lib/metrics";
 import type { Analytics } from "@/lib/analytics";
@@ -20,6 +21,19 @@ export async function GET(request: Request) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return new Response("Unauthorized", { status: 401 });
+
+  // Export is part of the full report (D-018). Hiding the button is presentation;
+  // this is the enforcement — the URL is guessable and would otherwise hand the
+  // paid artefact to any signed-in account that typed it.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("account_id")
+    .eq("id", user.id)
+    .single();
+  const { entitlements } = await loadBillingContext(supabase, profile?.account_id);
+  if (entitlements.analytics !== "full") {
+    return new Response("Export needs an active device on this account.", { status: 403 });
+  }
 
   const url = new URL(request.url);
   const days = parseRange(url.searchParams.get("range") ?? undefined);

@@ -1,8 +1,14 @@
 export type PaymentStatus = "pending" | "paid" | "failed";
 
+/** What a payment bought. Null on Sprint 4 rows, which predate the split. */
+export type PaymentKind = "hardware" | "renewal";
+
 export type PaymentRow = {
   id: string;
-  plan_code: string;
+  /** Legacy per-account plan code (Sprint 4). Null on per-identity payments. */
+  plan_code?: string | null;
+  kind?: PaymentKind | string | null;
+  quantity?: number | null;
   provider: string;
   reference: string;
   amount: number;
@@ -11,6 +17,30 @@ export type PaymentRow = {
   created_at: string;
   raw?: unknown;
 };
+
+/**
+ * A one-line description of what a payment was for.
+ *
+ * Receipts and history both need it, and they must agree — a receipt that
+ * describes a payment differently from the row it came from is the kind of
+ * discrepancy that turns into a support conversation about whether money moved.
+ */
+export function describePayment(p: PaymentRow): string {
+  const count = p.quantity && p.quantity > 0 ? p.quantity : 1;
+
+  if (p.kind === "renewal") {
+    return count === 1
+      ? "Annual renewal · 1 device"
+      : `Annual renewal · ${count} devices`;
+  }
+  if (p.kind === "hardware") {
+    return count === 1
+      ? "Device purchase · includes 12 months"
+      : `Device purchase (${count}) · includes 12 months`;
+  }
+  // Pre-D-018 rows carry a plan code and nothing else.
+  return p.plan_code ? `${p.plan_code} plan · 12 months` : "Payment";
+}
 
 /**
  * Pull the M-Pesa receipt number out of a stored Daraja callback.

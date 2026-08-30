@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { MigrationNotice } from "@/components/shell/migration-notice";
 import { RangeTabs } from "@/components/dashboard/range-tabs";
 import { AnalyticsReport } from "@/components/analytics/analytics-report";
+import { loadBillingContext } from "@/lib/billing-context";
 import { isMissingSchemaError } from "@/lib/schema-guard";
 import { parseRange, rangeLabel, comparisonLabel } from "@/lib/metrics";
 import type { Analytics } from "@/lib/analytics";
@@ -25,10 +26,20 @@ export default async function ProfileAnalyticsPage({
   const days = parseRange(range);
 
   const supabase = await createServerSupabase();
-  const [{ data: page }, { data, error }] = await Promise.all([
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: me } = user
+    ? await supabase.from("profiles").select("account_id").eq("id", user.id).single()
+    : { data: null };
+
+  const [{ data: page }, { data, error }, billing] = await Promise.all([
     supabase.from("smart_pages").select("id, slug, title").eq("id", id).single(),
     supabase.rpc("get_analytics", { p_days: days, p_page_id: id }),
+    loadBillingContext(supabase, me?.account_id),
   ]);
+
+  const depth = billing.entitlements.analytics;
 
   if (isMissingSchemaError(error)) {
     return (
@@ -59,17 +70,19 @@ export default async function ProfileAnalyticsPage({
         actions={
           <>
             <RangeTabs value={days} />
-            <a
-              href={`/api/analytics/csv?range=${days}&page=${id}`}
-              className={cn(buttonVariants({ variant: "secondary" }))}
-            >
-              <Download className="h-4 w-4" aria-hidden="true" />
-              Export CSV
-            </a>
+            {depth === "full" && (
+              <a
+                href={`/api/analytics/csv?range=${days}&page=${id}`}
+                className={cn(buttonVariants({ variant: "secondary" }))}
+              >
+                <Download className="h-4 w-4" aria-hidden="true" />
+                Export CSV
+              </a>
+            )}
           </>
         }
       />
-      <AnalyticsReport data={analytics} days={days} />
+      <AnalyticsReport data={analytics} days={days} depth={depth} />
     </>
   );
 }

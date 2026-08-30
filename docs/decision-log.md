@@ -374,5 +374,69 @@ a sale.
 
 ---
 
+### D-018 — Billing is per identity, not per account plan
+**Date:** 2026-08-30 · **Status:** Accepted · **Revises:** D-006
+
+**Context:** billing had been per-account plan tiers since Sprint 4 — Free/Starter/Pro/
+Business, gated on `maxProfiles`, at draft prices of KES 5k/15k/40k. The real commercial
+model is per device: a customer buys a Smart Card (KES 1,500) or Smart Stand (KES 2,000),
+the price **includes the first twelve months**, and each active device renews at
+**KES 1,000 per year** from year two. Segments — Professional, Business, Commercial — are
+packaging, not count-gates.
+
+**Decision:** the billing unit is a **TapTap identity**, and an identity is the **tag**,
+not the (tag, page) pair.
+
+**Why the tag and not the pair:** `nfc_tags.smart_page_id` is deliberately repointable
+(D-009), and repointing a card without re-encoding it is the core product promise — proven
+on real hardware in August. If the pair were the billing unit, every repoint would destroy
+and recreate a billing unit. The page is merely what the identity currently points at.
+
+**Consolidated renewal is an action, not a stored date.** "All identities share one renewal
+date" cannot coexist with "hardware includes twelve months": a card bought in month seven
+either gets five months instead of twelve, or drags every earlier card along free, or needs
+pro-rating that produces M-Pesa amounts like KES 583. So each identity stores its **true**
+`term_end`, and the billing screen offers one payment over everything falling due —
+`count × 1,000`, one STK prompt. The account-level renewal date is **derived** (`min(term_end)`),
+never stored, because a second copy of a date is a second thing that can be wrong.
+
+**Enforcement is real, and it is graceful.** A lapsed identity stops resolving, and the page
+its devices point at serves a branded "this card isn't active right now" screen rather than
+a 404 — the reader is almost always the *cardholder's customer*, someone who never had the
+chance to pay, and a 404 reads as broken. A **14-day grace window** sits past `term_end`, and
+taps on a lapsed card are still logged: people still tapping a dead card is the strongest
+argument for renewing it, and dropping the event would hide that.
+
+**Free means free, up to a point.** Building and publishing a profile costs nothing — that is
+the funnel Sprint 6 depends on. What a zero-identity account does *not* get is **lead capture**
+and the **full analytics report** (attribution, per-card, location, timing, CSV). Without that
+line the entire software product is obtainable by sharing a slug and never buying hardware,
+on a product whose main distribution channel is WhatsApp. `maxProfiles` is replaced by an
+anti-abuse cap of 25 that is never advertised as a limit.
+
+**Two fictions were closed rather than carried forward.** The audit found `customBranding`
+and `advancedAnalytics` had been listed on the billing page since Sprint 4 and enforced
+nowhere — "Powered by Hornbill TapTap" rendered for every account, paying or not, and the
+full report was available to everyone. Both gates are now real. Conversely, **Commercial is
+not sold an "advanced analytics" tier**, because none exists yet: it is sold on team access,
+multi-location and priority support, which are things we can actually point at. §15 and
+§30.7 rule out listing capability we have not shipped.
+
+**Consequences:** `subscriptions` is no longer read by the app (the table and its signup
+trigger are left alone — data preserved, cleanup deferred to Sprint 6). `payments` gains
+`kind` + `quantity`, and `payment_tags` records exactly which identities a payment covered —
+required for correctness, not reporting, because it is what makes a replayed M-Pesa callback
+extend the same set rather than a recomputed one. `accounts.plan` was dropped after grep
+confirmed nothing had ever read it. `lib/plans.ts` is deleted; `lib/pricing.ts` holds the
+money and `lib/identity.ts` the state machine, which is the UI-9 `subscriptionState` shape
+moved down one level — including its fail-open rule, so a device with no recorded term stays
+live rather than going dark over a missing timestamp.
+
+**Open, and deliberately not decided here:** paid accounts holding zero claimed devices
+convert to no identities at all. Nothing invents an identity for a device that does not
+physically exist; the Phase 0 reconciliation query lists them for a per-account decision.
+
+---
+
 _Add new decisions above this line as `D-00N`, and mirror the one-liner into
 `PROJECT.md`._

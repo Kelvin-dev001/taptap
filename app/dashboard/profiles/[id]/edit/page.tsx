@@ -1,6 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { effectivePlan, subscriptionState } from "@/lib/plans";
+import { loadBillingContext } from "@/lib/billing-context";
 import { PageHeader } from "@/components/shell/page-header";
 import { MigrationNotice } from "@/components/shell/migration-notice";
 import { isMissingSchemaError } from "@/lib/schema-guard";
@@ -28,7 +28,7 @@ export default async function EditPage({
     .single();
   if (!profile) redirect("/login");
 
-  const [{ data: page, error: pageError }, { data: links }, { data: sub }] = await Promise.all([
+  const [{ data: page, error: pageError }, { data: links }, billing] = await Promise.all([
     supabase
       .from("smart_pages")
       .select("id, slug, title, mode, redirect_url, config, theme, status, published_at")
@@ -39,10 +39,7 @@ export default async function EditPage({
       .select("id, type, label, value, sort_order, is_active")
       .eq("smart_page_id", id)
       .order("sort_order", { ascending: true }),
-    supabase
-      .from("subscriptions")
-      .select("plan_code, status, current_period_end")
-      .maybeSingle(),
+    loadBillingContext(supabase, profile.account_id),
   ]);
 
   // `status`, `published_at` and `links.is_active` arrive with migration 0009.
@@ -63,9 +60,9 @@ export default async function EditPage({
   if (!page) notFound();
 
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
-  const plan = effectivePlan(sub);
-  const state = subscriptionState(sub);
-  const planLapsed = state === "expired" || state === "inactive";
+  // "Lapsed" now means every device this account owns has stopped resolving,
+  // not that a plan code expired (D-018).
+  const planLapsed = billing.summary.billable > 0 && billing.summary.active === 0;
 
   return (
     <>
@@ -87,7 +84,7 @@ export default async function EditPage({
         initialBlocks={(links ?? []) as Block[]}
         initialStatus={((page.status as PublishStatus) ?? "published")}
         initialPublishedAt={page.published_at ?? null}
-        leadCaptureAllowed={plan.limits.leadCapture}
+        leadCaptureAllowed={billing.entitlements.leadCapture}
         planLapsed={planLapsed}
       />
     </>
