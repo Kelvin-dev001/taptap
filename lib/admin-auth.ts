@@ -36,8 +36,14 @@ export type AdminKeyResult =
   /** The server is misconfigured — never say which value is wrong. */
   | { ok: false; reason: "not-configured" | "weak-token" | "invalid" | "rate-limited" };
 
-/** Constant-time compare that does not reveal length through early exit. */
-function safeEqual(a: string, b: string): boolean {
+/**
+ * Constant-time compare that does not reveal length through early exit.
+ *
+ * Exported so other shared-secret gates (the renewal cron) get the same
+ * comparison rather than reaching for `!==` and reintroducing the timing leak
+ * this file was written to close.
+ */
+export function timingSafeEqualString(a: string, b: string): boolean {
   const bufA = Buffer.from(a, "utf8");
   const bufB = Buffer.from(b, "utf8");
   // timingSafeEqual throws on length mismatch, which would itself be a leak, so
@@ -91,7 +97,7 @@ export function verifyAdminKey(
 
   if (rateLimited(now)) return { ok: false, reason: "rate-limited" };
 
-  if (!safeEqual(provided, expected)) {
+  if (!timingSafeEqualString(provided, expected)) {
     recordAttempt(now);
     return { ok: false, reason: "invalid" };
   }

@@ -6,10 +6,11 @@
 > decision changes.
 
 **Last updated:** 2026-08-30
-**Current phase:** **Sprint 6a — per-identity pricing & billing (D-018), built and awaiting
-migration `0015` + acceptance.** UI/UX transformation complete (UI-0 → UI-12, 2026-08-15),
+**Current phase:** **Sprint 6a — per-identity pricing & billing (D-018) plus renewal
+reminders, built and awaiting migrations `0015`/`0016` + acceptance.** UI/UX transformation complete (UI-0 → UI-12, 2026-08-15),
 plus UI-13 (lead-arrival email) and the auth follow-ups. Build sprints 0–5 remain
-code-complete. Migrations `0005`–`0014` are applied; **`0015` is not yet applied**.
+code-complete. Migrations `0005`–`0014` are applied; **`0015` and `0016` are not yet
+applied**.
 
 Deployed and login working in production (2026-08-15).
 

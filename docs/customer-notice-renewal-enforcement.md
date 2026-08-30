@@ -86,6 +86,14 @@ Hornbill TapTap
 
 ---
 
+## The reminder promise is now real
+
+The draft says "we will remind you before the date". That was a promise with nothing behind
+it when this was written; it is now built (migration `0016`, daily cron). Reminders go out
+at 30 days, 7 days, on the day, and again if a card actually stops. They ride on Resend, so
+checklist §1 gates them — if deliverability is unproven, so are the reminders, and the
+sentence should come out of the notice until it is.
+
 ## Notes on the drafting
 
 - **Leads with what changes for them, not with our model.** "Per-identity billing" is our

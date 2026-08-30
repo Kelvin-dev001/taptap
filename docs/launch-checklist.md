@@ -1,10 +1,11 @@
 # Launch checklist
 
 **Last updated:** 2026-08-30 · Everything still open needs a person, not a commit —
-except migration `0015`, which needs applying.
+except migrations `0015` and `0016`, which need applying.
 
-Code status: all UI sprints delivered plus UI-13 and Sprint 6a (per-identity billing).
-Migrations `0005`–`0014` applied; **`0015` is written and not yet applied**. 388 tests green.
+Code status: all UI sprints delivered plus UI-13 and Sprint 6a (per-identity billing +
+renewal reminders). Migrations `0005`–`0014` applied; **`0015` and `0016` are written and
+not yet applied**. 405 tests green.
 Production live and verified at `https://taptap.hornbilltech.co.ke`.
 
 ---
@@ -86,8 +87,13 @@ twelve months; KES 1,000 per active device per year after that. `PRICES_ARE_DRAF
    account holding **zero claimed devices** — those convert to no identities at all and need
    a decision per account. Nothing invents an identity for a card that does not exist.
 2. Apply `0015_per_identity_billing.sql` in the Supabase SQL editor.
-3. Tap a lapsed card and confirm the branded "not active right now" screen renders rather
+3. Apply `0016_renewal_reminders.sql`, and set **`CRON_SECRET`** in Vercel — the reminder
+   cron refuses to run without it. Vercel generates a strong value when you add the cron.
+4. Tap a lapsed card and confirm the branded "not active right now" screen renders rather
    than a 404.
+5. Check the first scheduled run in Vercel's cron log. `/api/cron/renewals` returns a JSON
+   summary (accounts examined, emails sent, failures) — that is where a Resend problem
+   surfaces.
 
 Until `0015` is applied the app runs in its fail-open path: every account keeps the
 capabilities it had, and Billing shows a migration notice.
@@ -147,7 +153,7 @@ Still unproven only because Resend deliverability itself is unproven — see §1
 it, so buying a card is still a manual conversation and fulfilment is untracked. That is the
 gap between "we know what it costs" and "someone can buy one".
 
-**Renewal reminder emails.** Deferred from 6a. The thresholds exist
-(`RENEWAL_WARNING_DAYS`, `GRACE_DAYS`) and Resend is wired, but sending on a schedule needs
-a cron route and a cadence decision. Worth doing before the first renewal falls due — which,
-for Magangi, is a year from their term start.
+~~**Renewal reminder emails.**~~ **Built** (migration `0016`, 2026-08-30). Daily cron at
+06:00 UTC / 09:00 EAT, warning at 30 days, 7 days, on the day, and again if a card actually
+stops. Needs `CRON_SECRET` set and `0016` applied — see §3. Note these ride on Resend, so
+§1 gates them too: an unproven mail path means unproven reminders.

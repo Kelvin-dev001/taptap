@@ -126,6 +126,49 @@ and the order flow is what makes it self-serve. `subscriptions` is now unread by
 dropping it (and the signup trigger's insert) is cleanup for that sprint, once the
 migration has been proven in production.
 
-**Also deferred, deliberately:** renewal reminder emails. The rules exist
-(`RENEWAL_WARNING_DAYS`, `GRACE_DAYS`) and Resend is wired from UI-13, but sending them on
-a schedule needs a cron route and a decision about cadence. In-app warnings ship now.
+---
+
+## Addendum — renewal reminders (2026-08-30, migration `0016`)
+
+Built immediately after, because the customer notice promises "we will remind you before
+the date" and nothing sent that reminder. A product that silently switches off a card
+someone paid for, having promised a warning, is worse than one that never promised.
+
+**Four milestones, each a window rather than an exact day** so a missed cron run self-heals
+on the next one: `T30` (renews within 30 days), `T7`, `T0` (term ended, still inside grace),
+`stopped` (grace ran out, the card is dark). One email per account per milestone — a
+business whose till card renews next month and whose reception card stopped last week has
+two genuinely different things to be told.
+
+**Not optional, deliberately.** There is no preference to switch these off. The
+`notify.lead` toggle governs a high-volume stream a business might reasonably not want;
+this one says a thing they paid for is about to stop working. A card dying silently is the
+exact failure the grace window exists to prevent. Reminders go to the owner's verified
+sign-up address — a separate billing address is a reasonable future need, not this change.
+
+**Two schema traps found and closed in `0016`:**
+- `notification_deliveries_once unique (kind, ref_id, channel)` from 0014 would have allowed
+  exactly one `renewal_T30` row per card **ever**, so year two would have sent nothing. It is
+  now a partial index applying only where `dedupe_key is null`, leaving lead notifications
+  with precisely the protection they had.
+- The dedupe key includes the **term** (`renewal:<tag>:<term date>:<milestone>`), so next
+  year's reminders send while a re-run today cannot.
+
+**A failed send releases its claim** so the next day retries — the one place this
+deliberately differs from `notifyNewLead`, which keeps a failed row as a record. A lead is a
+single chance where a duplicate is worse than a miss; a renewal reminder is the opposite,
+and a Resend blip that permanently consumed the "stopped working" notice would defeat the
+whole feature. The failure is still visible in the run summary the route returns.
+
+**Files:** `supabase/migrations/0016_renewal_reminders.sql`,
+`lib/notifications/renewal-email.ts` (+ 17 tests), `lib/notifications/notify-renewals.ts`,
+`app/api/cron/renewals/route.ts`, `vercel.json`, `.env.example` (`CRON_SECRET`).
+`lib/admin-auth.ts` now exports its constant-time compare so the cron gate reuses it rather
+than reaching for `!==`.
+
+**Setup:** set `CRON_SECRET` in Vercel (it generates a strong one when you add the cron),
+apply `0016`, and confirm the first scheduled run in the Vercel cron log. The route refuses
+to run on a missing or placeholder secret — an unguarded URL that mails every customer is a
+spam cannon anyone can fire.
+
+388 → **405 tests.**
