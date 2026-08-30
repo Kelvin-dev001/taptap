@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   // Match to a payment we created; unknown references are ignored.
   const { data: payment } = await admin
     .from("payments")
-    .select("id, account_id, plan_code, status, kind")
+    .select("id, account_id, plan_code, status, kind, order_id")
     .eq("reference", checkoutId)
     .single();
   if (!payment) return accepted();
@@ -41,9 +41,17 @@ export async function POST(request: Request) {
     return accepted();
   }
 
+  // Marked paid BEFORE provisioning, deliberately. The two failure modes are not
+  // equal: a crash between the two leaves a payment that is paid with nothing
+  // provisioned — which the customer sees immediately on Billing and reports —
+  // whereas provisioning first would let a replayed callback silently hand out a
+  // second free year, or a second free card, with nobody ever noticing.
+  // Visible-and-fixable beats invisible.
   await admin.from("payments").update({ status: "paid", raw: body }).eq("id", payment.id);
 
-  if (payment.kind === "renewal" || payment.kind === "hardware") {
+  if (payment.kind === "hardware") {
+    await provisionForOrder(admin, payment.id, payment.order_id);
+  } else if (payment.kind === "renewal") {
     await activateIdentities(admin, payment.id);
   } else {
     // Sprint 4 per-account plan payment. Kept so a callback for a checkout
@@ -55,6 +63,52 @@ export async function POST(request: Request) {
 }
 
 type Admin = ReturnType<typeof createAdminClient>;
+
+/**
+ * Create the identities a hardware order paid for (D-019).
+ *
+ * The term starts now rather than at delivery, so production time comes out of
+ * the customer's twelve months. That is a deliberate choice, and the reason
+ * `orders_deactivate_on_cancel` exists: a cancelled order must not leave a live
+ * card behind.
+ *
+ * Token selection and the pool race live in `provision_identities` — atomic in
+ * the database, because two concurrent callbacks drawing from the same pool of
+ * blanks would otherwise hand one physical card to two customers.
+ */
+async function provisionForOrder(admin: Admin, paymentId: string, orderId: string | null) {
+  if (!orderId) return;
+
+  // Belt and braces behind the already-paid early return: if this somehow runs
+  // twice, it must not mint a second set of cards.
+  const { data: existing } = await admin
+    .from("payment_tags")
+    .select("tag_id")
+    .eq("payment_id", paymentId)
+    .limit(1);
+  if (existing && existing.length > 0) return;
+
+  const { data: order } = await admin
+    .from("orders")
+    .select("id, account_id, quantity, product_code, products(kind, bundled_months)")
+    .eq("id", orderId)
+    .single();
+  if (!order) return;
+
+  const product = (order.products ?? null) as { kind?: string; bundled_months?: number } | null;
+
+  const { data: tagIds, error } = await admin.rpc("provision_identities", {
+    p_account_id: order.account_id,
+    p_kind: product?.kind ?? "card",
+    p_count: order.quantity,
+    p_months: product?.bundled_months ?? 12,
+  });
+  if (error || !Array.isArray(tagIds) || tagIds.length === 0) return;
+
+  await admin
+    .from("payment_tags")
+    .insert((tagIds as string[]).map((tagId) => ({ payment_id: paymentId, tag_id: tagId })));
+}
 
 /**
  * Extend every identity this payment covers.

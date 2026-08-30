@@ -1,7 +1,7 @@
 # Launch checklist
 
 **Last updated:** 2026-08-30 · Everything still open needs a person, not a commit —
-except migrations `0015` and `0016`, which need applying.
+except migration `0017`, which needs applying.
 
 Code status: all UI sprints delivered plus UI-13 and Sprint 6a (per-identity billing +
 renewal reminders). Migrations `0005`–`0014` applied; **`0015` and `0016` are written and
@@ -62,8 +62,9 @@ because Daraja cannot reach `localhost`.
 
 1. Set `MPESA_CALLBACK_URL` to `https://taptap.hornbilltech.co.ke/api/mpesa/callback` in the
    Daraja app **and** in Vercel.
-2. From Billing, select a device and **Renew** using a sandbox test number.
-   (Requires `0015` applied and at least one claimed card — see §3.)
+2. From Billing, either **Get a device** (a hardware order) or select a card and **Renew**,
+   using a sandbox test number. The hardware path is the better test: it exercises order
+   creation, payment and identity provisioning in one go.
 3. Confirm a `payments` row moves `pending` → `paid`, the renewed device's
    `nfc_tags.term_end` moves a year out, and the Billing screen updates.
 4. **Replay the same callback** and confirm `term_end` does **not** move twice. The
@@ -148,10 +149,10 @@ Still unproven only because Resend deliverability itself is unproven — see §1
 
 ## Recommended next
 
-**Sprint 6 — order-to-cash and the operations console**
-(`docs/sprint-6-operations-prompt.md`). Sprint 6a priced hardware but built no checkout for
-it, so buying a card is still a manual conversation and fulfilment is untracked. That is the
-gap between "we know what it costs" and "someone can buy one".
+**Sprint 6c — the operations console** (`docs/sprint-6-operations-prompt.md`). 6b made
+hardware buyable; fulfilment is still advanced by hand in SQL. 6c adds the staff console,
+Kanban, order detail and ops metrics — plus the `Table` and `Pagination` primitives the
+design system has been missing since UI-1.
 
 ~~**Renewal reminder emails.**~~ **Built** (migration `0016`, 2026-08-30). Daily cron at
 06:00 UTC / 09:00 EAT, warning at 30 days, 7 days, on the day, and again if a card actually

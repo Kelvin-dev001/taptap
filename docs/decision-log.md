@@ -438,5 +438,65 @@ physically exist; the Phase 0 reconciliation query lists them for a per-account 
 
 ---
 
+### D-019 — The Order is the spine; identity terms start at payment
+**Date:** 2026-08-30 · **Status:** Accepted · **Builds on:** D-018
+
+**Context:** D-018 priced hardware and built no way to buy it. Every card sold was a manual
+conversation followed by an untracked production job — which works for one customer and
+becomes chaos at ten.
+
+**Decision:** an **Order** is created at checkout, its payment provisions the identities it
+bought, and staff fulfil it through an enforced pipeline. Sprint 6b builds the
+customer-facing half; the operations console is 6c.
+
+**Fulfilment and payment are separate state machines**, joined only in the views. An order
+sits at `new` from creation; whether it has been paid for is a fact about its payment row.
+Collapsing them would mean inventing statuses like `paid_but_not_started` and keeping them
+in step with Daraja, which is how a flat status ends up lying. The customer-facing label is
+computed from both, so an unpaid order never reads as "Paid".
+
+**Terms start at PAYMENT, not delivery.** Considered and rejected: starting the twelve
+months when the card is delivered is fairer — production time otherwise comes out of the
+customer's year, so a three-week build delivers 49 weeks for a 52-week price. Payment-start
+was chosen for simplicity: it is what the callback already did, and it needs no new
+entitlement states. **This is the decision most likely to want revisiting**, and it can be,
+by crediting production days at delivery without any schema change.
+
+**It creates one hazard that delivery-start would not have**, and that hazard is handled in
+the database rather than in application code: a cancelled or refunded order would otherwise
+leave a live, working card behind, paid for with money that has been given back. A trigger
+on `orders` disables the identities a cancelled order provisioned, so it holds whoever
+cancels and through whichever path.
+
+**Staff are their own table, not `profiles.role`.** D-017 reserves a per-account role for
+team management; Hornbill's own staff are not members of any customer account. Conflating
+the two axes would poison the team-management design before it is built. The shared
+`ADMIN_TOKEN` is retained only for card minting: it is a single secret with no identity, so
+"who moved this order" is unanswerable under it — which makes an audit log impossible.
+
+**The audit log is a trigger, not a convention.** "Audit every transition" is only true if a
+transition cannot happen without one. Application code writing its own audit row is a habit
+that a future path will forget; a trigger survives it. Transition **legality** stays in
+`lib/orders.ts` where it is tested — the database guarantees the record, the code guarantees
+the rule, and neither duplicates the other.
+
+**`products` has no price column.** `lib/pricing.ts` is the single source of truth for money
+(D-018) and a second copy in the database is a second number that can be wrong, with the
+wrong one silently winning at checkout. The table carries catalogue metadata; `orders.amount_kes`
+records what was actually charged, so a price change never rewrites history.
+
+**Ordering requires signing in.** The original brief allowed guest orders with a nullable
+`account_id`. Rejected: an order belonging to nobody cannot provision an identity, which is
+the entire purpose of an order. Signing up is free and instant. It also avoids reserving a
+new root-level slug — `/[slug]` is a root catch-all (D-013) and `checkout`, `orders`, `ops`
+and `staff` are all still claimable by customers.
+
+**Token selection is atomic in the database.** `provision_identities` draws from the
+pre-minted pool with `for update skip locked`, so two concurrent callbacks cannot hand the
+same physical card to two customers, and mints the remainder if the pool is short — running
+out of blanks must never fail a payment already taken.
+
+---
+
 _Add new decisions above this line as `D-00N`, and mirror the one-liner into
 `PROJECT.md`._
