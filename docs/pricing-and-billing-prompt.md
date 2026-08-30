@@ -1,3 +1,8 @@
+> **SUPERSEDED — this work is done.** The model below was accepted as **D-018** and
+> shipped in Sprint 6a on 2026-08-30 (`18216fb`). Kept for the reasoning that led to
+> it. Do not re-run the prompt at the bottom; see `docs/sprint-6a-pricing-billing.md`
+> for what was built and `docs/sprint-6-operations-prompt.md` for what comes next.
+
 # Pricing & Billing — corrected model + Claude Code prompt
 
 This supersedes the earlier draft plan prices. The real model is **per-identity**, not

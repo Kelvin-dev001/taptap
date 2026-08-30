@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { CircleCheck, Info, Headset } from "lucide-react";
 import { Card, Badge, Alert, buttonVariants } from "@/components/ui";
-import { formatKes, RENEWAL_PER_IDENTITY_KES, type SegmentDefinition } from "@/lib/pricing";
+import {
+  formatKes,
+  GRACE_DAYS,
+  RENEWAL_PER_IDENTITY_KES,
+  type SegmentDefinition,
+} from "@/lib/pricing";
 import { daysUntil, type BillingSummary } from "@/lib/identity";
 import { cn } from "@/lib/cn";
 
@@ -111,14 +116,25 @@ export function BillingOverview({
         </div>
       )}
 
-      {/* Two facts customers otherwise have to guess at. Both are consequences
-          of paying by M-Pesa prompt rather than a stored mandate, and hiding
-          them would make an absent Cancel button look like a missing feature. */}
+      {/* Facts customers otherwise have to guess at. The third is the one that
+          changed with D-018 and it is stated plainly rather than buried: a
+          device that lapses stops working, which was NOT true before. Billing
+          screens that hide the consequence of not paying are how people get
+          surprised, and this one is visible to every account permanently
+          rather than as a one-off announcement they may never have read. */}
       <ul className="flex flex-col gap-2 border-t border-border pt-4">
         <Fact>
           <strong className="font-medium text-foreground">Nothing renews automatically.</strong>{" "}
           We hold no standing M-Pesa mandate, so a device simply lapses on its date unless you
           pay again — there is nothing to cancel.
+        </Fact>
+        <Fact>
+          <strong className="font-medium text-foreground">
+            An unrenewed device stops working.
+          </strong>{" "}
+          {GRACE_DAYS} days after its date it stops resolving, and anyone tapping it sees a
+          renewal notice instead of your profile. Nothing is deleted — renewing brings it
+          straight back, with all your content intact.
         </Fact>
         <Fact>
           <strong className="font-medium text-foreground">No card is stored.</strong> Each
