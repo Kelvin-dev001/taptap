@@ -5,18 +5,18 @@ import { Reveal, RevealGroup, RevealItem } from "./reveal";
 const POINTS = [
   {
     icon: RefreshCw,
-    title: "Always current",
-    body: "Update once; every card and code you own updates instantly.",
+    title: "Change it whenever you like",
+    body: "Update your page once and every card and code you own catches up straight away.",
   },
   {
     icon: Smartphone,
-    title: "Works on any phone",
-    body: "Tap on NFC phones, scan the QR on the rest.",
+    title: "Works on every phone",
+    body: "Newer phones just tap. Everyone else scans the QR code with their camera.",
   },
   {
     icon: BarChart3,
-    title: "Yours to measure",
-    body: "Every tap, scan and button press is counted.",
+    title: "You see what happens",
+    body: "Every tap, scan and button press is counted and waiting in your dashboard.",
   },
 ];
 
@@ -27,21 +27,22 @@ export function WhatIsTapTap() {
         <Reveal>
           <SectionHeading
             eyebrow="What it is"
-            title="One identity behind every touchpoint."
+            title="Your whole business, on one page."
           />
           <div className="mt-6 flex max-w-xl flex-col gap-4 text-body text-foreground-secondary">
             <p>
-              A TapTap identity is your business in digital form — your contact details,
-              links, WhatsApp, review link, location and more, on one fast page.
+              Think of it as your business in digital form. Your phone number, your WhatsApp,
+              your review link, your location and anything else you want people to reach, all
+              on one page that loads fast.
             </p>
             <p>
-              Put it on a card for your pocket or a stand for your counter. Customers reach
-              it by tapping their phone or scanning the code. No app, on their side or yours.
+              Put it on a card for your pocket or a stand for your counter. Customers tap
+              their phone on it or scan the code. Nobody downloads anything.
             </p>
             <p>
-              Change your links, your offer or your whole page whenever you like.{" "}
+              Changed your number? Running a new offer? Update it in seconds.{" "}
               <strong className="font-medium text-foreground">
-                The card in your hand never needs reprinting or reprogramming.
+                The card in your hand never has to be reprinted.
               </strong>
             </p>
           </div>

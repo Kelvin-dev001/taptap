@@ -78,8 +78,8 @@ export function PricingTeaser() {
       <Reveal>
         <SectionHeading
           eyebrow="Pricing"
-          title="Simple pricing. No monthly surprises."
-          sub={`Buy the hardware once — your first year is included. After that it's ${RENEWAL} per active identity, per year.`}
+          title="Straightforward pricing, no monthly surprises."
+          sub={`Buy the card or stand once and your first year comes with it. After that it is ${RENEWAL} a year for each one you are still using.`}
           align="center"
         />
       </Reveal>
@@ -137,8 +137,8 @@ export function PricingTeaser() {
 
       <Reveal delay={0.1}>
         <p className="mt-8 text-center text-body-sm text-muted">
-          An identity is one card or stand and the profile behind it. The first{" "}
-          {BUNDLED_MONTHS} months are included in the hardware price.{" "}
+          One identity means one card or stand and the page behind it. Your first{" "}
+          {BUNDLED_MONTHS} months are already paid for in the price.{" "}
           <Link href="/pricing" className="text-primary-strong underline">
             See full pricing
           </Link>

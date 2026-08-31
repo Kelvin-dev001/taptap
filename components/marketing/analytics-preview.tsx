@@ -31,16 +31,16 @@ export function AnalyticsPreview() {
     <Section id="analytics" label="Analytics" tone="sunken">
       <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
         <Reveal>
-          <SectionHeading eyebrow="Analytics" title="Know what's actually working." />
+          <SectionHeading eyebrow="Analytics" title="Finally know what is actually working." />
           <div className="mt-6 flex max-w-xl flex-col gap-4 text-body text-foreground-secondary">
             <p>
-              Most marketing is a guess. TapTap counts every interaction — how many people
-              tapped, what they pressed, which phone they used and when they came.
+              Most marketing is guesswork. This is not. We count every tap, every scan and
+              every button somebody presses, along with when they came.
             </p>
             <p>
-              See which stand earns the most reviews, which staff card brings in leads, and
-              which link nobody touches. Then change it — instantly, without reprinting
-              anything.
+              You can see which stand earns you the most reviews, whose card brings in the
+              leads, and which link nobody has ever touched. Then you change it there and
+              then, without reprinting a thing.
             </p>
           </div>
         </Reveal>
@@ -74,8 +74,8 @@ export function AnalyticsPreview() {
           </div>
 
           <p className="mt-3 text-caption text-muted">
-            Illustration only. The figures above are made up to show the layout — your
-            dashboard shows your own numbers.
+            This is an illustration. The numbers above are made up to show you the layout.
+            Your dashboard shows your own.
           </p>
         </Reveal>
       </div>

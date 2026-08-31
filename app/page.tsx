@@ -16,9 +16,9 @@ import { MarketingFooter } from "@/components/marketing/footer";
 import { Section, SectionHeading } from "@/components/marketing/section";
 import { Reveal } from "@/components/marketing/reveal";
 
-const TITLE = "Hornbill TapTap — Smart NFC Business Cards & Review Stands in Kenya";
+const TITLE = "Hornbill TapTap | Smart NFC Business Cards & Review Stands in Kenya";
 const DESCRIPTION =
-  "One tap shares your contact, WhatsApp, Google review link and location. Smart NFC cards and stands for Kenyan businesses, from KES 1,500 with the first year included.";
+  "One tap saves your number, opens WhatsApp, takes people to your Google reviews and shows them your door. Smart NFC cards and stands for Kenyan businesses, from KES 1,500 with your first year included.";
 
 /**
  * The title is set absolutely rather than through the root template: the layout
@@ -76,8 +76,8 @@ export default function Home() {
           <Reveal>
             <SectionHeading
               eyebrow="Use cases"
-              title="Built for the way Kenyan businesses actually work."
-              sub="Wherever a customer meets your business, TapTap turns that moment into an action."
+              title="However you meet your customers, this fits."
+              sub="Pick the one that sounds like you and see how it works in practice."
               align="center"
             />
           </Reveal>

@@ -23,11 +23,11 @@ const GROUPS = [
     scenarios: [
       {
         title: "The sales rep",
-        body: "Grace meets a prospect at an expo. Instead of hunting for a card, she taps her phone. Her details are saved, her WhatsApp is open, and her portfolio is on screen — before the conversation ends. That evening she sees the lead in her dashboard.",
+        body: "Grace meets someone at an expo. No digging through her bag for a card that ran out an hour ago. She taps her phone, and by the time they finish talking her number is saved, WhatsApp is open and her work is on the screen. That evening the lead is sitting in her dashboard.",
       },
       {
         title: "The realtor",
-        body: "James's card opens the listing he's showing, with photos, directions and a booking button. When the property sells, he points the same card at the next one.",
+        body: "James hands his card to everyone who walks through the house he is showing. It opens that exact listing, with the photos, the directions and a button to book a second viewing. When it sells, he points the same card at the next one.",
       },
     ],
   },
@@ -39,15 +39,15 @@ const GROUPS = [
     scenarios: [
       {
         title: "The restaurant",
-        body: "A stand sits on every table. Guests tap to see the menu, and tap again to leave a Google review before they've paid the bill. Reviews climb; the manager sees which tables generate the most.",
+        body: "There is a stand on every table. Guests tap to read the menu, then tap again to leave a review while the food is still good in their memory, before the bill even arrives. The manager can see which tables bring in the most.",
       },
       {
         title: "The salon",
-        body: "A stand at reception collects reviews and bookings while clients wait. The owner's card shares her price list and WhatsApp with every walk-in.",
+        body: "A stand at reception picks up reviews and bookings while clients are waiting anyway. The owner keeps a card in her apron for walk-ins who want the price list and her WhatsApp.",
       },
       {
         title: "The clinic",
-        body: "Reception has a stand for directions, opening hours and appointment requests — fewer phone calls, fewer missed patients.",
+        body: "Reception keeps a stand for directions, opening hours and appointment requests. The phone rings less and fewer patients get lost on the way.",
       },
     ],
   },
@@ -59,15 +59,15 @@ const GROUPS = [
     scenarios: [
       {
         title: "The hotel",
-        body: "Stands in reception, the restaurant, the spa and every room. Each has its own identity, so management sees exactly which touchpoint drives reviews and which needs attention.",
+        body: "Stands in reception, the restaurant, the spa and every room. Each one has its own page, so management can see at a glance which part of the hotel is bringing in reviews and which one has gone quiet.",
       },
       {
         title: "The corporate sales team",
-        body: "Every rep gets a branded card. Contact details stay consistent, branding stays on-message, and leads are captured centrally instead of dying in someone's pocket.",
+        body: "Every rep carries a branded card. Everyone's details look the same, the branding stays right, and the leads land in one place instead of dying in somebody's jacket pocket.",
       },
       {
         title: "The campus",
-        body: "Departments, events and staff each get an identity, so visitors always reach current information instead of a printed sheet from last year.",
+        body: "Departments, events and staff each get their own page, so visitors always land on something current instead of a notice printed last year.",
       },
     ],
   },

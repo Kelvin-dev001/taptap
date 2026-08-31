@@ -17,10 +17,10 @@ export function CtaBand() {
 
           <div className="relative mx-auto flex max-w-2xl flex-col items-center gap-5">
             <h2 className="text-balance text-display text-on-inverse">
-              Get your smart identity today.
+              Ready to stop handing out paper?
             </h2>
             <p className="text-body text-on-inverse-muted">
-              Set up your profile free. Add a card or stand whenever you&rsquo;re ready.
+              Setting up your page is free. Add a card or a stand whenever you are ready.
             </p>
 
             <div className="mt-2 flex flex-wrap items-center justify-center gap-3">

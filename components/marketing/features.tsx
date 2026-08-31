@@ -24,52 +24,52 @@ import { Reveal, RevealGroup, RevealItem } from "./reveal";
 const FEATURES = [
   {
     icon: IdCard,
-    title: "Your digital identity",
-    body: "Logo, name, bio and every link that matters, on one page.",
+    title: "Your own page",
+    body: "Your logo, your name and every link that matters, all in one place.",
   },
-  { icon: Nfc, title: "NFC + QR", body: "Tap or scan; both point to the same identity." },
+  { icon: Nfc, title: "NFC + QR", body: "Tap it or scan it. Both take people to the same page." },
   {
     icon: UserPlus,
-    title: "Save contact (vCard)",
-    body: "One tap puts you in their phonebook, spelled correctly.",
+    title: "Saved to their phone",
+    body: "One press and you are in their contacts, with your name spelled right.",
   },
   {
     icon: MessageCircle,
     title: "WhatsApp",
-    body: "Opens a chat with you, ready to type.",
+    body: "Opens a chat with you, ready for them to type.",
   },
   {
     icon: PhoneCall,
-    title: "Call & email",
-    body: "One tap to reach you, no typing errors.",
+    title: "Call and email",
+    body: "They reach you in one press, with nothing typed wrong.",
   },
   {
     icon: Star,
-    title: "Google Reviews",
-    body: "Send happy customers straight to your review page.",
+    title: "Google reviews",
+    body: "Send a happy customer straight to your review page while they are still smiling.",
   },
-  { icon: MapPin, title: "Directions", body: "Opens your exact location in Google Maps." },
+  { icon: MapPin, title: "Directions", body: "Opens Google Maps and walks them to your door." },
   {
     icon: Globe,
-    title: "Website & socials",
-    body: "Instagram, Facebook, TikTok, LinkedIn and more.",
+    title: "Website and socials",
+    body: "Instagram, Facebook, TikTok, LinkedIn and anywhere else you post.",
   },
   {
     icon: Inbox,
-    title: "Lead capture",
-    body: "Collect names and numbers, and export them any time.",
+    title: "Collect enquiries",
+    body: "Take names and numbers on your page, and download the lot whenever you want.",
   },
   {
     icon: BarChart3,
-    title: "Analytics",
-    body: "See taps, scans, top buttons, which card, and your busiest times.",
+    title: "Real numbers",
+    body: "Taps, scans, the buttons people press, which card, and the hours you are busiest.",
   },
   {
     icon: Layers,
-    title: "Multiple identities",
-    body: "A card per staff member, a stand per table or branch.",
+    title: "As many as you need",
+    body: "A card for each of your staff, a stand for each table or branch.",
   },
-  { icon: Palette, title: "Your branding", body: "Your logo and colours, not ours." },
+  { icon: Palette, title: "Your look", body: "Your logo and your colours on the page, not ours." },
 ];
 
 export function Features() {
@@ -78,7 +78,7 @@ export function Features() {
       <Reveal>
         <SectionHeading
           eyebrow="Features"
-          title="Everything your customers need, in one place."
+          title="Everything a customer might want, one press away."
           align="center"
         />
       </Reveal>

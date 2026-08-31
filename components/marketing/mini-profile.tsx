@@ -33,7 +33,7 @@ export function MiniProfile() {
         Mama Kioko&rsquo;s Kitchen
       </p>
       <p className="mt-1 text-center text-[11px] leading-snug text-neutral-500">
-        Home-style Kenyan food · Westlands, Nairobi
+        Home-style Kenyan food · Nyali, Mombasa
       </p>
 
       <div className="mt-5 flex w-full flex-col gap-2">

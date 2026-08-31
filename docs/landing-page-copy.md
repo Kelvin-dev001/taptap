@@ -1,5 +1,24 @@
 # Landing page copy — Hornbill TapTap
 
+> **REVISED ON THE SITE (2026-08-31).** Kelvin asked for a warmer, more
+> customer-centric voice and, specifically, **no em dashes** anywhere a customer
+> reads — he flagged them as the thing that makes copy read as machine-written.
+> The live wording in `components/marketing/*` is therefore the source of truth
+> now, not the sections below, which are kept for the structure and the
+> messaging decisions behind them.
+>
+> Three claims were also corrected against the product and must stay corrected:
+> Commercial does **not** get an "Advanced" analytics tier and Business does
+> **not** get team management (neither ships — D-018, D-020); "devices" in the
+> analytics claim is "which card"; and data deletion is **by request** rather
+> than self-serve, matching `/privacy`.
+>
+> A test in `components/marketing/marketing.test.tsx` fails the build if an em
+> dash reaches rendered copy, or if the pricing table drifts from
+> `lib/pricing.ts`.
+>
+> Company details: **Hornbill Technologies Limited, Mombasa, Kenya.**
+
 Original copy for the marketing site. Pair with `landing-page-prompt.md` (hand Claude Code
 both). Voice: confident, plain, specific, Kenya-first. No hype adjectives, no fake proof,
 no lorem ipsum. Prices must match `lib/pricing.ts` (D-018).

@@ -43,6 +43,15 @@ export function MarketingFooter() {
           <p className="max-w-xs text-body-sm text-muted">
             Smart digital identity for African businesses.
           </p>
+          <p className="max-w-xs text-caption text-muted">
+            Talk to us on{" "}
+            <a
+              href="mailto:hello@hornbilltech.co.ke"
+              className="text-primary-strong hover:underline"
+            >
+              hello@hornbilltech.co.ke
+            </a>
+          </p>
         </div>
 
         {COLUMNS.map((column) => (
@@ -67,8 +76,8 @@ export function MarketingFooter() {
       </div>
 
       <div className="mx-auto mt-12 flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 border-t border-border pt-6 text-caption text-muted">
-        <p>A product of Hornbill · Nairobi, Kenya</p>
-        <p>© {year} Hornbill. All rights reserved.</p>
+        <p>A product of Hornbill Technologies Limited. Mombasa, Kenya.</p>
+        <p>© {year} Hornbill Technologies Limited. All rights reserved.</p>
       </div>
     </footer>
   );

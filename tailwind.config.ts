@@ -167,6 +167,17 @@ const config: Config = {
           from: { transform: "translateX(0)" },
           to: { transform: "translateX(-50%)" },
         },
+        /* Slow lighting for the dark band. Transform and opacity only, so the
+           blooms stay on their own compositor layer and never repaint the text
+           above them. Long and offset so the two never visibly sync up. */
+        drift: {
+          "0%, 100%": { transform: "translate3d(0,0,0) scale(1)", opacity: "0.75" },
+          "50%": { transform: "translate3d(6%,-8%,0) scale(1.18)", opacity: "1" },
+        },
+        "drift-alt": {
+          "0%, 100%": { transform: "translate3d(0,0,0) scale(1.12)", opacity: "0.6" },
+          "50%": { transform: "translate3d(-8%,6%,0) scale(1)", opacity: "0.95" },
+        },
       },
       animation: {
         "fade-in": "fade-in var(--duration-base) var(--ease-standard)",
@@ -181,6 +192,10 @@ const config: Config = {
         spin: "spin 0.7s linear infinite",
         // Slow enough to read a word as it passes, rather than a blur.
         marquee: "marquee 46s linear infinite",
+        // Deliberately long and mutually prime, so the two blooms drift apart
+        // instead of pulsing together like a heartbeat.
+        "drift-slow": "drift 19s ease-in-out infinite",
+        "drift-slower": "drift-alt 23s ease-in-out infinite",
       },
     },
   },

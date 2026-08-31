@@ -53,23 +53,26 @@ export function Hero() {
 
   return (
     <div ref={ref} className={reduced ? undefined : "relative h-[220vh]"}>
+      {/* pt-20 clears the 4rem sticky nav. Without it the headline centres in
+          the full viewport and its first line slides under the wordmark on
+          shorter screens. */}
       <div
         className={cn(
-          "flex items-center px-6",
-          reduced ? "py-20" : "sticky top-0 h-screen",
+          "flex items-center px-6 pt-20 sm:pt-24",
+          reduced ? "pb-20" : "sticky top-0 h-screen",
         )}
       >
         <div className="mx-auto grid w-full max-w-6xl items-center gap-12 lg:grid-cols-2">
           {/* ---- Words. Never animated, never moved. ---- */}
           <div className="flex flex-col gap-6">
-            <h1 className="text-balance text-[2.5rem] font-bold leading-[1.05] tracking-tight text-foreground sm:text-6xl">
-              One tap. Everything about your business.
+            <h1 className="text-balance text-[2.25rem] font-bold leading-[1.08] tracking-tight text-foreground sm:text-5xl lg:text-[3.5rem]">
+              One tap. Endless connections.
             </h1>
 
             <p className="max-w-xl text-body text-foreground-secondary">
-              Hornbill TapTap gives your business one smart identity. Customers tap your card
-              or scan your code to save your contact, message you on WhatsApp, leave a Google
-              review, or find your door — and you see exactly what they did.
+              Your customers tap your card or scan your code. In a second they have saved
+              your number, opened WhatsApp, left you a review or found their way to your
+              door. And you get to see every bit of it.
             </p>
 
             <div className="flex flex-wrap items-center gap-3">
@@ -94,7 +97,7 @@ export function Hero() {
             </div>
 
             <p className="text-body-sm text-muted">
-              Free to set up. No app to download — yours or theirs.
+              Free to set up. Nobody has to download an app, not you and not them.
             </p>
           </div>
 

@@ -17,7 +17,7 @@ import { cn } from "@/lib/cn";
 export const metadata = {
   title: "Pricing",
   description:
-    "Pay for the devices you use. A Smart Card is KES 1,500 including the first twelve months, then KES 1,000 per device per year.",
+    "Pay for the cards you actually use. A Smart Card is KES 1,500 with your first twelve months included, then KES 1,000 a year for each one.",
 };
 
 /**
@@ -34,10 +34,10 @@ export default function PricingPage() {
     <main className="mx-auto flex min-h-screen max-w-4xl flex-col gap-10 px-6 py-16">
       <div className="flex flex-col gap-4">
         <Wordmark subtitle="Pricing" />
-        <h1 className="text-display text-foreground">Pay for the cards you use</h1>
+        <h1 className="text-display text-foreground">Pay for the cards you actually use</h1>
         <p className="max-w-2xl text-body text-foreground-secondary">
-          Building a Tap Profile is free. You pay for the physical device that makes it
-          tappable — and the price includes the first {BUNDLED_MONTHS} months.
+          Setting up your page is free. You only pay for the card or stand that makes it
+          tappable, and your first {BUNDLED_MONTHS} months come with it.
         </p>
       </div>
 
@@ -57,12 +57,12 @@ export default function PricingPage() {
           />
         </div>
         <p className="text-body-sm text-muted">
-          After the first year, each active device renews at{" "}
+          After your first year, each card or stand you are still using renews at{" "}
           <span className="font-medium text-foreground">
             {formatKes(RENEWAL_PER_IDENTITY_KES)} per year
           </span>
-          . Renew as many as you like in one M-Pesa payment. Nothing renews automatically and
-          no card details are stored.
+          . Renew as many as you like in a single M-Pesa payment. Nothing renews on its own,
+          and we never store your card details.
         </p>
       </section>
 
@@ -123,7 +123,7 @@ function SegmentCard({ code }: { code: Segment }) {
     code === "professional" ? "One card" : "As many cards and stands as you need",
     "Unlimited Tap Profiles",
     e.analytics === "full"
-      ? "Full report — source, per-card, location and timing"
+      ? "Full report: where people came from, which card, where they are and when"
       : "Taps, views and top actions",
     e.leadCapture && "Enquiry capture with email alerts",
     e.customBranding && "Your branding, no Hornbill footer",

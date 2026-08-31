@@ -22,34 +22,34 @@ const RENEWAL = formatKes(RENEWAL_PER_IDENTITY_KES);
 const QUESTIONS: { q: string; a: React.ReactNode }[] = [
   {
     q: "Do my customers need an app?",
-    a: "No. Tapping opens their normal phone browser. If their phone doesn't do NFC, the QR code works on any camera.",
+    a: "No. Tapping just opens their normal browser, the same one they use every day. If their phone is older and does not tap, the QR code works with any camera.",
   },
   {
     q: "Does it work on iPhone?",
-    a: "Yes. Modern iPhones read NFC without an app, and every phone can scan the QR.",
+    a: "Yes. Newer iPhones read the card without any app at all, and every phone on earth can scan a QR code.",
   },
   {
     q: "Can I change my links later?",
-    a: "Any time, as often as you like. Your card doesn't change — only what it opens.",
+    a: "As often as you like. The card in your pocket stays exactly the same. Only what it opens changes.",
   },
   {
     q: "What happens after the first year?",
-    a: `Each active identity renews at ${RENEWAL} per year. One payment covers all your cards and stands together.`,
+    a: `Each card or stand you are still using renews at ${RENEWAL} for the year. One M-Pesa payment covers all of them together, so you are not paying bit by bit.`,
   },
   {
     q: "What if I lose a card?",
-    a: "Disable it from your dashboard and it stops working immediately. Your profile is safe.",
+    a: "Switch it off from your dashboard and it stops working there and then, so nobody can use it. Your page and everything on it stays safe.",
   },
   {
     q: "How do I pay?",
-    a: "M-Pesa. You'll get an STK prompt on your phone and enter your PIN.",
+    a: "M-Pesa. A prompt comes to your phone, you enter your PIN, and that is it.",
   },
   {
     q: "Is my data safe?",
     a: (
       <>
-        Yes. We follow Kenya&rsquo;s Data Protection Act. You can export your data at any
-        time, and ask us to delete it — see our{" "}
+        Yes. We follow Kenya&rsquo;s Data Protection Act. You can download your data
+        whenever you want, and ask us to delete it. Have a read of our{" "}
         <Link href="/privacy" className="text-primary-strong underline">
           Privacy Policy
         </Link>
@@ -59,7 +59,7 @@ const QUESTIONS: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: "Can I get cards for my whole team?",
-    a: "Yes — each person or location gets its own identity, all managed from one account.",
+    a: "Yes. Every person or branch gets their own card and their own page, and you run all of it from one account.",
   },
 ];
 
@@ -67,7 +67,7 @@ export function Faq() {
   return (
     <Section id="faq" label="Frequently asked questions">
       <Reveal>
-        <SectionHeading eyebrow="FAQ" title="Questions people ask us." align="center" />
+        <SectionHeading eyebrow="FAQ" title="Things people ask us." align="center" />
       </Reveal>
 
       <Reveal delay={0.05}>

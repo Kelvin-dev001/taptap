@@ -3,6 +3,13 @@ import { render, screen } from "@testing-library/react";
 import { Reveal, RevealGroup, RevealItem } from "./reveal";
 import { PricingTeaser } from "./pricing-teaser";
 import { Faq } from "./faq";
+import { Features } from "./features";
+import { HowItWorks } from "./how-it-works";
+import { WhatIsTapTap } from "./what-is-taptap";
+import { AnalyticsPreview } from "./analytics-preview";
+import { Vision } from "./vision";
+import { CtaBand } from "./cta-band";
+import { MarketingFooter } from "./footer";
 import {
   HARDWARE_PRICE_KES,
   RENEWAL_PER_IDENTITY_KES,
@@ -18,10 +25,10 @@ vi.mock("motion/react", async () => {
 
 /**
  * The requirement behind §24 is that content never waits on animation to become
- * readable — not merely that durations get shorter. These assert the text is in
+ * readable, not merely that durations get shorter. These assert the text is in
  * the document either way, which is the thing a reader actually needs.
  */
-describe("reveal — reduced motion", () => {
+describe("reveal, reduced motion", () => {
   it("renders its content with motion on", () => {
     reducedMotion.value = false;
     render(<Reveal>Something worth reading</Reveal>);
@@ -54,7 +61,7 @@ describe("reveal — reduced motion", () => {
  * These read the same constants the M-Pesa flow does, so a price change that
  * misses this page fails here rather than in front of a customer (D-018).
  */
-describe("pricing teaser — no drift from lib/pricing.ts", () => {
+describe("pricing teaser, no drift from lib/pricing.ts", () => {
   it("shows the real hardware prices", () => {
     reducedMotion.value = true;
     render(<PricingTeaser />);
@@ -74,7 +81,7 @@ describe("pricing teaser — no drift from lib/pricing.ts", () => {
   /**
    * The supplied copy deck listed "Advanced" analytics for Commercial and
    * "Optional" team management for Business. The product ships neither, and
-   * D-018/D-020 say so explicitly — selling them here would be the exact
+   * D-018/D-020 say so explicitly, and selling them here would be the exact
    * fabrication §15 forbids.
    */
   it("does not advertise an analytics tier that does not exist", () => {
@@ -106,8 +113,8 @@ describe("faq", () => {
   it("renders every answer in the DOM, collapsed but present", () => {
     reducedMotion.value = true;
     render(<Faq />);
-    expect(screen.getByText(/tapping opens their normal phone browser/i)).toBeTruthy();
-    expect(screen.getByText(/modern iphones read nfc/i)).toBeTruthy();
+    expect(screen.getByText(/opens their normal browser/i)).toBeTruthy();
+    expect(screen.getByText(/newer iphones read the card/i)).toBeTruthy();
   });
 
   it("quotes the renewal price from the pricing module", () => {
@@ -123,5 +130,45 @@ describe("faq", () => {
     reducedMotion.value = true;
     render(<Faq />);
     expect(screen.getByText(/ask us to delete it/i)).toBeTruthy();
+  });
+});
+
+/**
+ * House style: no em dashes in anything a customer reads.
+ *
+ * Kelvin flagged them as the thing that makes copy read as machine-written, and
+ * he is right that they are a tell. Enforcing it in a test rather than in a
+ * style note means the next person to add a section finds out immediately
+ * instead of shipping it.
+ *
+ * Scoped to rendered text only. Code comments are for engineers and are not
+ * part of the voice.
+ */
+describe("copy style", () => {
+  const SECTIONS: [string, () => React.ReactElement][] = [
+    ["pricing teaser", () => <PricingTeaser />],
+    ["faq", () => <Faq />],
+    ["features", () => <Features />],
+    ["how it works", () => <HowItWorks />],
+    ["what TapTap is", () => <WhatIsTapTap />],
+    ["analytics", () => <AnalyticsPreview />],
+    ["vision", () => <Vision />],
+    ["call to action", () => <CtaBand />],
+    ["footer", () => <MarketingFooter />],
+  ];
+
+  it.each(SECTIONS)("uses no em dash in %s", (_name, render_) => {
+    reducedMotion.value = true;
+    const { container } = render(render_());
+    expect(container.textContent ?? "").not.toContain("—");
+  });
+
+  it("names the company in full in the footer", () => {
+    reducedMotion.value = true;
+    const { container } = render(<MarketingFooter />);
+    const text = container.textContent ?? "";
+    expect(text).toContain("Hornbill Technologies Limited");
+    expect(text).toContain("Mombasa");
+    expect(text).toContain("All rights reserved");
   });
 });

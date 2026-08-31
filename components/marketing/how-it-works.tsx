@@ -3,16 +3,16 @@ import { Reveal, RevealGroup, RevealItem } from "./reveal";
 
 const STEPS = [
   {
-    title: "Get your card or stand",
-    body: "A Smart Card for your pocket, a Smart Stand for your counter or table. Both arrive ready to use.",
+    title: "Pick your card or stand",
+    body: "A Smart Card for your pocket, a Smart Stand for the counter or the table. Both turn up ready to go.",
   },
   {
-    title: "Build your profile",
-    body: "Add your logo, contact details, WhatsApp, review link, socials and location. It takes about five minutes.",
+    title: "Set up your page",
+    body: "Add your logo, your number, WhatsApp, your review link and where to find you. Most people are done in five minutes.",
   },
   {
-    title: "Start tapping",
-    body: "Customers tap or scan, act instantly, and you watch it all in your dashboard.",
+    title: "Let people tap",
+    body: "Your customers tap or scan, and they are one press away from calling, messaging or reviewing you.",
   },
 ];
 
@@ -22,7 +22,7 @@ export function HowItWorks() {
       <Reveal>
         <SectionHeading
           eyebrow="How it works"
-          title="Up and running the same day."
+          title="You could be using it today."
           align="center"
         />
       </Reveal>
