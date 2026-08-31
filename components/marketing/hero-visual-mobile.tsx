@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { m, useScroll, useTransform, useReducedMotion, type Transition } from "motion/react";
 import { NfcCard } from "./nfc-card";
 import { PhoneFrame } from "./phone-frame";
+import { ConnectionWavesOnView } from "./connection-waves";
 
 /**
  * The card-taps-phone moment, for phones and tablets.
@@ -60,14 +61,6 @@ export function HeroVisualMobile() {
         transition: { duration: 0.6, delay: 0.12, ease: EASE } as Transition,
       };
 
-  const rippleEntry = reduced
-    ? {}
-    : {
-        initial: { scale: 0.5, opacity: 0 },
-        whileInView: { scale: 2.2, opacity: [0, 0.5, 0] },
-        transition: { duration: 0.9, delay: 0.5, ease: "easeOut" } as Transition,
-      };
-
   return (
     <div
       ref={ref}
@@ -91,12 +84,17 @@ export function HeroVisualMobile() {
         viewport={viewport}
         {...phoneEntry}
       >
+        {/* Warm bloom behind the handset, then the waves over the top of it.
+            The bloom is the light of the tap; the rings are the signal. */}
         <m.span
-          className="absolute left-1/2 top-1/3 -z-10 block h-32 w-32 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(249,115,22,0.45)_0%,rgba(249,115,22,0)_70%)]"
+          className="absolute left-1/2 top-1/3 -z-10 block h-32 w-32 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(249,115,22,0.4)_0%,rgba(249,115,22,0)_70%)]"
           viewport={viewport}
-          {...rippleEntry}
+          initial={reduced ? undefined : { scale: 0.5, opacity: 0 }}
+          whileInView={reduced ? undefined : { scale: 1.6, opacity: [0, 0.9, 0.5] }}
+          transition={{ duration: 1, delay: 0.45, ease: "easeOut" } as Transition}
         />
         <PhoneFrame />
+        <ConnectionWavesOnView delay={0.55} reduced={reduced} />
       </m.div>
     </div>
   );

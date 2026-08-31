@@ -13,6 +13,7 @@ import { MarketingFooter } from "./footer";
 import { Hero } from "./hero";
 import { WhatsAppButton } from "./whatsapp-button";
 import { TypingHeadline } from "./typing-headline";
+import { ConnectionWavesOnView } from "./connection-waves";
 import {
   HARDWARE_PRICE_KES,
   RENEWAL_PER_IDENTITY_KES,
@@ -277,5 +278,30 @@ describe("typing headline", () => {
     // which would force this onto one line on a 360px screen.
     expect(container.innerHTML).toContain("whitespace-pre-wrap");
     expect(container.textContent).not.toContain(" ");
+  });
+});
+
+/**
+ * The waves are the whole point of the tap: rings leaving one after another
+ * read as a signal travelling, where a single pulse reads as a button press.
+ */
+describe("connection waves", () => {
+  it("sends several rings, not one pulse", () => {
+    const { container } = render(<ConnectionWavesOnView reduced={false} />);
+    expect(container.querySelectorAll("span.rounded-full").length).toBe(4);
+  });
+
+  /**
+   * Nothing is rendered under reduced motion. A still ring would just be a
+   * stray circle drawn over the phone, since the travelling IS the meaning.
+   */
+  it("renders nothing when motion is off", () => {
+    const { container } = render(<ConnectionWavesOnView reduced />);
+    expect(container.innerHTML).toBe("");
+  });
+
+  it("stays out of the accessibility tree", () => {
+    const { container } = render(<ConnectionWavesOnView reduced={false} />);
+    expect(container.querySelector("[aria-hidden='true']")).not.toBeNull();
   });
 });

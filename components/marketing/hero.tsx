@@ -9,6 +9,7 @@ import { NfcCard } from "./nfc-card";
 import { PhoneFrame } from "./phone-frame";
 import { HeroVisualMobile } from "./hero-visual-mobile";
 import { TypingHeadline } from "./typing-headline";
+import { ConnectionWavesScrub } from "./connection-waves";
 
 /**
  * The hero: a card taps a phone, and the phone fills with a live profile.
@@ -46,9 +47,10 @@ export function Hero() {
   const phoneScale = useTransform(scrollYProgress, [0, 0.55], [0.92, 1]);
   const phoneOpacity = useTransform(scrollYProgress, [0.05, 0.4], [0, 1]);
 
-  // The tap: a single ripple at the moment of contact.
-  const rippleScale = useTransform(scrollYProgress, [0.45, 0.72], [0.4, 2.6]);
-  const rippleOpacity = useTransform(scrollYProgress, [0.45, 0.58, 0.72], [0, 0.5, 0]);
+  // The tap: a bloom of light at the moment of contact. The rings that carry
+  // the "connection" idea outward live in ConnectionWavesScrub.
+  const rippleScale = useTransform(scrollYProgress, [0.45, 0.72], [0.4, 1.8]);
+  const rippleOpacity = useTransform(scrollYProgress, [0.45, 0.58, 0.8], [0, 0.7, 0.35]);
 
   // The screen wakes just after contact.
   const screenOpacity = useTransform(scrollYProgress, [0.5, 0.66], [0, 1]);
@@ -167,7 +169,10 @@ export function Hero() {
                   style={{ y: phoneY, scale: phoneScale, opacity: phoneOpacity }}
                 >
                   <div className="relative h-full">
-                    {/* Ripple, centred on the phone's contact point. */}
+                    {/* The bloom is the light of the tap; the rings that follow
+                        are the signal leaving. Both centred on the contact
+                        point, both behind the handset except the rings, which
+                        travel over it. */}
                     <m.span
                       aria-hidden="true"
                       className="absolute left-1/2 top-1/3 -z-10 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(249,115,22,0.45)_0%,rgba(249,115,22,0)_70%)]"
@@ -176,6 +181,7 @@ export function Hero() {
                     <m.div className="h-full" style={{ opacity: screenOpacity }}>
                       <PhoneFrame className="h-full w-auto" />
                     </m.div>
+                    <ConnectionWavesScrub progress={scrollYProgress} />
                   </div>
                 </m.div>
               </div>
