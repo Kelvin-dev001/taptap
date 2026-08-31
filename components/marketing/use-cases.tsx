@@ -1,6 +1,8 @@
 "use client";
 
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui";
+// Deep import: see the note in nav.tsx. This is the page's other client
+// component, so the same barrel cost applies.
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 /**
  * Use cases, by who you are.

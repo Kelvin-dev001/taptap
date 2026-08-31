@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { Reveal, RevealGroup, RevealItem } from "./reveal";
 import { PricingTeaser } from "./pricing-teaser";
@@ -19,33 +19,33 @@ import {
   formatKes,
 } from "@/lib/pricing";
 
-const reducedMotion = vi.hoisted(() => ({ value: false }));
-
-vi.mock("motion/react", async () => {
-  const actual = await vi.importActual<typeof import("motion/react")>("motion/react");
-  return { ...actual, useReducedMotion: () => reducedMotion.value };
-});
-
 /**
  * The requirement behind §24 is that content never waits on animation to become
- * readable, not merely that durations get shorter. These assert the text is in
- * the document either way, which is the thing a reader actually needs.
+ * readable, not merely that durations get shorter.
+ *
+ * These wrappers used to be `motion` components, which meant every section they
+ * wrapped sat in the server HTML at `opacity: 0` until the animation runtime
+ * hydrated and an observer fired. They are plain CSS now, so the tests assert
+ * the guarantee that matters: readable markup with nothing hiding it.
  */
-describe("reveal, reduced motion", () => {
-  it("renders its content with motion on", () => {
-    reducedMotion.value = false;
-    render(<Reveal>Something worth reading</Reveal>);
+describe("reveal", () => {
+  it("renders its content as ordinary, visible markup", () => {
+    const { container } = render(<Reveal>Something worth reading</Reveal>);
     expect(screen.getByText("Something worth reading")).toBeTruthy();
+    expect(container.innerHTML).not.toContain("opacity:0");
+    expect(container.innerHTML).not.toContain("opacity: 0");
   });
 
-  it("renders its content with motion off", () => {
-    reducedMotion.value = true;
-    render(<Reveal>Something worth reading</Reveal>);
-    expect(screen.getByText("Something worth reading")).toBeTruthy();
+  it("holds a delayed reveal back without hiding it", () => {
+    const { container } = render(<Reveal delay={0.1}>Held back a beat</Reveal>);
+    expect(screen.getByText("Held back a beat")).toBeTruthy();
+    // The delay is a later slice of the same scroll range, not an inline style
+    // that something has to come along and clear.
+    expect(container.innerHTML).toContain("reveal-late");
+    expect(container.innerHTML).not.toContain("opacity:0");
   });
 
-  it("renders every item of a stagger group when motion is off", () => {
-    reducedMotion.value = true;
+  it("renders every item of a stagger group", () => {
     render(
       <RevealGroup>
         <RevealItem>First</RevealItem>
@@ -66,7 +66,6 @@ describe("reveal, reduced motion", () => {
  */
 describe("pricing teaser, no drift from lib/pricing.ts", () => {
   it("shows the real hardware prices", () => {
-    reducedMotion.value = true;
     render(<PricingTeaser />);
 
     expect(screen.getAllByText(formatKes(HARDWARE_PRICE_KES.card)).length).toBeGreaterThan(0);
@@ -74,7 +73,6 @@ describe("pricing teaser, no drift from lib/pricing.ts", () => {
   });
 
   it("shows the real renewal price", () => {
-    reducedMotion.value = true;
     render(<PricingTeaser />);
     expect(
       screen.getAllByText(new RegExp(formatKes(RENEWAL_PER_IDENTITY_KES))).length,
@@ -88,20 +86,17 @@ describe("pricing teaser, no drift from lib/pricing.ts", () => {
    * fabrication §15 forbids.
    */
   it("does not advertise an analytics tier that does not exist", () => {
-    reducedMotion.value = true;
     render(<PricingTeaser />);
     expect(screen.queryByText(/advanced/i)).toBeNull();
   });
 
   it("does not offer team management on the Business plan", () => {
-    reducedMotion.value = true;
     render(<PricingTeaser />);
     // Exactly one plan (Commercial) may claim it.
     expect(screen.getAllByText("Yes")).toHaveLength(1);
   });
 
   it("sends Commercial to sales rather than to signup", () => {
-    reducedMotion.value = true;
     render(<PricingTeaser />);
     const link = screen.getByRole("link", { name: /talk to sales/i });
     expect(link.getAttribute("href")).toContain("mailto:sales@hornbilltech.co.ke");
@@ -114,14 +109,12 @@ describe("faq", () => {
    * which is why it was chosen over a hand-rolled accordion.
    */
   it("renders every answer in the DOM, collapsed but present", () => {
-    reducedMotion.value = true;
     render(<Faq />);
     expect(screen.getByText(/opens their normal browser/i)).toBeTruthy();
     expect(screen.getByText(/newer iphones read the card/i)).toBeTruthy();
   });
 
   it("quotes the renewal price from the pricing module", () => {
-    reducedMotion.value = true;
     render(<Faq />);
     expect(
       screen.getByText(new RegExp(`renews at ${formatKes(RENEWAL_PER_IDENTITY_KES)}`, "i")),
@@ -130,7 +123,6 @@ describe("faq", () => {
 
   /** Deletion is by request (see /privacy), not a self-serve button. */
   it("does not promise self-serve deletion", () => {
-    reducedMotion.value = true;
     render(<Faq />);
     expect(screen.getByText(/ask us to delete it/i)).toBeTruthy();
   });
@@ -161,13 +153,11 @@ describe("copy style", () => {
   ];
 
   it.each(SECTIONS)("uses no em dash in %s", (_name, render_) => {
-    reducedMotion.value = true;
     const { container } = render(render_());
     expect(container.textContent ?? "").not.toContain("—");
   });
 
   it("names the company in full in the footer", () => {
-    reducedMotion.value = true;
     const { container } = render(<MarketingFooter />);
     const text = container.textContent ?? "";
     expect(text).toContain("Hornbill Technologies Limited");
@@ -177,21 +167,24 @@ describe("copy style", () => {
 });
 
 /**
- * Mobile is the default, not the fallback. Most customers reach this page on a
- * mid-range Android.
+ * The hero must be a picture of the right thing before anything runs.
  *
- * The hero's scroll sequence is desktop-only: pinned on a phone it cost 220vh of
- * thumb before a word of content, and the composition did not fit inside an
- * `h-screen` box at 360×640. So the static version has to be in the server
- * output unconditionally, and the headline and CTAs must never depend on
- * animation or hydration to exist.
+ * This is the regression these guard. The hero used to be a scroll-scrubbed
+ * `motion` sequence, which put the entire composition into the SERVER html as
+ * `style="opacity:0"` and revealed it only once the animation runtime had
+ * hydrated and its observer had fired. When any link in that chain slipped, the
+ * card and the phone were absent from the page — on desktop and on mobile,
+ * where most of our customers are.
+ *
+ * The rule now is that the unanimated state IS the finished state: CSS
+ * keyframes only add a beginning. So the assertions below are about what the
+ * markup guarantees on its own, with no runtime of any kind.
  *
  * jsdom has no layout engine, so this asserts what is in the DOM rather than
- * how it lands. Widths and overflow need a real browser.
+ * how it lands. Widths and overflow still need a real browser.
  */
-describe("hero on mobile", () => {
+describe("hero", () => {
   it("renders the words without waiting for any animation", () => {
-    reducedMotion.value = false;
     render(<Hero />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
       "One tap. Endless connections.",
@@ -200,19 +193,37 @@ describe("hero on mobile", () => {
     expect(screen.getAllByRole("link", { name: /log in/i }).length).toBeGreaterThan(0);
   });
 
-  it("always ships the static composition, motion or not", () => {
-    reducedMotion.value = false;
+  it("ships the card and the phone visible, with nothing hiding them", () => {
     const { container } = render(<Hero />);
-    // The mobile composition is the one hidden from lg upward. If this stops
-    // being rendered, phones lose the visual entirely. Matching the emitted
-    // class avoids escaping a Tailwind colon into a CSS selector.
-    expect(container.innerHTML).toContain("lg:hidden");
+    // The two objects themselves, by the aspect ratios only they have.
+    expect(container.innerHTML).toContain("aspect-[1.586/1]"); // card
+    expect(container.innerHTML).toContain("aspect-[9/19]"); // phone
+    // And nothing anywhere in the hero starts transparent. This is the exact
+    // shape of the bug: present in the DOM, invisible on the screen.
+    expect(container.innerHTML).not.toContain("opacity:0");
+    expect(container.innerHTML).not.toContain("opacity: 0");
   });
 
-  it("does not pin the viewport when motion is off", () => {
-    reducedMotion.value = true;
+  it("shows one composition on every screen rather than hiding it on phones", () => {
     const { container } = render(<Hero />);
-    expect(container.innerHTML).not.toContain("lg:h-[220vh]");
+    // There is no longer a desktop-only branch to fall out of, and no
+    // breakpoint at which the visual is display:none.
+    expect(container.innerHTML).not.toContain("lg:hidden");
+    expect(container.innerHTML).not.toContain("hidden lg:block");
+  });
+
+  it("never pins the viewport", () => {
+    const { container } = render(<Hero />);
+    // 220vh of thumb before a word of content, and a scroll handler running
+    // transforms the whole way down.
+    expect(container.innerHTML).not.toContain("220vh");
+    expect(container.innerHTML).not.toContain("sticky");
+  });
+
+  it("moves the card with CSS, so no bundle has to arrive first", () => {
+    const { container } = render(<Hero />);
+    expect(container.querySelector(".hero-card")).not.toBeNull();
+    expect(container.querySelector(".hero-phone")).not.toBeNull();
   });
 });
 

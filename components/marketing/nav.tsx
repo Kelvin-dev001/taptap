@@ -3,7 +3,10 @@
 import * as React from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
-import { buttonVariants } from "@/components/ui";
+// Deep import rather than the barrel: this is a client component, and pulling
+// from "@/components/ui" drags all 24 exports — dialogs, tables, drawers — into
+// the landing page bundle for the sake of one variants function.
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { BrandLockup } from "./brand-mark";
 

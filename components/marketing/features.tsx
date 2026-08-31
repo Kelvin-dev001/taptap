@@ -85,7 +85,6 @@ export function Features() {
 
       <RevealGroup
         className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-        stagger={0.04}
       >
         {FEATURES.map(({ icon: Icon, title, body }) => (
           <RevealItem key={title}>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Check, Minus } from "lucide-react";
-import { buttonVariants } from "@/components/ui";
+import { buttonVariants } from "@/components/ui/button";
 import {
   HARDWARE_PRICE_KES,
   RENEWAL_PER_IDENTITY_KES,
@@ -84,7 +84,7 @@ export function PricingTeaser() {
         />
       </Reveal>
 
-      <RevealGroup className="mt-12 grid gap-4 lg:grid-cols-3" stagger={0.08}>
+      <RevealGroup className="mt-12 grid gap-4 lg:grid-cols-3">
         {PLANS.map((plan) => (
           <RevealItem key={plan.name} className="h-full">
             <div

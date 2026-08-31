@@ -145,6 +145,159 @@
     /* Starts blinking as the last character lands. */
     animation: type-caret-blink 0.9s linear calc(var(--type-i, 0) * 26ms) 3 both;
   }
+
+  /* ---- Hero: the card travels to the phone ----
+     CSS, not JavaScript, and for a reason worth writing down. Driven from
+     `motion`, this composition shipped as `style="opacity:0"` in the SERVER
+     HTML and appeared only once the animation runtime had hydrated and its
+     observer had fired. When any link in that chain slipped, the card and the
+     phone were simply absent from the page.
+
+     So the rule here is: THE UNANIMATED STATE IS THE FINISHED STATE. Every
+     element below is fully visible and correctly placed with no animation at
+     all; the keyframes only add a beginning. Turn off animations, block the
+     JavaScript, fail the stylesheet — the worst case is a still picture of the
+     right thing, never a blank space.
+
+     It also costs nothing at runtime. There is no scroll listener, no observer
+     and no client component: transform and opacity on four elements, once, on
+     the compositor. Reduced motion is handled by the global rule further down,
+     which collapses the duration so the composition simply starts finished. */
+  .hero-card {
+    transform: rotate(-12deg);
+    animation: hero-card-travel 0.95s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* The sleeping screen: transparent at rest, so no animation means a phone
+     that is already awake rather than a black rectangle. */
+  .hero-screen {
+    opacity: 0;
+    animation: hero-screen-wake 1.15s linear both;
+  }
+
+  /* The light of the tap. Also transparent at rest. */
+  .hero-flash {
+    opacity: 0;
+    animation: hero-flash 1.3s ease-out both;
+  }
+
+  .hero-phone {
+    animation: hero-phone-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* ---- Section reveals ----
+     Same rule again: these elements are VISIBLE with no animation. What follows
+     is enhancement only.
+
+     A scroll-driven animation replaces what used to be `motion`'s whileInView.
+     The old version put every wrapped section into the server HTML at
+     `opacity: 0` and needed the animation runtime to hydrate and an
+     IntersectionObserver to fire before a customer could read the page. This
+     runs on the compositor with no main-thread work, no observer, and no
+     client JavaScript on the page at all.
+
+     Browsers without scroll-driven animations skip the @supports block and show
+     the content plainly. That is a correct outcome, not a degraded one — the
+     failure mode is "no fade", never "no content".
+
+     `.reveal-group` carries no styles of its own: it is whatever grid or stack
+     the caller asks for, and exists only so the stagger below has something to
+     count children against. */
+}
+
+@supports (animation-timeline: view()) {
+  .reveal,
+  .reveal-item {
+    animation: reveal-rise linear both;
+    animation-timeline: view();
+    animation-range: entry 6% entry 58%;
+  }
+
+  /* `delay` on Reveal: a later slice of the same entry, which is the
+     scroll-driven equivalent of holding back a beat. */
+  .reveal-late {
+    animation-range: entry 14% entry 66%;
+  }
+
+  /* The stagger, per position rather than threaded through the markup. */
+  .reveal-item:nth-child(2) {
+    animation-range: entry 10% entry 62%;
+  }
+  .reveal-item:nth-child(3) {
+    animation-range: entry 14% entry 66%;
+  }
+  .reveal-item:nth-child(4) {
+    animation-range: entry 18% entry 70%;
+  }
+  .reveal-item:nth-child(n + 5) {
+    animation-range: entry 22% entry 74%;
+  }
+}
+
+@keyframes reveal-rise {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Approach, contact, settle. The overshoot at 68% is the tap: a card meeting a
+   surface stops with a small give, and without it the arrival reads as a slide
+   into place. The 100% frame is identical to the resting transform above. */
+@keyframes hero-card-travel {
+  0% {
+    opacity: 0;
+    transform: translate(-40%, 5%) rotate(-24deg) scale(0.86);
+  }
+  68% {
+    opacity: 1;
+    transform: translate(5%, -1%) rotate(-10deg) scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(-12deg) scale(1);
+  }
+}
+
+@keyframes hero-screen-wake {
+  0%,
+  56% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes hero-flash {
+  0%,
+  56% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.5);
+  }
+  72% {
+    opacity: 0.85;
+    transform: translate(-50%, -50%) scale(1.15);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.6);
+  }
+}
+
+@keyframes hero-phone-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 @keyframes type-char-in {
@@ -197,6 +350,20 @@
      declared 0, which is exactly the finished state. */
   .type-char,
   .type-caret {
+    animation: none !important;
+  }
+
+  /* The hero and the section reveals are the same story: with the animation
+     removed, every element sits at its resting state, and that IS the finished
+     composition. This cannot be left to the blanket rule above — a scroll-driven
+     animation takes its progress from the timeline rather than from a duration,
+     so shortening the duration does not stop it. */
+  .hero-card,
+  .hero-phone,
+  .hero-screen,
+  .hero-flash,
+  .reveal,
+  .reveal-item {
     animation: none !important;
   }
 }

@@ -27,7 +27,7 @@ export function HowItWorks() {
         />
       </Reveal>
 
-      <RevealGroup className="mt-12 grid gap-6 md:grid-cols-3" stagger={0.1}>
+      <RevealGroup className="mt-12 grid gap-6 md:grid-cols-3">
         {STEPS.map((step, i) => (
           <RevealItem key={step.title}>
             <div className="relative flex h-full flex-col gap-3 rounded-xl border border-border bg-surface p-6 shadow-xs">

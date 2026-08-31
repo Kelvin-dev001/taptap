@@ -1,18 +1,23 @@
-"use client";
-
-import { m, useReducedMotion } from "motion/react";
+import { cn } from "@/lib/cn";
 
 /**
- * Fade-and-rise as a section scrolls into view.
+ * Fade-and-rise as a section scrolls into view — in CSS, with no JavaScript.
  *
- * `once` matters: content that re-animates every time it passes the viewport is
- * the difference between polish and a page that will not sit still. The trigger
- * fires slightly before the element is fully visible, so movement finishes as
- * the reader arrives rather than under their eye.
+ * These used to be `motion` components driven by `whileInView`, which meant
+ * every wrapped section shipped in the server HTML at `opacity: 0` and became
+ * readable only once the animation runtime had downloaded, parsed, hydrated and
+ * fired an IntersectionObserver. That is a lot of machinery standing between a
+ * customer and the words, and when any part of it slipped the content was
+ * simply not there. The hero was showing exactly that failure.
  *
- * With reduced motion the element is simply rendered — no transform, no delay.
- * Content never waits on animation to become readable, which is the actual
- * requirement behind §24 rather than merely shortening the duration.
+ * The replacement uses a scroll-driven CSS animation, which runs on the
+ * compositor with no main-thread work, no observer and no client component at
+ * all — these are Server Components now. Browsers without scroll-driven
+ * animations get the content plainly visible, which is the correct answer
+ * rather than a degraded one.
+ *
+ * THE RULE, and it is the whole point: the unanimated state is the FINISHED
+ * state. The CSS only adds a beginning. Nothing here can leave content hidden.
  */
 export function Reveal({
   children,
@@ -20,54 +25,33 @@ export function Reveal({
   className,
 }: {
   children: React.ReactNode;
+  /**
+   * Holds this element back a beat relative to its neighbours. With a
+   * scroll-driven animation there is no clock to delay against, so any value
+   * moves the element to a later slice of its own entry — the same effect, read
+   * off scroll position instead of time.
+   */
   delay?: number;
   className?: string;
 }) {
-  const reduced = useReducedMotion();
-
-  if (reduced) return <div className={className}>{children}</div>;
-
   return (
-    <m.div
-      className={className}
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "0px 0px -80px 0px" }}
-      transition={{ duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] }}
-    >
-      {children}
-    </m.div>
+    <div className={cn("reveal", delay > 0 && "reveal-late", className)}>{children}</div>
   );
 }
 
 /**
- * Staggers its children rather than each child managing its own delay, so a
- * grid reads as one movement instead of a dozen unrelated ones.
+ * Staggers its children so a grid reads as one movement instead of a dozen
+ * unrelated ones. The offsets are per-child in CSS, so nothing has to be
+ * threaded through the markup.
  */
 export function RevealGroup({
   children,
   className,
-  stagger = 0.07,
 }: {
   children: React.ReactNode;
   className?: string;
-  stagger?: number;
 }) {
-  const reduced = useReducedMotion();
-
-  if (reduced) return <div className={className}>{children}</div>;
-
-  return (
-    <m.div
-      className={className}
-      initial="hidden"
-      whileInView="shown"
-      viewport={{ once: true, margin: "0px 0px -80px 0px" }}
-      variants={{ hidden: {}, shown: { transition: { staggerChildren: stagger } } }}
-    >
-      {children}
-    </m.div>
-  );
+  return <div className={cn("reveal-group", className)}>{children}</div>;
 }
 
 /** A single item inside a RevealGroup. */
@@ -78,19 +62,5 @@ export function RevealItem({
   children: React.ReactNode;
   className?: string;
 }) {
-  const reduced = useReducedMotion();
-
-  if (reduced) return <div className={className}>{children}</div>;
-
-  return (
-    <m.div
-      className={className}
-      variants={{
-        hidden: { opacity: 0, y: 20 },
-        shown: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] } },
-      }}
-    >
-      {children}
-    </m.div>
-  );
+  return <div className={cn("reveal-item", className)}>{children}</div>;
 }

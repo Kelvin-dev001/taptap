@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { MotionProvider } from "@/components/marketing/motion-provider";
 import { MarketingNav } from "@/components/marketing/nav";
 import { Hero } from "@/components/marketing/hero";
 import { Marquee } from "@/components/marketing/marquee";
@@ -44,18 +43,15 @@ export const metadata: Metadata = {
 /**
  * The public landing page.
  *
- * A Server Component that composes mostly-server sections. `MotionProvider` is
- * a client boundary but its children are passed through as already-rendered
- * server output, so the animation runtime loads once for the page rather than
- * dragging every section onto the client.
- *
- * The only genuinely client sections are the ones that need input or scroll
- * position: the nav, the hero sequence, the use-case tabs, and the reveal
- * wrappers. The FAQ, features, pricing and footer ship no JavaScript.
+ * There is no animation runtime here any more. The hero sequence and the
+ * section reveals are both CSS now, which took an entire client boundary off
+ * the page and, more importantly, stopped the content depending on hydration to
+ * become visible at all. The only client components left are the two that
+ * genuinely need input: the nav's mobile menu and the use-case tabs.
  */
 export default function Home() {
   return (
-    <MotionProvider>
+    <>
       {/* Skip link is the first focusable element (WCAG 2.4.1). */}
       <a
         href="#main"
@@ -94,6 +90,6 @@ export default function Home() {
 
       <MarketingFooter />
       <WhatsAppButton />
-    </MotionProvider>
+    </>
   );
 }
