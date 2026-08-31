@@ -8,6 +8,7 @@ import { cn } from "@/lib/cn";
 import { NfcCard } from "./nfc-card";
 import { PhoneFrame } from "./phone-frame";
 import { HeroVisualMobile } from "./hero-visual-mobile";
+import { TypingHeadline } from "./typing-headline";
 
 /**
  * The hero: a card taps a phone, and the phone fills with a live profile.
@@ -68,7 +69,27 @@ export function Hero() {
      * measures the viewport WITHOUT the collapsing address bar, so a pinned
      * section is taller than the screen and its bottom edge hides behind chrome.
      */
-    <div ref={ref} className={reduced ? undefined : "relative lg:h-[220vh]"}>
+    <div
+      ref={ref}
+      className={cn("relative isolate", reduced ? undefined : "lg:h-[220vh]")}
+    >
+      {/* ---- Background. Decorative, behind everything, never interactive. ----
+          Three layers: a warm vertical wash, two wide colour fields that bleed
+          off the edges, and a faint grid that gives the whole thing a surface to
+          sit on. All fixed opacity and no animation, because the hero already
+          has motion in it and a moving background under moving objects reads as
+          noise. Contrast was kept well clear of the text: the strongest field
+          tops out around 8% alpha. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10 overflow-hidden bg-[linear-gradient(180deg,#fffdfb_0%,#fff8f1_45%,#ffffff_100%)]"
+      >
+        <div className="absolute -left-[20%] -top-[30%] h-[46rem] w-[46rem] rounded-full bg-[radial-gradient(circle,rgba(249,115,22,0.14)_0%,rgba(249,115,22,0)_65%)] blur-3xl" />
+        <div className="absolute -right-[25%] top-[10%] h-[40rem] w-[40rem] rounded-full bg-[radial-gradient(circle,rgba(251,191,36,0.16)_0%,rgba(251,191,36,0)_68%)] blur-3xl" />
+        <div className="absolute inset-x-0 bottom-0 h-[24rem] bg-[radial-gradient(60%_100%_at_50%_100%,rgba(194,86,10,0.07)_0%,rgba(194,86,10,0)_70%)]" />
+        <div className="absolute inset-0 opacity-[0.35] [background-image:linear-gradient(to_right,rgba(23,23,23,0.045)_1px,transparent_1px),linear-gradient(to_bottom,rgba(23,23,23,0.045)_1px,transparent_1px)] [background-size:44px_44px] [mask-image:radial-gradient(80%_60%_at_50%_35%,black,transparent)]" />
+      </div>
+
       {/* pt-20 clears the 4rem sticky nav. Without it the headline centres in
           the full viewport and its first line slides under the wordmark on
           shorter screens. */}
@@ -82,7 +103,7 @@ export function Hero() {
           {/* ---- Words. Never animated, never moved. ---- */}
           <div className="flex flex-col gap-5 sm:gap-6">
             <h1 className="text-balance text-[2.25rem] font-bold leading-[1.08] tracking-tight text-foreground sm:text-5xl lg:text-[3.5rem]">
-              One tap. Endless connections.
+              <TypingHeadline text="One tap. Endless connections." />
             </h1>
 
             <p className="max-w-xl text-body text-foreground-secondary">
@@ -118,11 +139,11 @@ export function Hero() {
           </div>
 
           {/* ---- The sequence. Decorative throughout. ---- */}
-          <div className="relative mx-auto h-[20rem] w-full max-w-md sm:h-[26rem] lg:h-[32rem]">
+          <div className="relative mx-auto w-full max-w-md lg:h-[32rem]">
             {/* Mobile and tablet: the same story, played once on view rather
                 than scrubbed against a pinned viewport. Under reduced motion it
                 renders as a still composition. */}
-            <div className={cn("h-full", reduced ? undefined : "lg:hidden")}>
+            <div className={cn(reduced ? undefined : "lg:hidden")}>
               <HeroVisualMobile />
             </div>
 

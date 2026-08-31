@@ -12,6 +12,7 @@ import { CtaBand } from "./cta-band";
 import { MarketingFooter } from "./footer";
 import { Hero } from "./hero";
 import { WhatsAppButton } from "./whatsapp-button";
+import { TypingHeadline } from "./typing-headline";
 import {
   HARDWARE_PRICE_KES,
   RENEWAL_PER_IDENTITY_KES,
@@ -240,5 +241,41 @@ describe("floating WhatsApp button", () => {
     const link = container.querySelector("a");
     expect(link?.getAttribute("target")).toBe("_blank");
     expect(link?.getAttribute("rel")).toContain("noopener");
+  });
+});
+
+/**
+ * The typing effect must not cost the headline.
+ *
+ * The usual implementation appends characters to state, which ships an empty h1
+ * to a crawler and to anyone whose bundle fails. This one splits the finished
+ * string into spans and animates their opacity, so the text is complete in the
+ * server output and only its appearance is staged.
+ */
+describe("typing headline", () => {
+  const TEXT = "One tap. Endless connections.";
+
+  it("has the whole line in the DOM, spaces and all", () => {
+    reducedMotion.value = false;
+    const { container } = render(<TypingHeadline text={TEXT} />);
+    expect(container.textContent).toContain(TEXT);
+  });
+
+  it("renders plainly with no caret when motion is off", () => {
+    reducedMotion.value = true;
+    const { container } = render(<TypingHeadline text={TEXT} />);
+    expect(container.textContent).toBe(TEXT);
+    // The caret is the animation; nobody who asked for less of it wants a
+    // blinking block left behind.
+    expect(container.querySelectorAll("span").length).toBe(1);
+  });
+
+  it("lets the line wrap rather than gluing it together", () => {
+    reducedMotion.value = false;
+    const { container } = render(<TypingHeadline text={TEXT} />);
+    // pre-wrap keeps the spaces without the non-wrapping behaviour of nbsp,
+    // which would force this onto one line on a 360px screen.
+    expect(container.innerHTML).toContain("whitespace-pre-wrap");
+    expect(container.textContent).not.toContain(" ");
   });
 });
