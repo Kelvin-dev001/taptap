@@ -10,9 +10,17 @@ export default function PrivacyPage() {
         <section>
           <h2 className="mb-1 text-lg font-semibold">Who we are</h2>
           <p>
-            Hornbill TapTap (“we”) is operated by [Hornbill legal entity name],
-            Kenya. We are the data controller for the information described here.
-            Contact: [privacy@hornbilltech.co.ke].
+            Hornbill TapTap (“we”) is operated by Hornbill Technologies Limited,
+            Mombasa, Kenya. We are the data controller for the information
+            described here. Contact us at{" "}
+            <a href="mailto:info@hornbilltech.co.ke" className="underline">
+              info@hornbilltech.co.ke
+            </a>{" "}
+            or on{" "}
+            <a href="tel:+254759293030" className="underline">
+              0759 293 030
+            </a>
+            .
           </p>
         </section>
 
@@ -60,9 +68,12 @@ export default function PrivacyPage() {
           <p>
             We keep data for as long as your account is active or as needed to
             provide the service. You may request access to, correction of, or
-            deletion of your data by emailing [privacy@hornbilltech.co.ke]. You may
-            also lodge a complaint with the Office of the Data Protection
-            Commissioner (ODPC), Kenya.
+            deletion of your data by emailing{" "}
+            <a href="mailto:info@hornbilltech.co.ke" className="underline">
+              info@hornbilltech.co.ke
+            </a>
+            . You may also lodge a complaint with the Office of the Data
+            Protection Commissioner (ODPC), Kenya.
           </p>
         </section>
       </div>

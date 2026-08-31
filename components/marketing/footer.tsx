@@ -14,7 +14,8 @@ const COLUMNS = [
   {
     heading: "Company",
     links: [
-      { label: "Contact", href: "mailto:hello@hornbilltech.co.ke" },
+      { label: "Contact us", href: "mailto:info@hornbilltech.co.ke" },
+      { label: "0759 293 030", href: "tel:+254759293030" },
       {
         label: "Talk to Sales",
         href: "mailto:sales@hornbilltech.co.ke?subject=Hornbill%20TapTap%20-%20Talk%20to%20Sales",
@@ -44,12 +45,16 @@ export function MarketingFooter() {
             Smart digital identity for African businesses.
           </p>
           <p className="max-w-xs text-caption text-muted">
-            Talk to us on{" "}
+            Call us on{" "}
+            <a href="tel:+254759293030" className="text-primary-strong hover:underline">
+              0759 293 030
+            </a>{" "}
+            or email{" "}
             <a
-              href="mailto:hello@hornbilltech.co.ke"
+              href="mailto:info@hornbilltech.co.ke"
               className="text-primary-strong hover:underline"
             >
-              hello@hornbilltech.co.ke
+              info@hornbilltech.co.ke
             </a>
           </p>
         </div>

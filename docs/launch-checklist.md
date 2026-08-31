@@ -110,11 +110,17 @@ Supabase key. Regenerate at developer.safaricom.co.ke, update `.env.local` + Ver
 
 ## 5. Legal
 
-- Fill the `[bracketed]` placeholders in `/privacy` and `/terms` — legal name, contact email.
-- Complete Hornbill's **ODPC registration**. External, with lead time.
+- ~~Fill the `[bracketed]` placeholders in `/privacy` and `/terms`.~~ **Done 2026-08-31.**
+  Both pages now name **Hornbill Technologies Limited, Mombasa, Kenya** as the data
+  controller, with `info@hornbilltech.co.ke` and `0759 293 030` as the contact route. A test
+  in `app/legal-pages.test.tsx` fails the build if a placeholder ever returns, because a page
+  reading "operated by [legal entity name]" renders perfectly and only embarrasses a human
+  who reads it.
+- **Complete Hornbill's ODPC registration.** Still open. External, with lead time, and the
+  one part of this item nobody can write code for.
 
 You are the data controller for every lead your customers submit, and Magangi's cards are
-now collecting them.
+already collecting them.
 
 ---
 

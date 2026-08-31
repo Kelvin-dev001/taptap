@@ -54,7 +54,21 @@ export default function TermsPage() {
 
         <section>
           <h2 className="mb-1 text-lg font-semibold">Contact</h2>
-          <p>Questions: [support@hornbilltech.co.ke].</p>
+          <p>
+            Questions about these terms:{" "}
+            <a href="mailto:info@hornbilltech.co.ke" className="underline">
+              info@hornbilltech.co.ke
+            </a>
+            . Sales enquiries:{" "}
+            <a href="mailto:sales@hornbilltech.co.ke" className="underline">
+              sales@hornbilltech.co.ke
+            </a>
+            . Phone:{" "}
+            <a href="tel:+254759293030" className="underline">
+              0759 293 030
+            </a>
+            .
+          </p>
         </section>
       </div>
     </main>
