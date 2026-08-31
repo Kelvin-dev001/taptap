@@ -11,6 +11,7 @@ import { Vision } from "./vision";
 import { CtaBand } from "./cta-band";
 import { MarketingFooter } from "./footer";
 import { Hero } from "./hero";
+import { WhatsAppButton } from "./whatsapp-button";
 import {
   HARDWARE_PRICE_KES,
   RENEWAL_PER_IDENTITY_KES,
@@ -211,5 +212,33 @@ describe("hero on mobile", () => {
     reducedMotion.value = true;
     const { container } = render(<Hero />);
     expect(container.innerHTML).not.toContain("lg:h-[220vh]");
+  });
+});
+
+/**
+ * WhatsApp is how business actually gets done here, so this is the highest-value
+ * control on the page for a visitor with one question.
+ *
+ * The number is pinned because a wrong digit is invisible: the button still
+ * looks and behaves correctly, it just opens a chat with a stranger.
+ */
+describe("floating WhatsApp button", () => {
+  it("opens a chat with the real number in international format", () => {
+    const { container } = render(<WhatsAppButton />);
+    const link = container.querySelector("a");
+    expect(link?.getAttribute("href")).toContain("wa.me/254759293030");
+  });
+
+  it("has a name a screen reader can use", () => {
+    render(<WhatsAppButton />);
+    expect(screen.getByRole("link", { name: /whatsapp/i })).toBeTruthy();
+  });
+
+  /** Opening a new tab without this leaks window.opener to the target. */
+  it("opens safely in a new tab", () => {
+    const { container } = render(<WhatsAppButton />);
+    const link = container.querySelector("a");
+    expect(link?.getAttribute("target")).toBe("_blank");
+    expect(link?.getAttribute("rel")).toContain("noopener");
   });
 });

@@ -7,6 +7,7 @@ import { buttonVariants } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { NfcCard } from "./nfc-card";
 import { PhoneFrame } from "./phone-frame";
+import { HeroVisualMobile } from "./hero-visual-mobile";
 
 /**
  * The hero: a card taps a phone, and the phone fills with a live profile.
@@ -118,17 +119,11 @@ export function Hero() {
 
           {/* ---- The sequence. Decorative throughout. ---- */}
           <div className="relative mx-auto h-[20rem] w-full max-w-md sm:h-[26rem] lg:h-[32rem]">
-            {/* Static composition: both objects visible, nothing depending on
-                scroll position to be understood. Shown to everyone on mobile,
-                and to everyone at any width who asked for less motion. */}
-            <div
-              className={cn(
-                "flex h-full items-center justify-center gap-4 sm:gap-6",
-                reduced ? undefined : "lg:hidden",
-              )}
-            >
-              <NfcCard className="w-1/2" />
-              <PhoneFrame className="w-[38%]" />
+            {/* Mobile and tablet: the same story, played once on view rather
+                than scrubbed against a pinned viewport. Under reduced motion it
+                renders as a still composition. */}
+            <div className={cn("h-full", reduced ? undefined : "lg:hidden")}>
+              <HeroVisualMobile />
             </div>
 
             {!reduced && (

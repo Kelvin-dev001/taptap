@@ -13,6 +13,7 @@ import {
   type Segment,
 } from "@/lib/pricing";
 import { cn } from "@/lib/cn";
+import { WhatsAppButton } from "@/components/marketing/whatsapp-button";
 
 export const metadata = {
   title: "Pricing",
@@ -87,6 +88,7 @@ export default function PricingPage() {
         </Link>
         <span>Prices in Kenyan shillings, VAT inclusive where applicable.</span>
       </footer>
+      <WhatsAppButton />
     </main>
   );
 }

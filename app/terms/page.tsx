@@ -1,3 +1,5 @@
+import { WhatsAppButton } from "@/components/marketing/whatsapp-button";
+
 export const metadata = { title: "Terms of Service — Hornbill TapTap" };
 
 export default function TermsPage() {
@@ -71,6 +73,7 @@ export default function TermsPage() {
           </p>
         </section>
       </div>
+      <WhatsAppButton />
     </main>
   );
 }

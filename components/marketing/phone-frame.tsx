@@ -18,10 +18,16 @@ export function PhoneFrame({
 }) {
   return (
     <div aria-hidden="true" className={cn("relative", className)}>
-      <div className="relative aspect-[9/19] w-full rounded-[2rem] bg-neutral-900 p-[6px] shadow-[0_30px_70px_-20px_rgba(0,0,0,0.5)] ring-1 ring-white/10">
-        <div className="relative h-full w-full overflow-hidden rounded-[1.65rem] bg-neutral-950">
+      {/* `container-type: inline-size` is what lets MiniProfile size itself in
+          cqw and stay proportional at any frame width, instead of needing a
+          breakpoint for every piece of text inside it. */}
+      <div
+        className="relative aspect-[9/19] w-full rounded-[1.75rem] bg-neutral-900 p-[5px] shadow-[0_30px_70px_-20px_rgba(0,0,0,0.5)] ring-1 ring-white/10 sm:rounded-[2rem] sm:p-[6px]"
+        style={{ containerType: "inline-size" }}
+      >
+        <div className="relative h-full w-full overflow-hidden rounded-[1.5rem] bg-neutral-950 sm:rounded-[1.65rem]">
           {/* Notch */}
-          <div className="absolute left-1/2 top-1.5 z-10 h-1.5 w-14 -translate-x-1/2 rounded-full bg-black/70" />
+          <div className="absolute left-1/2 top-[3px] z-10 h-1 w-[28%] -translate-x-1/2 rounded-full bg-black/70" />
 
           <div
             className={cn(

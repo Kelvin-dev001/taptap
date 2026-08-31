@@ -1,3 +1,5 @@
+import { WhatsAppButton } from "@/components/marketing/whatsapp-button";
+
 export const metadata = { title: "Privacy Policy — Hornbill TapTap" };
 
 export default function PrivacyPage() {
@@ -77,6 +79,7 @@ export default function PrivacyPage() {
           </p>
         </section>
       </div>
+      <WhatsAppButton />
     </main>
   );
 }

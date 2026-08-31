@@ -13,6 +13,7 @@ import { Vision } from "@/components/marketing/vision";
 import { Faq } from "@/components/marketing/faq";
 import { CtaBand } from "@/components/marketing/cta-band";
 import { MarketingFooter } from "@/components/marketing/footer";
+import { WhatsAppButton } from "@/components/marketing/whatsapp-button";
 import { Section, SectionHeading } from "@/components/marketing/section";
 import { Reveal } from "@/components/marketing/reveal";
 
@@ -92,6 +93,7 @@ export default function Home() {
       </main>
 
       <MarketingFooter />
+      <WhatsAppButton />
     </MotionProvider>
   );
 }
