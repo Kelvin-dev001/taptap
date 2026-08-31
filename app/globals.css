@@ -119,6 +119,54 @@
     border: 1px solid var(--color-border-strong);
     border-radius: 8px;
   }
+
+  /* ---- Typed headline (marketing hero) ----
+     CSS rather than JavaScript, and that is a load-time decision rather than a
+     stylistic one. Driving this from `motion` put `style="opacity:0"` on every
+     character of the h1 in the SERVER output, so the most important line on the
+     site stayed invisible until the animation bundle had downloaded, parsed and
+     hydrated. On a mid-range Android over Kenyan mobile data that reads as a
+     page that will not load.
+
+     A stylesheet is render-blocking, so these rules are always present before
+     first paint. `both` holds the character transparent through its delay and
+     leaves it opaque afterwards; the animation cannot half-finish, because
+     nothing has to arrive for it to run. And if the stylesheet somehow does not
+     apply, the default opacity is 1 and the headline simply reads. */
+  .type-char {
+    display: inline;
+    /* --type-i is the character's index, set in the markup. Keeping the pace
+       here means the whole effect is tuned from one number. */
+    animation: type-char-in 1ms linear calc(var(--type-i, 0) * 26ms) both;
+  }
+
+  .type-caret {
+    opacity: 0;
+    /* Starts blinking as the last character lands. */
+    animation: type-caret-blink 0.9s linear calc(var(--type-i, 0) * 26ms) 3 both;
+  }
+}
+
+@keyframes type-char-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Ends on the transparent half, so with `both` the caret retires once the line
+   is finished rather than blinking forever beside completed text. */
+@keyframes type-caret-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
 }
 
 /* Reduced motion: neutralise duration and movement, but KEEP opacity changes
@@ -140,5 +188,15 @@
      state rather than calming motion. */
   [data-motion-press]:active {
     transform: none !important;
+  }
+
+  /* The headline must arrive whole rather than staggered slowly: the blanket
+     rule above shortens durations but leaves animation-delay intact, which on
+     its own would still trickle the characters in. With the animation removed
+     the characters sit at their default opacity of 1 and the caret at its
+     declared 0, which is exactly the finished state. */
+  .type-char,
+  .type-caret {
+    animation: none !important;
   }
 }

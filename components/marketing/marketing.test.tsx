@@ -13,7 +13,6 @@ import { MarketingFooter } from "./footer";
 import { Hero } from "./hero";
 import { WhatsAppButton } from "./whatsapp-button";
 import { TypingHeadline } from "./typing-headline";
-import { ConnectionWavesOnView } from "./connection-waves";
 import {
   HARDWARE_PRICE_KES,
   RENEWAL_PER_IDENTITY_KES,
@@ -246,62 +245,59 @@ describe("floating WhatsApp button", () => {
 });
 
 /**
- * The typing effect must not cost the headline.
+ * The typing effect must not cost the headline — and must not delay it.
  *
- * The usual implementation appends characters to state, which ships an empty h1
- * to a crawler and to anyone whose bundle fails. This one splits the finished
- * string into spans and animates their opacity, so the text is complete in the
- * server output and only its appearance is staged.
+ * Two failure modes are guarded here. The usual implementation appends
+ * characters to state, which ships an empty h1 to a crawler and to anyone whose
+ * bundle fails. The version before this one avoided that but drove the stagger
+ * from `motion`, which stamps `style="opacity:0"` on every character in the
+ * SERVER output — so the line was present but invisible until the animation
+ * runtime had downloaded, parsed and hydrated. Both are the same bug wearing
+ * different clothes: the headline waiting on JavaScript.
+ *
+ * The fix is that there is no JavaScript here at all. These hold that line.
  */
 describe("typing headline", () => {
   const TEXT = "One tap. Endless connections.";
 
   it("has the whole line in the DOM, spaces and all", () => {
-    reducedMotion.value = false;
     const { container } = render(<TypingHeadline text={TEXT} />);
     expect(container.textContent).toContain(TEXT);
   });
 
-  it("renders plainly with no caret when motion is off", () => {
-    reducedMotion.value = true;
+  /**
+   * The regression that matters. Nothing may set the characters transparent in
+   * markup: the stagger lives entirely in a render-blocking stylesheet, so the
+   * effect completes whether or not a bundle ever lands.
+   */
+  it("ships no inline opacity, so the words never wait on hydration", () => {
     const { container } = render(<TypingHeadline text={TEXT} />);
-    expect(container.textContent).toBe(TEXT);
-    // The caret is the animation; nobody who asked for less of it wants a
-    // blinking block left behind.
-    expect(container.querySelectorAll("span").length).toBe(1);
+    expect(container.innerHTML).not.toContain("opacity:0");
+    expect(container.innerHTML).not.toContain("opacity: 0");
+  });
+
+  it("staggers through CSS rather than an animation runtime", () => {
+    const { container } = render(<TypingHeadline text={TEXT} />);
+    expect(container.querySelectorAll(".type-char").length).toBe(TEXT.length);
+    // globals.css turns the index into a delay, so the pace is tuned in one
+    // place instead of being baked into every span.
+    expect(container.querySelector(".type-char")?.getAttribute("style")).toContain(
+      "--type-i",
+    );
+  });
+
+  it("keeps the caret out of the accessibility tree", () => {
+    const { container } = render(<TypingHeadline text={TEXT} />);
+    const caret = container.querySelector(".type-caret");
+    expect(caret).not.toBeNull();
+    expect(caret?.getAttribute("aria-hidden")).toBe("true");
   });
 
   it("lets the line wrap rather than gluing it together", () => {
-    reducedMotion.value = false;
     const { container } = render(<TypingHeadline text={TEXT} />);
     // pre-wrap keeps the spaces without the non-wrapping behaviour of nbsp,
     // which would force this onto one line on a 360px screen.
     expect(container.innerHTML).toContain("whitespace-pre-wrap");
-    expect(container.textContent).not.toContain(" ");
-  });
-});
-
-/**
- * The waves are the whole point of the tap: rings leaving one after another
- * read as a signal travelling, where a single pulse reads as a button press.
- */
-describe("connection waves", () => {
-  it("sends several rings, not one pulse", () => {
-    const { container } = render(<ConnectionWavesOnView reduced={false} />);
-    expect(container.querySelectorAll("span.rounded-full").length).toBe(4);
-  });
-
-  /**
-   * Nothing is rendered under reduced motion. A still ring would just be a
-   * stray circle drawn over the phone, since the travelling IS the meaning.
-   */
-  it("renders nothing when motion is off", () => {
-    const { container } = render(<ConnectionWavesOnView reduced />);
-    expect(container.innerHTML).toBe("");
-  });
-
-  it("stays out of the accessibility tree", () => {
-    const { container } = render(<ConnectionWavesOnView reduced={false} />);
-    expect(container.querySelector("[aria-hidden='true']")).not.toBeNull();
+    expect(container.innerHTML).not.toContain("&nbsp;");
   });
 });

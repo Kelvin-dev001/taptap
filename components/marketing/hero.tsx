@@ -9,10 +9,14 @@ import { NfcCard } from "./nfc-card";
 import { PhoneFrame } from "./phone-frame";
 import { HeroVisualMobile } from "./hero-visual-mobile";
 import { TypingHeadline } from "./typing-headline";
-import { ConnectionWavesScrub } from "./connection-waves";
 
 /**
- * The hero: a card taps a phone, and the phone fills with a live profile.
+ * The hero: a card travels across to a phone, taps it, and the screen wakes.
+ *
+ * The card closing the distance IS the animation. Everything else is staging —
+ * the phone is present from the first frame so the card has a visible
+ * destination, and it does nothing until it is tapped. There is one moving
+ * object and one idea, which is what makes it readable at a glance.
  *
  * Scroll-linked rather than autoplaying, because the reader controls the pace —
  * the animation explains the product at whatever speed they scroll, and stops
@@ -35,25 +39,41 @@ export function Hero() {
     offset: ["start start", "end start"],
   });
 
-  // Card: tilted and central, then straightens and drifts toward the phone.
-  const cardX = useTransform(scrollYProgress, [0, 0.55], ["0%", "18%"]);
-  const cardY = useTransform(scrollYProgress, [0, 0.55], ["0%", "-12%"]);
-  const cardRotate = useTransform(scrollYProgress, [0, 0.55], [-16, -2]);
-  const cardScale = useTransform(scrollYProgress, [0, 0.55], [1, 0.72]);
-  const cardOpacity = useTransform(scrollYProgress, [0.5, 0.72], [1, 0]);
+  // ---- The card's journey. Three beats: approach, contact, withdraw. ----
+  //
+  // It starts low and to the left, tilted as if held, and straightens as it
+  // travels — the same thing a hand does on the way to a reader. The scale dip
+  // around 0.55 is the tap itself: a card meeting a surface stops with a small
+  // give, and without that the arrival reads as a slide rather than a touch.
+  const cardX = useTransform(
+    scrollYProgress,
+    [0, 0.52, 0.6, 0.84],
+    ["-24%", "13%", "16%", "27%"],
+  );
+  const cardY = useTransform(scrollYProgress, [0, 0.52, 0.84], ["18%", "-10%", "-15%"]);
+  const cardRotate = useTransform(scrollYProgress, [0, 0.52, 0.6, 0.84], [-19, -3, -1, 5]);
+  const cardScale = useTransform(
+    scrollYProgress,
+    [0, 0.5, 0.55, 0.62],
+    [1.04, 0.75, 0.705, 0.75],
+  );
+  // It leaves only after the screen has woken, so the two never fight for
+  // attention and the cause stays visible while the effect happens.
+  const cardOpacity = useTransform(scrollYProgress, [0.66, 0.84], [1, 0]);
 
-  // Phone: rises and settles as the card arrives.
-  const phoneY = useTransform(scrollYProgress, [0, 0.55], ["14%", "0%"]);
-  const phoneScale = useTransform(scrollYProgress, [0, 0.55], [0.92, 1]);
-  const phoneOpacity = useTransform(scrollYProgress, [0.05, 0.4], [0, 1]);
+  // Phone: present from the first frame, because the card needs somewhere to be
+  // going. It only rises to meet the card.
+  const phoneY = useTransform(scrollYProgress, [0, 0.52], ["10%", "0%"]);
+  const phoneScale = useTransform(scrollYProgress, [0, 0.52], [0.95, 1]);
 
-  // The tap: a bloom of light at the moment of contact. The rings that carry
-  // the "connection" idea outward live in ConnectionWavesScrub.
-  const rippleScale = useTransform(scrollYProgress, [0.45, 0.72], [0.4, 1.8]);
-  const rippleOpacity = useTransform(scrollYProgress, [0.45, 0.58, 0.8], [0, 0.7, 0.35]);
+  // The tap: one bloom of warm light at the point of contact, and nothing more.
+  const flashScale = useTransform(scrollYProgress, [0.48, 0.72], [0.5, 1.5]);
+  const flashOpacity = useTransform(scrollYProgress, [0.48, 0.56, 0.78], [0, 0.75, 0]);
 
-  // The screen wakes just after contact.
-  const screenOpacity = useTransform(scrollYProgress, [0.5, 0.66], [0, 1]);
+  // The screen is asleep until the card touches it. Modelled as a dark panel
+  // lifting off the glass rather than the handset fading in, so the phone
+  // stays solid throughout.
+  const screenAsleep = useTransform(scrollYProgress, [0.52, 0.68], [1, 0]);
 
   return (
     /**
@@ -81,13 +101,19 @@ export function Hero() {
           sit on. All fixed opacity and no animation, because the hero already
           has motion in it and a moving background under moving objects reads as
           noise. Contrast was kept well clear of the text: the strongest field
-          tops out around 8% alpha. */}
+          tops out around 8% alpha.
+
+          No `blur` on the colour fields. A radial gradient already falls off
+          smoothly, so a 64px blur pass over a 736px element bought nothing
+          visible and cost a full-size filter on every paint — which on a
+          mid-range phone is one of the more expensive things a page can ask
+          for, for decoration nobody would notice missing. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 -z-10 overflow-hidden bg-[linear-gradient(180deg,#fffdfb_0%,#fff8f1_45%,#ffffff_100%)]"
       >
-        <div className="absolute -left-[20%] -top-[30%] h-[46rem] w-[46rem] rounded-full bg-[radial-gradient(circle,rgba(249,115,22,0.14)_0%,rgba(249,115,22,0)_65%)] blur-3xl" />
-        <div className="absolute -right-[25%] top-[10%] h-[40rem] w-[40rem] rounded-full bg-[radial-gradient(circle,rgba(251,191,36,0.16)_0%,rgba(251,191,36,0)_68%)] blur-3xl" />
+        <div className="absolute -left-[20%] -top-[30%] h-[46rem] w-[46rem] rounded-full bg-[radial-gradient(circle,rgba(249,115,22,0.15)_0%,rgba(249,115,22,0)_65%)]" />
+        <div className="absolute -right-[25%] top-[10%] h-[40rem] w-[40rem] rounded-full bg-[radial-gradient(circle,rgba(251,191,36,0.17)_0%,rgba(251,191,36,0)_68%)]" />
         <div className="absolute inset-x-0 bottom-0 h-[24rem] bg-[radial-gradient(60%_100%_at_50%_100%,rgba(194,86,10,0.07)_0%,rgba(194,86,10,0)_70%)]" />
         <div className="absolute inset-0 opacity-[0.35] [background-image:linear-gradient(to_right,rgba(23,23,23,0.045)_1px,transparent_1px),linear-gradient(to_bottom,rgba(23,23,23,0.045)_1px,transparent_1px)] [background-size:44px_44px] [mask-image:radial-gradient(80%_60%_at_50%_35%,black,transparent)]" />
       </div>
@@ -166,22 +192,26 @@ export function Hero() {
 
                 <m.div
                   className="absolute left-1/2 top-1/2 h-full -translate-x-1/2 -translate-y-1/2"
-                  style={{ y: phoneY, scale: phoneScale, opacity: phoneOpacity }}
+                  style={{ y: phoneY, scale: phoneScale }}
                 >
                   <div className="relative h-full">
-                    {/* The bloom is the light of the tap; the rings that follow
-                        are the signal leaving. Both centred on the contact
-                        point, both behind the handset except the rings, which
-                        travel over it. */}
+                    {/* Warm light at the point of contact, behind the handset. */}
                     <m.span
                       aria-hidden="true"
                       className="absolute left-1/2 top-1/3 -z-10 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(249,115,22,0.45)_0%,rgba(249,115,22,0)_70%)]"
-                      style={{ scale: rippleScale, opacity: rippleOpacity }}
+                      style={{ scale: flashScale, opacity: flashOpacity }}
                     />
-                    <m.div className="h-full" style={{ opacity: screenOpacity }}>
-                      <PhoneFrame className="h-full w-auto" />
-                    </m.div>
-                    <ConnectionWavesScrub progress={scrollYProgress} />
+
+                    <PhoneFrame className="h-full w-auto" />
+
+                    {/* The sleeping screen. Inset and radius track PhoneFrame's
+                        `sm:p-[6px]` / `sm:rounded-[1.65rem]`, which are the
+                        values in force at this breakpoint. */}
+                    <m.span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-[6px] block rounded-[1.65rem] bg-neutral-950"
+                      style={{ opacity: screenAsleep }}
+                    />
                   </div>
                 </m.div>
               </div>
