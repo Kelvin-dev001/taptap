@@ -52,19 +52,34 @@ export function Hero() {
   const screenOpacity = useTransform(scrollYProgress, [0.5, 0.66], [0, 1]);
 
   return (
-    <div ref={ref} className={reduced ? undefined : "relative h-[220vh]"}>
+    /**
+     * The scroll sequence is DESKTOP ONLY, and that is a mobile decision rather
+     * than a shortcut.
+     *
+     * Pinned on a phone it cost 220vh of thumb before the reader reached a word
+     * of content, and the hero simply did not fit: text plus a 26rem visual is
+     * about 900px inside an `h-screen` box on a 360×640 handset, so it
+     * overflowed. Most of our customers are on mid-range Android. They get the
+     * static composition in normal document flow, which is shorter, lighter and
+     * cannot clip.
+     *
+     * `svh` rather than `vh` on the pinned version: `100vh` on mobile browsers
+     * measures the viewport WITHOUT the collapsing address bar, so a pinned
+     * section is taller than the screen and its bottom edge hides behind chrome.
+     */
+    <div ref={ref} className={reduced ? undefined : "relative lg:h-[220vh]"}>
       {/* pt-20 clears the 4rem sticky nav. Without it the headline centres in
           the full viewport and its first line slides under the wordmark on
           shorter screens. */}
       <div
         className={cn(
-          "flex items-center px-6 pt-20 sm:pt-24",
-          reduced ? "pb-20" : "sticky top-0 h-screen",
+          "flex items-center px-5 pb-16 pt-24 sm:px-6 sm:pb-20",
+          reduced ? undefined : "lg:sticky lg:top-0 lg:h-[100svh] lg:py-0",
         )}
       >
-        <div className="mx-auto grid w-full max-w-6xl items-center gap-12 lg:grid-cols-2">
+        <div className="mx-auto grid w-full max-w-6xl items-center gap-8 sm:gap-10 lg:grid-cols-2 lg:gap-12">
           {/* ---- Words. Never animated, never moved. ---- */}
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-5 sm:gap-6">
             <h1 className="text-balance text-[2.25rem] font-bold leading-[1.08] tracking-tight text-foreground sm:text-5xl lg:text-[3.5rem]">
               One tap. Endless connections.
             </h1>
@@ -102,16 +117,22 @@ export function Hero() {
           </div>
 
           {/* ---- The sequence. Decorative throughout. ---- */}
-          <div className="relative mx-auto h-[26rem] w-full max-w-md sm:h-[32rem]">
-            {reduced ? (
-              // Static composition: both objects visible, nothing depending on
-              // scroll position to be understood.
-              <div className="flex h-full items-center justify-center gap-6">
-                <NfcCard className="w-1/2" />
-                <PhoneFrame className="w-2/5" />
-              </div>
-            ) : (
-              <>
+          <div className="relative mx-auto h-[20rem] w-full max-w-md sm:h-[26rem] lg:h-[32rem]">
+            {/* Static composition: both objects visible, nothing depending on
+                scroll position to be understood. Shown to everyone on mobile,
+                and to everyone at any width who asked for less motion. */}
+            <div
+              className={cn(
+                "flex h-full items-center justify-center gap-4 sm:gap-6",
+                reduced ? undefined : "lg:hidden",
+              )}
+            >
+              <NfcCard className="w-1/2" />
+              <PhoneFrame className="w-[38%]" />
+            </div>
+
+            {!reduced && (
+              <div className="hidden lg:block">
                 <m.div
                   className="absolute left-1/2 top-1/2 z-10 w-[62%] -translate-x-1/2 -translate-y-1/2"
                   style={{
@@ -141,7 +162,7 @@ export function Hero() {
                     </m.div>
                   </div>
                 </m.div>
-              </>
+              </div>
             )}
           </div>
         </div>

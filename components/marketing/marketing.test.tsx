@@ -10,6 +10,7 @@ import { AnalyticsPreview } from "./analytics-preview";
 import { Vision } from "./vision";
 import { CtaBand } from "./cta-band";
 import { MarketingFooter } from "./footer";
+import { Hero } from "./hero";
 import {
   HARDWARE_PRICE_KES,
   RENEWAL_PER_IDENTITY_KES,
@@ -170,5 +171,45 @@ describe("copy style", () => {
     expect(text).toContain("Hornbill Technologies Limited");
     expect(text).toContain("Mombasa");
     expect(text).toContain("All rights reserved");
+  });
+});
+
+/**
+ * Mobile is the default, not the fallback. Most customers reach this page on a
+ * mid-range Android.
+ *
+ * The hero's scroll sequence is desktop-only: pinned on a phone it cost 220vh of
+ * thumb before a word of content, and the composition did not fit inside an
+ * `h-screen` box at 360×640. So the static version has to be in the server
+ * output unconditionally, and the headline and CTAs must never depend on
+ * animation or hydration to exist.
+ *
+ * jsdom has no layout engine, so this asserts what is in the DOM rather than
+ * how it lands. Widths and overflow need a real browser.
+ */
+describe("hero on mobile", () => {
+  it("renders the words without waiting for any animation", () => {
+    reducedMotion.value = false;
+    render(<Hero />);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      "One tap. Endless connections.",
+    );
+    expect(screen.getAllByRole("link", { name: /get started/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /log in/i }).length).toBeGreaterThan(0);
+  });
+
+  it("always ships the static composition, motion or not", () => {
+    reducedMotion.value = false;
+    const { container } = render(<Hero />);
+    // The mobile composition is the one hidden from lg upward. If this stops
+    // being rendered, phones lose the visual entirely. Matching the emitted
+    // class avoids escaping a Tailwind colon into a CSS selector.
+    expect(container.innerHTML).toContain("lg:hidden");
+  });
+
+  it("does not pin the viewport when motion is off", () => {
+    reducedMotion.value = true;
+    const { container } = render(<Hero />);
+    expect(container.innerHTML).not.toContain("lg:h-[220vh]");
   });
 });

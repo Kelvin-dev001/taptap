@@ -8,7 +8,7 @@ export function CtaBand() {
   return (
     <Section label="Get started" tone="sunken">
       <Reveal>
-        <div className="relative overflow-hidden rounded-2xl bg-surface-inverse px-6 py-14 text-center sm:px-12">
+        <div className="relative overflow-hidden rounded-2xl bg-surface-inverse px-5 py-12 text-center sm:px-12 sm:py-14">
           {/* Brand bloom, kept behind the text and out of the accessibility tree. */}
           <div
             aria-hidden="true"

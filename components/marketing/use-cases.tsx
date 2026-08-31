@@ -18,6 +18,7 @@ const GROUPS = [
   {
     value: "professionals",
     label: "Professionals",
+    shortLabel: "Individuals",
     audience:
       "CEOs · consultants · salespeople · lawyers · real estate agents · photographers · artists · freelancers · trainers · executives",
     scenarios: [
@@ -34,6 +35,7 @@ const GROUPS = [
   {
     value: "smes",
     label: "Small & medium businesses",
+    shortLabel: "Businesses",
     audience:
       "restaurants · cafés · salons & spas · clinics · pharmacies · small hotels · retail shops · car dealers · gyms · workshops · agencies · offices",
     scenarios: [
@@ -54,6 +56,7 @@ const GROUPS = [
   {
     value: "organizations",
     label: "Organizations",
+    shortLabel: "Organizations",
     audience:
       "hotels & hotel groups · hospitals · universities & schools · corporates · banks · real estate companies · restaurant chains · property management · tourism companies · large agencies · corporate sales teams",
     scenarios: [
@@ -76,17 +79,22 @@ const GROUPS = [
 export function UseCases() {
   return (
     <Tabs defaultValue={GROUPS[0].value} className="mt-10">
-      <TabsList className="mx-auto flex w-full max-w-2xl flex-wrap justify-center">
+      <TabsList className="mx-auto flex w-full max-w-2xl justify-center">
         {GROUPS.map((group) => (
-          <TabsTrigger key={group.value} value={group.value}>
-            {group.label}
+          <TabsTrigger
+            key={group.value}
+            value={group.value}
+            className="min-w-0 flex-1 px-2 sm:flex-none sm:px-3"
+          >
+            <span className="truncate sm:hidden">{group.shortLabel}</span>
+            <span className="hidden truncate sm:inline">{group.label}</span>
           </TabsTrigger>
         ))}
       </TabsList>
 
       {GROUPS.map((group) => (
         <TabsContent key={group.value} value={group.value} className="mt-8">
-          <p className="mx-auto max-w-3xl text-center text-body-sm text-muted">
+          <p className="mx-auto max-w-3xl text-balance text-center text-caption text-muted sm:text-body-sm">
             {group.audience}
           </p>
 

@@ -41,6 +41,22 @@ export function MarketingNav() {
   // A menu that stays open behind a navigation is a trap on mobile.
   const close = () => setOpen(false);
 
+  // Escape closes it, and while it is open the page behind must not scroll —
+  // otherwise a thumb swipe moves the content underneath rather than the menu.
+  React.useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
+
   return (
     <header
       className={cn(
@@ -50,7 +66,7 @@ export function MarketingNav() {
           : "border-b border-transparent bg-transparent",
       )}
     >
-      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-6">
+      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-5 sm:px-6">
         <Link href="/" className="rounded-lg" aria-label="Hornbill TapTap, home">
           <BrandLockup />
         </Link>
@@ -97,7 +113,7 @@ export function MarketingNav() {
       {open && (
         <div
           id="marketing-menu"
-          className="border-t border-border bg-surface px-6 py-4 lg:hidden"
+          className="max-h-[calc(100svh-4rem)] overflow-y-auto border-t border-border bg-surface px-5 py-4 lg:hidden"
         >
           <nav aria-label="Main" className="flex flex-col">
             {LINKS.map((link) => (

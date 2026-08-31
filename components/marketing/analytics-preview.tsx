@@ -56,15 +56,15 @@ export function AnalyticsPreview() {
               </span>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
               {[
                 ["Taps & scans", "1,284"],
                 ["Clicked something", "742"],
                 ["Contacts saved", "196"],
               ].map(([label, value]) => (
-                <div key={label} className="rounded-lg bg-surface-sunken p-3">
+                <div key={label} className="rounded-lg bg-surface-sunken p-2.5 sm:p-3">
                   <p className="text-caption text-muted">{label}</p>
-                  <p className="mt-0.5 text-lg font-semibold text-foreground">{value}</p>
+                  <p className="mt-0.5 text-base font-semibold text-foreground sm:text-lg">{value}</p>
                 </div>
               ))}
             </div>
@@ -90,14 +90,18 @@ function Bars({ title, rows }: { title: string; rows: { label: string; share: nu
       <ul className="flex flex-col gap-2">
         {rows.map((row) => (
           <li key={row.label} className="flex items-center gap-3">
-            <span className="w-28 shrink-0 truncate text-caption text-foreground-secondary">
+            <span className="w-20 shrink-0 truncate text-caption text-foreground-secondary sm:w-28">
               {row.label}
             </span>
-            <span
-              aria-hidden="true"
-              className="h-2 rounded-full bg-primary"
-              style={{ width: `${row.share}%` }}
-            />
+            {/* The bar is a percentage of THIS track, not of the row. Without
+                the wrapper the label's width is counted too and a 100% bar
+                pushes the card into horizontal overflow. */}
+            <span aria-hidden="true" className="h-2 min-w-0 flex-1 rounded-full bg-surface-sunken">
+              <span
+                className="block h-full rounded-full bg-primary"
+                style={{ width: `${row.share}%` }}
+              />
+            </span>
           </li>
         ))}
       </ul>

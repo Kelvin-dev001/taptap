@@ -37,7 +37,7 @@ export function MarketingFooter() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-border bg-surface px-6 py-14">
+    <footer className="border-t border-border bg-surface px-5 py-12 sm:px-6 sm:py-14">
       <div className="mx-auto grid w-full max-w-6xl gap-10 md:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]">
         <div className="flex flex-col gap-3">
           <BrandLockup />
@@ -69,7 +69,7 @@ export function MarketingFooter() {
                 <li key={link.label}>
                   <Link
                     href={link.href}
-                    className="rounded text-body-sm text-foreground-secondary transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    className="inline-flex min-h-[24px] items-center rounded py-1 text-body-sm text-foreground-secondary transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   >
                     {link.label}
                   </Link>

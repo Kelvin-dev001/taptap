@@ -27,7 +27,7 @@ export function Section({
       aria-label={label}
       className={cn(
         // Clears the sticky nav when an anchor link jumps here.
-        "scroll-mt-20 px-6 py-20 sm:py-24",
+        "scroll-mt-16 px-5 py-14 sm:px-6 sm:py-20 lg:py-24",
         tone === "sunken" && "bg-surface-sunken",
         tone === "inverse" && "bg-surface-inverse text-on-inverse",
         className,

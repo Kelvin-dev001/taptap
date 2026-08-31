@@ -152,9 +152,9 @@ export function PricingTeaser() {
 /** A null value renders a dash, not a blank — absence has to be legible too. */
 function Row({ label, value }: { label: string; value: string | null }) {
   return (
-    <div className="flex items-start justify-between gap-3">
+    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
       <dt className="text-muted">{label}</dt>
-      <dd className="flex items-center gap-1.5 text-right font-medium text-foreground">
+      <dd className="flex items-center gap-1.5 font-medium text-foreground sm:text-right">
         {value ? (
           <>
             <Check className="h-3.5 w-3.5 shrink-0 text-success" aria-hidden="true" />
