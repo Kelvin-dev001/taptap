@@ -5,6 +5,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { isSafeDestination } from "@/lib/url";
 import { buildHref } from "@/lib/blocks";
 import { loadBillingContext } from "@/lib/billing-context";
+import { publishBlockedReason } from "@/lib/entitlement";
 import type { Block, PageConfig, Theme } from "@/lib/profile";
 
 export type SavePayload = {
@@ -106,9 +107,44 @@ export async function savePageAction(
 
 export type PublishResult = { error?: string; publishedAt?: string };
 
-/** Snapshots the current draft and makes it the public page. */
+/**
+ * Snapshots the current draft and makes it the public page.
+ *
+ * Checked in three independent places, and that is not redundancy for its own
+ * sake (D-021):
+ *
+ *   the editor  decides what the button offers to do
+ *   HERE        decides whether this request is allowed, against current state
+ *   the database refuses regardless, so neither of the above can be bypassed
+ *
+ * The check here exists to produce a good error rather than a Postgres
+ * exception. It is the RPC and the trigger that actually stop anyone: a client
+ * can call this action directly, and could call PostgREST directly if the column
+ * grants in 0019 did not exist.
+ */
 export async function publishPageAction(pageId: string): Promise<PublishResult> {
   const supabase = await createServerSupabase();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("account_id")
+    .eq("id", user.id)
+    .single();
+  if (!profile) return { error: "No account found." };
+
+  const billing = await loadBillingContext(supabase, profile.account_id);
+  const entitlementRow = billing.pages.find((p) => p.id === pageId);
+  // An unknown page is refused rather than passed through: the RPC would reject
+  // it anyway, and "cannot tell" is never a reason to publish.
+  if (!entitlementRow) return { error: "Page not found." };
+
+  const blocked = publishBlockedReason(entitlementRow, billing.pages, billing.identities);
+  if (blocked) return { error: `insufficient_entitlement: ${blocked}` };
+
   const { data, error } = await supabase.rpc("publish_page", { p_page_id: pageId });
   if (error) return { error: error.message };
 

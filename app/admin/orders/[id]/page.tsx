@@ -10,6 +10,7 @@ import { identityState, IDENTITY_STATE_META, type IdentityRow } from "@/lib/iden
 import { PAYMENT_STATUS_META, isPaymentStatus } from "@/lib/payments";
 import { ORDER_STATUS_META, type OrderStatus, type OrderEvent } from "@/lib/orders";
 import { AdvanceOrder } from "@/components/ops/advance-order";
+import { RecordPayment } from "@/components/ops/record-payment";
 import { OrderNotes } from "./order-notes";
 
 export const dynamic = "force-dynamic";
@@ -111,6 +112,25 @@ export default async function OrderDetailPage({
               isPaid={order.payment_status === "paid"}
             />
           </Card>
+
+          {/* Only while the money is genuinely outstanding. Offering this on a
+              paid order is how the same payment gets recorded twice. */}
+          {order.payment_status !== "paid" && order.status !== "cancelled" && (
+            <Card padding="md">
+              <h2 className="mb-1 text-section-title text-foreground">
+                Record an offline payment
+              </h2>
+              <p className="mb-4 text-body-sm text-muted">
+                For cash, bank transfers and Paybill payments made by hand. Staff only, and
+                the record keeps your name against it.
+              </p>
+              <RecordPayment
+                orderId={order.id}
+                orderNumber={order.number}
+                amountKes={order.amount_kes}
+              />
+            </Card>
+          )}
 
           <Card padding="md">
             <h2 className="mb-1 text-section-title text-foreground">Cards this order created</h2>

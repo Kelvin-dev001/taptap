@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { normalizePhone, isPlaceholderCredential, mpesaBaseUrl } from "./mpesa";
+import {
+  normalizePhone,
+  isPlaceholderCredential,
+  mpesaBaseUrl,
+  readStkOutcome,
+  describeStkFailure,
+} from "./mpesa";
 
 describe("normalizePhone", () => {
   it("accepts the formats a Kenyan customer actually types", () => {
@@ -67,5 +73,79 @@ describe("mpesaBaseUrl", () => {
     expect(() => mpesaBaseUrl("sandbox9")).toThrow(/exactly/i);
     expect(() => mpesaBaseUrl("prodution")).toThrow(/exactly/i);
     expect(() => mpesaBaseUrl("live")).toThrow(/exactly/i);
+  });
+});
+
+/**
+ * Reading Daraja's STK query response.
+ *
+ * The polling added in Sprint 7 resolves the checkout from this, so every case
+ * here is the difference between a screen that finishes and one that spins
+ * forever.
+ */
+describe("readStkOutcome", () => {
+  it("reads a success", () => {
+    const out = readStkOutcome({ ResultCode: "0", ResultDesc: "The service request is processed successfully." });
+    expect(out.state).toBe("paid");
+  });
+
+  /**
+   * The query endpoint returns ResultCode as a STRING and the callback returns
+   * it as a NUMBER. Comparing with === against 0 works for one and silently
+   * fails for the other, which is exactly how a paid customer ends up watching
+   * a spinner.
+   */
+  it("does not care whether the code arrived as a string or a number", () => {
+    expect(readStkOutcome({ ResultCode: 0 }).state).toBe("paid");
+    expect(readStkOutcome({ ResultCode: "0" }).state).toBe("paid");
+    expect(readStkOutcome({ ResultCode: 1032 }).state).toBe("failed");
+    expect(readStkOutcome({ ResultCode: "1032" }).state).toBe("failed");
+  });
+
+  /**
+   * Daraja answers "still being processed" as an error object with no
+   * ResultCode while the prompt is on the phone. Treating that as a failure
+   * would tell someone their payment failed while they were typing their PIN.
+   */
+  it("returns unknown rather than guessing", () => {
+    expect(readStkOutcome({ errorCode: "500.001.1001", errorMessage: "in process" }).state).toBe("unknown");
+    expect(readStkOutcome({}).state).toBe("unknown");
+    expect(readStkOutcome(null).state).toBe("unknown");
+    expect(readStkOutcome({ ResultCode: "" }).state).toBe("unknown");
+    expect(readStkOutcome({ ResultCode: "not-a-number" }).state).toBe("unknown");
+  });
+
+  it("carries Safaricom's own description when there is one", () => {
+    const out = readStkOutcome({ ResultCode: 1, ResultDesc: "The balance is insufficient" });
+    expect(out.state === "failed" && out.description).toMatch(/balance is insufficient/i);
+  });
+
+  it("falls back to our own wording when there is not", () => {
+    const out = readStkOutcome({ ResultCode: 1032 });
+    expect(out.state === "failed" && out.description).toMatch(/cancelled on the phone/i);
+  });
+});
+
+describe("describeStkFailure", () => {
+  /**
+   * The common codes are worth saying plainly, because they are the difference
+   * between a customer retrying and a customer giving up.
+   */
+  it("explains the failures a customer can act on", () => {
+    expect(describeStkFailure(1)).toMatch(/not enough money/i);
+    expect(describeStkFailure(1032)).toMatch(/cancelled/i);
+    expect(describeStkFailure(1037)).toMatch(/timed out/i);
+    expect(describeStkFailure(2001)).toMatch(/PIN was wrong/i);
+  });
+
+  it("says something useful about a code it does not know", () => {
+    expect(describeStkFailure(9999)).toMatch(/did not complete/i);
+  });
+
+  /** House style: no em dashes in anything a customer reads. */
+  it("uses no em dash", () => {
+    for (const code of [1, 1001, 1032, 1037, 2001, 9999]) {
+      expect(describeStkFailure(code)).not.toContain("—");
+    }
   });
 });

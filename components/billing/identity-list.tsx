@@ -13,6 +13,7 @@ import {
 } from "@/lib/identity";
 import { formatKes, DEVICE_LABELS, type DeviceKind } from "@/lib/pricing";
 import { startRenewalAction, type CheckoutResult } from "@/app/dashboard/billing/actions";
+import { PaymentStatus } from "./payment-status";
 
 const initial: CheckoutResult = {};
 
@@ -45,6 +46,23 @@ export function IdentityList({
 }) {
   const [state, action] = useActionState(startRenewalAction, initial);
   const [selected, setSelected] = React.useState<Set<string>>(() => new Set(dueIds));
+
+  // Once a prompt is out, the list is replaced by the same waiting state the
+  // hardware checkout uses. Leaving the form on screen invites a second payment
+  // for devices already being renewed.
+  //
+  // No `orderId`: a renewal has no order behind it (D-019), so the resend and
+  // Paybill controls are correctly absent. What matters is that the customer
+  // finds out what happened, which is what was missing before Sprint 7.
+  if (state.reference) {
+    return (
+      <PaymentStatus
+        reference={state.reference}
+        amountKes={state.amountKes ?? 0}
+        successHref="/dashboard/billing"
+      />
+    );
+  }
 
   const billable = identities.filter((t) => {
     const s = identityState(t);
@@ -152,7 +170,6 @@ export function IdentityList({
         )}
 
         {state.error && <Alert tone="danger">{state.error}</Alert>}
-        {state.success && <Alert tone="success">{state.success}</Alert>}
       </form>
     </Card>
   );

@@ -5,6 +5,7 @@ import {
   Nfc,
   ChartNoAxesColumn,
   Users,
+  Package,
   CreditCard,
   Settings,
 } from "lucide-react";
@@ -64,6 +65,15 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/dashboard/customers",
     icon: Users,
     match: (p) => p.startsWith("/dashboard/customers"),
+  },
+  {
+    label: "Orders",
+    href: "/dashboard/orders",
+    icon: Package,
+    // Checkout belongs to this section: an order is what it produces, and a
+    // customer part-way through paying should see where they are.
+    match: (p) =>
+      p.startsWith("/dashboard/orders") || p.startsWith("/dashboard/checkout"),
   },
   {
     label: "Billing",

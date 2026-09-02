@@ -8,6 +8,7 @@ const ITEMS = [
   { label: "Overview", href: "/admin", exact: true },
   { label: "Orders", href: "/admin/orders", exact: false },
   { label: "Board", href: "/admin/board", exact: false },
+  { label: "Quotes", href: "/admin/quotes", exact: false },
   { label: "Mint cards", href: "/admin/mint", exact: false },
 ];
 

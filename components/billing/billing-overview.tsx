@@ -1,12 +1,7 @@
 import Link from "next/link";
-import { CircleCheck, Info, Headset } from "lucide-react";
+import { CircleCheck, Info } from "lucide-react";
 import { Card, Badge, Alert, buttonVariants } from "@/components/ui";
-import {
-  formatKes,
-  GRACE_DAYS,
-  RENEWAL_PER_IDENTITY_KES,
-  type SegmentDefinition,
-} from "@/lib/pricing";
+import { formatKes, GRACE_DAYS, RENEWAL_PER_IDENTITY_KES } from "@/lib/pricing";
 import { daysUntil, type BillingSummary } from "@/lib/identity";
 import { cn } from "@/lib/cn";
 
@@ -17,14 +12,14 @@ import { cn } from "@/lib/cn";
  * it answers are "how many devices are working", "when does the next one need
  * paying for", and "how much will that be" — all three derived from real terms,
  * none of them invented.
+ *
+ * No plan name, because there are no plans (D-024). The version of this that
+ * said "Free" with an alert reading "Your profiles are live and free" described
+ * something that stopped being true with D-021: an unactivated profile is a
+ * draft now, and saying otherwise on the billing screen would be the worst place
+ * to be wrong about it.
  */
-export function BillingOverview({
-  segment,
-  summary,
-}: {
-  segment: SegmentDefinition;
-  summary: BillingSummary;
-}) {
+export function BillingOverview({ summary }: { summary: BillingSummary }) {
   const none = summary.billable === 0;
   const remaining = daysUntil(summary.renewsOn);
   const renewsOn = summary.renewsOn
@@ -40,10 +35,12 @@ export function BillingOverview({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-label uppercase text-muted">
-            {none ? "No devices yet" : "Your plan"}
+            {none ? "Not active yet" : "Your devices"}
           </p>
           <p className="mt-1 flex items-center gap-2 text-page-title text-foreground">
-            {none ? "Free" : segment.name}
+            {none
+              ? "No cards yet"
+              : `${summary.billable} ${summary.billable === 1 ? "device" : "devices"}`}
             {!none && !summary.hasLapsed && summary.active > 0 && (
               <Badge variant="success" dot>
                 {summary.active} active
@@ -57,23 +54,24 @@ export function BillingOverview({
           </p>
           {!none && (
             <p className="mt-0.5 text-body-sm text-muted">
-              {formatKes(RENEWAL_PER_IDENTITY_KES)} per device per year ·{" "}
-              {summary.billable} {summary.billable === 1 ? "device" : "devices"} on this
-              account
+              {formatKes(RENEWAL_PER_IDENTITY_KES)} per device per year after the first
             </p>
           )}
         </div>
 
-        <Link href="/pricing" className={cn(buttonVariants({ size: "sm", variant: "secondary" }))}>
-          {none ? "See pricing" : "Add a device"}
+        <Link
+          href="/dashboard/checkout"
+          className={cn(buttonVariants({ size: "sm", variant: none ? "primary" : "secondary" }))}
+        >
+          {none ? "Activate" : "Add a device"}
         </Link>
       </div>
 
       {none && (
-        <Alert tone="info" title="Your profiles are live and free">
-          Building and sharing a Tap Profile costs nothing. A Smart Card or Smart Stand adds
-          the physical tap, enquiry capture and the full analytics report — and the price
-          includes the first twelve months.
+        <Alert tone="info" title="Build for nothing, activate to go live">
+          Your Tap Profile is a draft until this account has a Smart Card or Smart Stand.
+          Activating publishes it at your link, turns on enquiry capture and the full
+          report, and the price includes your first twelve months.
         </Alert>
       )}
 
@@ -99,19 +97,6 @@ export function BillingOverview({
           <p className="text-body-sm text-foreground-secondary">
             Everything active. Next renewal{" "}
             <span className="font-medium text-foreground">{renewsOn}</span>.
-          </p>
-        </div>
-      )}
-
-      {segment.salesLed && (
-        <div className="flex items-start gap-2 rounded-lg bg-surface-sunken p-3">
-          <Headset className="mt-0.5 h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
-          <p className="text-body-sm text-foreground-secondary">
-            You are on a Commercial agreement. For new locations, team access or a quote,{" "}
-            <a href="mailto:sales@hornbilltech.co.ke" className="underline">
-              talk to us
-            </a>
-            .
           </p>
         </div>
       )}

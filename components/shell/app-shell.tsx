@@ -1,7 +1,6 @@
 import * as React from "react";
 import Link from "next/link";
 import { TooltipProvider } from "@/components/ui";
-import type { SegmentDefinition } from "@/lib/pricing";
 import type { BillingSummary } from "@/lib/identity";
 import { NavLinks } from "./nav-links";
 import { Wordmark, Logo } from "./logo";
@@ -24,7 +23,6 @@ import { CommandPalette, type PaletteProfile } from "./command-palette";
 export function AppShell({
   businessName,
   email,
-  segment,
   summary,
   renewsOn,
   profiles,
@@ -33,7 +31,6 @@ export function AppShell({
 }: {
   businessName: string;
   email: string;
-  segment: SegmentDefinition;
   summary: BillingSummary;
   renewsOn?: string | null;
   profiles: PaletteProfile[];
@@ -57,7 +54,7 @@ export function AppShell({
               <NavLinks />
             </nav>
           </div>
-          <BillingCard segment={segment} summary={summary} renewsOn={renewsOn} />
+          <BillingCard summary={summary} renewsOn={renewsOn} />
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
@@ -91,7 +88,7 @@ export function AppShell({
           </main>
 
           <MobileNavigation>
-            <BillingCard segment={segment} summary={summary} renewsOn={renewsOn} />
+            <BillingCard summary={summary} renewsOn={renewsOn} />
           </MobileNavigation>
         </div>
       </div>

@@ -5,7 +5,8 @@ import { revalidatePath } from "next/cache";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { validateSlug } from "@/lib/slug";
 import { isSafeDestination } from "@/lib/url";
-import { MAX_PROFILES_PER_ACCOUNT } from "@/lib/pricing";
+import { loadBillingContext } from "@/lib/billing-context";
+import { createBlockedReason } from "@/lib/entitlement";
 import { seedBlocks, type ProfileTemplate, type SeedSource } from "@/lib/templates";
 import { defaultLabel } from "@/lib/blocks";
 import { isMissingSchemaError } from "@/lib/schema-guard";
@@ -43,19 +44,16 @@ export async function createProfileAction(
     .single();
   if (!profile) return { error: "No account found for this user." };
 
-  // Profiles are free under the per-identity model (D-018) — you pay for
-  // devices, not pages. This cap is an abuse guard, not a plan gate: it exists
-  // so one account cannot mint thousands, and it sits far above any real
-  // business's usage, so it is never advertised as a limit.
-  const { count } = await supabase
-    .from("smart_pages")
-    .select("id", { count: "exact", head: true })
-    .eq("account_id", profile.account_id);
-  if ((count ?? 0) >= MAX_PROFILES_PER_ACCOUNT) {
-    return {
-      error: `You have reached ${MAX_PROFILES_PER_ACCOUNT} profiles. Contact support if you genuinely need more.`,
-    };
-  }
+  // One profile per identity, plus one for an account that owns nothing yet —
+  // which is the draft a new customer builds before deciding to buy (D-021).
+  // `MAX_PROFILES_PER_ACCOUNT` sits above that as the anti-abuse ceiling.
+  //
+  // Building is still free and this is not a paywall on creation: what a second
+  // profile needs is a second card, and the message says that rather than
+  // quoting a limit.
+  const billing = await loadBillingContext(supabase, profile.account_id);
+  const blocked = createBlockedReason(billing.pages, billing.identities);
+  if (blocked) return { error: blocked };
 
   // Business details captured in Settings seed the new profile, so a first
   // page is useful the moment it exists rather than an empty shell (§20).

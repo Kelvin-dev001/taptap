@@ -18,7 +18,7 @@ const COLUMNS = [
       { label: "0759 293 030", href: "tel:+254759293030" },
       {
         label: "Talk to Sales",
-        href: "mailto:sales@hornbilltech.co.ke?subject=Hornbill%20TapTap%20-%20Talk%20to%20Sales",
+        href: "/quote",
       },
     ],
   },

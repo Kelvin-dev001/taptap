@@ -24,13 +24,19 @@ export async function rebindTagAction(formData: FormData) {
   if (!profile) return;
 
   // Verify the target page belongs to the caller before rebinding.
+  //
+  // Also that it is published (D-021). This path writes `nfc_tags.smart_page_id`
+  // directly rather than going through `claim_tag`, so the check 0019 added
+  // there does not cover it — and repointing a card at a draft would leave a
+  // working card opening a page that 404s, which is the worst version of this
+  // failure because it happens in front of the cardholder's customer.
   const { data: page } = await supabase
     .from("smart_pages")
-    .select("id")
+    .select("id, status")
     .eq("id", pageId)
     .eq("account_id", profile.account_id)
     .maybeSingle();
-  if (!page) return;
+  if (!page || page.status !== "published") return;
 
   // RLS also restricts the update to the caller's own tags.
   await supabase

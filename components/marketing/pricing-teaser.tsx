@@ -18,11 +18,16 @@ import { Reveal, RevealGroup, RevealItem } from "./reveal";
  * drift from what the checkout actually charges (D-018). Changing a price in
  * one file changes it here, on /pricing, and in the M-Pesa prompt together.
  *
- * Two rows differ from the original copy deck, deliberately. It listed
- * "Advanced" analytics for Commercial and "Optional" team management for
- * Business; the product ships neither — `AnalyticsDepth` is only basic-or-full,
- * and team management is unbuilt (D-017). Commercial is sold on what it really
- * offers instead: multi-location, team access and priority support.
+ * These are SEGMENTS, not tiers (D-024). Every one of them buys the same
+ * product with the same capabilities at the same price, so the rows describe
+ * what genuinely differs — which devices suit you, and how you buy them.
+ *
+ * Two claims were removed rather than carried forward. The columns used to show
+ * "Basic report" against Professional and "Full report" against Business, which
+ * stopped being true when entitlements collapsed to paid-or-not: every paying
+ * account now gets the full report, and a comparison table implying otherwise
+ * would be selling a restriction that no longer exists. Team management went for
+ * the older reason: it is not built (D-017), and §15 rules out listing it.
  */
 const CARD = formatKes(HARDWARE_PRICE_KES.card);
 const STAND = formatKes(HARDWARE_PRICE_KES.stand);
@@ -30,14 +35,12 @@ const RENEWAL = formatKes(RENEWAL_PER_IDENTITY_KES);
 
 const PLANS = [
   {
-    name: "Professional",
-    for: "Individuals & professionals",
+    name: "Individual",
+    for: "One person, one card",
     card: CARD,
     stand: null,
-    renewal: `${RENEWAL} / identity / year`,
-    identities: "1",
-    analytics: "Basic report",
-    team: false,
+    renewal: `${RENEWAL} / card / year`,
+    identities: "One card, one live profile",
     support: "Standard support",
     cta: { label: "Get started", href: "/login", primary: true },
   },
@@ -46,29 +49,21 @@ const PLANS = [
     for: "Shops, salons, restaurants, clinics",
     card: CARD,
     stand: STAND,
-    renewal: `${RENEWAL} / identity / year`,
-    identities: "Multiple",
-    analytics: "Full report",
-    team: false,
-    support: "Business support",
+    renewal: `${RENEWAL} / card / year`,
+    identities: "A card each, plus stands",
+    support: "Standard support",
     cta: { label: "Get started", href: "/login", primary: true },
     featured: true,
   },
   {
-    name: "Commercial",
-    for: "Multi-location organizations",
+    name: "Corporate",
+    for: "Kitting out a whole team",
     card: `From ${CARD}`,
     stand: `From ${STAND}`,
-    renewal: `From ${RENEWAL} / identity / year`,
-    identities: "Multiple locations",
-    analytics: "Full report",
-    team: true,
+    renewal: `From ${RENEWAL} / card / year`,
+    identities: "As many as you need",
     support: "Priority support",
-    cta: {
-      label: "Talk to Sales",
-      href: "mailto:sales@hornbilltech.co.ke?subject=Hornbill%20TapTap%20-%20Commercial",
-      primary: false,
-    },
+    cta: { label: "Talk to Sales", href: "/quote", primary: false },
   },
 ];
 
@@ -79,7 +74,7 @@ export function PricingTeaser() {
         <SectionHeading
           eyebrow="Pricing"
           title="Straightforward pricing, no monthly surprises."
-          sub={`Buy the card or stand once and your first year comes with it. After that it is ${RENEWAL} a year for each one you are still using.`}
+          sub={`Build your page for nothing, then activate it with a card or stand. Your first year comes with it, and after that it is ${RENEWAL} a year for each one you are still using.`}
           align="center"
         />
       </Reveal>
@@ -112,9 +107,9 @@ export function PricingTeaser() {
                 <Row label="Smart Stand" value={plan.stand} />
                 <Row label="First year" value="Included" />
                 <Row label="Renewal" value={plan.renewal} />
-                <Row label="Identities" value={plan.identities} />
-                <Row label="Analytics" value={plan.analytics} />
-                <Row label="Team management" value={plan.team ? "Yes" : null} />
+                <Row label="What you publish" value={plan.identities} />
+                <Row label="Full report" value="Included" />
+                <Row label="Enquiry capture" value="Included" />
                 <Row label="Support" value={plan.support} />
               </dl>
 
@@ -137,8 +132,8 @@ export function PricingTeaser() {
 
       <Reveal delay={0.1}>
         <p className="mt-8 text-center text-body-sm text-muted">
-          One identity means one card or stand and the page behind it. Your first{" "}
-          {BUNDLED_MONTHS} months are already paid for in the price.{" "}
+          One card or stand publishes one page. Your first {BUNDLED_MONTHS} months are
+          already paid for in the price.{" "}
           <Link href="/pricing" className="text-primary-strong underline">
             See full pricing
           </Link>

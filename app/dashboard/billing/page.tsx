@@ -48,7 +48,7 @@ export default async function BillingPage() {
           <MigrationNotice migration="0015_per_identity_billing.sql" />
         )}
 
-        <BillingOverview segment={billing.segment} summary={billing.summary} />
+        <BillingOverview summary={billing.summary} />
 
         <BuyDevice />
 

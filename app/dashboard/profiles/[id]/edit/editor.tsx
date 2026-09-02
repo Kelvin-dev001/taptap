@@ -38,6 +38,9 @@ import {
   type SaveStatus,
 } from "@/components/ui";
 import { EntitlementNotice } from "@/components/billing/entitlement-notice";
+import { ActivateDialog } from "@/components/billing/activate-dialog";
+import { DraftBanner } from "@/components/profile/draft-banner";
+import { isEntitlementError } from "@/lib/entitlement";
 import { MobilePreview } from "@/components/builder/mobile-preview";
 import { UnsavedChangesGuard } from "@/components/builder/unsaved-changes-guard";
 import { BlockPicker } from "@/components/builder/block-picker";
@@ -78,6 +81,10 @@ type Props = {
   leadCaptureAllowed: boolean;
   /** True when the account HAD a paid plan that has since ended (B13). */
   planLapsed: boolean;
+  /** Whether this page may go live at all (D-021). */
+  canPublish: boolean;
+  /** Why not, in the owner's words. Null when publishing is allowed. */
+  publishBlockedReason: string | null;
 };
 
 let keyCounter = 0;
@@ -105,6 +112,7 @@ export default function Editor(props: Props) {
   const [dirty, setDirty] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [uploading, setUploading] = React.useState<"avatar" | "cover" | null>(null);
+  const [activateOpen, setActivateOpen] = React.useState(false);
 
   // Any edit marks the draft ahead of what is saved.
   function touch() {
@@ -217,12 +225,27 @@ export default function Editor(props: Props) {
   }
 
   async function publish() {
+    // The button stays visible and enabled when publishing is not yet possible.
+    // Hiding it would hide the goal, and a disabled control explains nothing —
+    // pressing it says what activating does instead.
+    if (!props.canPublish) {
+      setActivateOpen(true);
+      return;
+    }
+
     // Publishing an unsaved draft would put the previous version live, which is
     // never what the button appears to promise.
     if (dirty && !(await save())) return;
 
     const res = await publishPageAction(props.pageId);
     if (res.error) {
+      // The server and the database check this independently of the button, so
+      // a refusal here is a real state change (an identity lapsed while the tab
+      // was open, or a second tab spent the slot) rather than a stale render.
+      if (isEntitlementError(res.error)) {
+        setActivateOpen(true);
+        return;
+      }
       setError(res.error);
       return;
     }
@@ -256,6 +279,19 @@ export default function Editor(props: Props) {
       {/* Covers both leaving the site and navigating within it (UI-0 problem #4). */}
       <UnsavedChangesGuard when={dirty} />
 
+      <ActivateDialog
+        open={activateOpen}
+        onOpenChange={setActivateOpen}
+        reason={props.publishBlockedReason}
+      />
+
+      {/* The single most important thing on this screen for a new customer: what
+          they are building is not on the internet yet. Above the status bar,
+          because the Draft badge alone was never going to carry that. */}
+      {status === "draft" && !props.canPublish && (
+        <DraftBanner slug={props.slug} />
+      )}
+
       {/* Status bar */}
       <Card padding="sm" className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
@@ -285,14 +321,20 @@ export default function Editor(props: Props) {
               Unpublish
             </Button>
           )}
-          <Link
-            href={liveUrl}
-            target="_blank"
-            className="inline-flex items-center gap-1 text-caption text-primary-strong hover:underline"
-          >
-            View live
-            <ExternalLink className="h-3 w-3" aria-hidden="true" />
-          </Link>
+          {/* Only offered when there is something at the other end. A draft's
+              slug does not resolve, so this would have opened a 404 in a new
+              tab and looked like a broken product rather than an unpublished
+              page. The preview beside the editor is the draft's viewer. */}
+          {status === "published" && (
+            <Link
+              href={liveUrl}
+              target="_blank"
+              className="inline-flex items-center gap-1 text-caption text-primary-strong hover:underline"
+            >
+              View live
+              <ExternalLink className="h-3 w-3" aria-hidden="true" />
+            </Link>
+          )}
         </div>
       </Card>
 

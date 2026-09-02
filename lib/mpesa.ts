@@ -152,3 +152,123 @@ export async function stkPush(opts: {
   }
   return { checkoutRequestId: raw.CheckoutRequestID, raw };
 }
+
+/**
+ * What Daraja says happened to an STK prompt.
+ *
+ * `unknown` is a first-class answer and the most common one: Safaricom returns
+ * an error while the customer still has the prompt on screen, and treating that
+ * as a failure would tell someone their payment had failed while they were
+ * typing their PIN. Only a definite ResultCode resolves anything.
+ */
+export type StkOutcome =
+  | { state: "paid"; resultCode: number; raw: unknown }
+  | { state: "failed"; resultCode: number; description: string; raw: unknown }
+  | { state: "unknown"; raw: unknown };
+
+/**
+ * Ask Daraja what became of a checkout (STK push query).
+ *
+ * The callback is the primary path and this is the safety net. Kenyan networks
+ * drop callbacks, and a customer staring at a spinner that will never resolve is
+ * how a paid order ends up looking unpaid — so the UI asks rather than waits.
+ *
+ * Never throws for a business outcome; only for a configuration or transport
+ * failure, which is a different kind of problem and deserves a different
+ * message.
+ */
+export async function stkQuery(checkoutRequestId: string): Promise<StkOutcome> {
+  const shortcode = process.env.MPESA_SHORTCODE;
+  const passkey = process.env.MPESA_PASSKEY;
+  if (!shortcode || !passkey) {
+    throw new Error("M-Pesa shortcode/passkey not configured.");
+  }
+
+  const token = await getToken();
+  const ts = timestamp();
+  const password = Buffer.from(`${shortcode}${passkey}${ts}`).toString("base64");
+
+  const res = await fetch(`${mpesaBaseUrl()}/mpesa/stkpushquery/v1/query`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      BusinessShortCode: shortcode,
+      Password: password,
+      Timestamp: ts,
+      CheckoutRequestID: checkoutRequestId,
+    }),
+    cache: "no-store",
+  });
+
+  const raw = (await res.json().catch(() => ({}))) as {
+    ResultCode?: string | number;
+    ResultDesc?: string;
+    errorCode?: string;
+    errorMessage?: string;
+  };
+
+  return readStkOutcome(raw);
+}
+
+/**
+ * Turn a Daraja query response into an outcome.
+ *
+ * Split out from the fetch so the decision is testable without a network, which
+ * matters because the interesting cases are all shapes of response rather than
+ * shapes of request.
+ *
+ * `ResultCode` arrives as a STRING from the query endpoint and as a NUMBER from
+ * the callback, which is exactly the sort of difference that produces a
+ * never-resolving spinner if you compare with `===`.
+ */
+export function readStkOutcome(raw: unknown): StkOutcome {
+  const body = (raw ?? {}) as {
+    ResultCode?: string | number;
+    ResultDesc?: string;
+  };
+
+  if (body.ResultCode === undefined || body.ResultCode === null || body.ResultCode === "") {
+    // No verdict. Daraja answers "transaction is being processed" as an error
+    // object with no ResultCode while the prompt is still on the phone.
+    return { state: "unknown", raw };
+  }
+
+  const code = Number(body.ResultCode);
+  if (!Number.isFinite(code)) return { state: "unknown", raw };
+  if (code === 0) return { state: "paid", resultCode: code, raw };
+
+  return {
+    state: "failed",
+    resultCode: code,
+    description: body.ResultDesc || describeStkFailure(code),
+    raw,
+  };
+}
+
+/**
+ * Daraja's failure codes in words a customer can act on.
+ *
+ * Safaricom's own descriptions are written for developers ("The balance is
+ * insufficient for the transaction"), which is close enough to keep, but the
+ * common ones are worth saying plainly because they are the difference between
+ * a customer retrying and a customer giving up.
+ */
+export function describeStkFailure(code: number): string {
+  switch (code) {
+    case 1:
+      return "There was not enough money in the M-Pesa account.";
+    case 1032:
+      return "The prompt was cancelled on the phone.";
+    case 1037:
+      return "The prompt timed out. It may not have reached the phone.";
+    case 2001:
+      return "The M-Pesa PIN was wrong.";
+    case 1001:
+      return "Another M-Pesa transaction is in progress on that number. Wait a moment and try again.";
+    default:
+      return "M-Pesa did not complete the payment.";
+  }
+}

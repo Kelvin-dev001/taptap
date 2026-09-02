@@ -27,6 +27,22 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   "forgot-password",
   "confirm",
   "verify",
+  // Sprint 7. `/quote` is a real root route now; the rest are names the purchase
+  // funnel might route to and must not be sold to a customer first (D-013).
+  "quote",
+  "quotes",
+  "sales",
+  "checkout",
+  "buy",
+  "order",
+  "orders",
+  "activate",
+  "ops",
+  "staff",
+  "invoice",
+  "invoices",
+  "receipt",
+  "receipts",
   // Reserved in UI-1 (D-013): `/[slug]` is a root catch-all, so every name the
   // product might one day route to must be withheld from customers BEFORE
   // launch. Free now; breaking once someone owns one.

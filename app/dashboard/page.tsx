@@ -1,6 +1,9 @@
 import Link from "next/link";
-import { IdCard, Plus, ArrowRight } from "lucide-react";
+import { IdCard, Plus, ArrowRight, Nfc, Check } from "lucide-react";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { loadBillingContext } from "@/lib/billing-context";
+import { isGrandfathered } from "@/lib/entitlement";
+import { HARDWARE_PRICE_KES, BUNDLED_MONTHS, formatKes } from "@/lib/pricing";
 import {
   MetricCard,
   EmptyState,
@@ -35,6 +38,83 @@ import { cn } from "@/lib/cn";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * The dashboard for an account that has not activated anything yet (D-021).
+ *
+ * One job, stated once. Everything secondary is a text link rather than a
+ * button, because two buttons of equal weight is the same as no primary action
+ * at all — and the whole point of this screen is that there is exactly one
+ * obvious next step.
+ *
+ * It does not hide the fact that they can build first. Being able to see what
+ * you are buying before you buy it is the reason drafts exist, and burying that
+ * would make the paywall feel like a wall rather than a switch.
+ */
+function ActivateCta({ draft }: { draft: { id: string; slug: string } | null }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <Card padding="lg" className="flex flex-col gap-4">
+        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-soft">
+          <Nfc className="h-5 w-5 text-primary-strong" aria-hidden="true" />
+        </span>
+
+        <div>
+          <h2 className="text-page-title text-foreground">
+            {draft ? "Your profile is ready to go live" : "Activate your Tap Profile"}
+          </h2>
+          <p className="mt-1 max-w-xl text-body text-foreground-secondary">
+            {draft
+              ? "It is saved as a draft, so only you can see it. A Smart Card or Smart Stand publishes it at your own link and makes it tappable."
+              : "A Smart Card or Smart Stand is what makes your profile live and tappable. The price includes your first 12 months."}
+          </p>
+        </div>
+
+        <ul className="flex flex-col gap-1.5">
+          <Perk>Your page live at your own link, shareable anywhere</Perk>
+          <Perk>Tap to open on any modern phone, with no app to install</Perk>
+          <Perk>
+            Change where it points at any time, without ever re-encoding the card
+          </Perk>
+          <Perk>Enquiry capture and the full report switch on</Perk>
+        </ul>
+
+        <div className="flex flex-wrap items-center gap-4 border-t border-border pt-4">
+          <Link href="/dashboard/checkout" className={cn(buttonVariants({ size: "lg" }))}>
+            Buy your card
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+          <p className="text-body-sm text-muted">
+            From {formatKes(HARDWARE_PRICE_KES.card)}, including {BUNDLED_MONTHS} months.
+          </p>
+        </div>
+      </Card>
+
+      <Card padding="md" className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-body-sm text-foreground-secondary">
+          {draft
+            ? "Want to change something first? Keep building. Nothing is published until you activate."
+            : "Prefer to see it first? Build your profile now and preview it. Nothing goes live until you activate."}
+        </p>
+        <Link
+          href={draft ? `/dashboard/profiles/${draft.id}/edit` : "/dashboard/profiles"}
+          className="shrink-0 text-body-sm font-medium text-primary-strong hover:underline"
+        >
+          {draft ? "Keep building" : "Build your profile"}
+        </Link>
+      </Card>
+    </div>
+  );
+}
+
+function Perk({ children }: { children: React.ReactNode }) {
+  return (
+    <li className="flex items-start gap-2 text-body-sm text-foreground-secondary">
+      <Check className="mt-1 h-3.5 w-3.5 shrink-0 text-success" aria-hidden="true" />
+      {children}
+    </li>
+  );
+}
+
 /** Taps lead: the tap is the product's core interaction. */
 const HERO: EventType = "tap";
 const SECONDARY: EventType[] = ["scan", "view", "click", "lead"];
@@ -60,15 +140,33 @@ export default async function DashboardPage({
   const days = parseRange(range);
 
   const supabase = await createServerSupabase();
+  const { data: auth } = await supabase.auth.getUser();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("account_id")
+    .eq("id", auth.user?.id ?? "")
+    .maybeSingle();
+
   const [
     { data: overviewData, error: overviewError },
     { data: activityData },
     { data: insightData },
+    billing,
+    { data: draftPages },
   ] = await Promise.all([
     supabase.rpc("get_dashboard_overview", { p_days: days }),
     supabase.rpc("get_recent_activity", { p_limit: 8 }),
     supabase.rpc("get_insight_inputs", { p_days: days }),
+    loadBillingContext(supabase, profile?.account_id),
+    supabase
+      .from("smart_pages")
+      .select("id, slug, status")
+      .eq("status", "draft")
+      .order("created_at", { ascending: false })
+      .limit(1),
   ]);
+
+  const firstDraft = (draftPages ?? [])[0] as { id: string; slug: string } | undefined;
 
   // Migration 0008 introduces these RPCs. Until it is run they 404, and an
   // empty result would otherwise be indistinguishable from "no profiles yet" —
@@ -113,6 +211,21 @@ export default async function DashboardPage({
   const hasProfiles = (o.pages ?? 0) > 0;
   const heroValue = valueOf(HERO);
   const heroPrev = prevOf(HERO);
+
+  // Whether anything on this account is actually live decides what this screen
+  // is for (D-021). An account with no identity has no taps to report, and a
+  // grid of zeroes reads as a broken product rather than an unactivated one —
+  // so it gets one job instead: buy the card that turns the page on.
+  const activated = billing.summary.active > 0 || billing.pages.some(isGrandfathered);
+
+  if (!activated) {
+    return (
+      <>
+        <PageHeader title="Dashboard" />
+        <ActivateCta draft={firstDraft ?? null} />
+      </>
+    );
+  }
 
   if (!hasProfiles) {
     return (

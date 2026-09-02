@@ -12,8 +12,19 @@
 
 export type DeviceKind = "card" | "stand";
 
-/** Packaging, not count-gates. Commercial is sales-led and set by staff. */
-export type Segment = "professional" | "business" | "commercial";
+/**
+ * Packaging on the pricing page, and nothing else (D-024).
+ *
+ * A segment is NOT stored on the account and NOT read by any gate. With the free
+ * tier gone there is exactly one axis left — does this account hold a live
+ * identity — so a per-segment feature gate is not merely unwanted, it is
+ * unimplementable without storing a segment, and storing one would recreate the
+ * per-account plan that D-018 removed.
+ *
+ * What a segment does is help a visitor recognise themselves: one person with
+ * one card, a business with a few, an organisation that needs a quote.
+ */
+export type Segment = "individual" | "business" | "corporate";
 
 // ---------------------------------------------------------------------------
 // Prices
@@ -62,9 +73,12 @@ export const RENEWAL_WARNING_DAYS = 30;
 export const RENEWAL_BATCH_WINDOW_DAYS = 60;
 
 /**
- * Not a plan gate — an abuse guard. Profiles are free under this model, so the
- * only reason to cap them is to stop one account minting thousands. Deliberately
- * far above any real business's usage, and never advertised as a limit.
+ * Not a plan gate — an abuse guard.
+ *
+ * How many profiles an account may hold is decided by how many identities it
+ * owns (`maxProfiles` in lib/entitlement.ts). This is the ceiling above that:
+ * a customer with fifty cards is a real customer, one with fifty thousand
+ * profiles is a script. Never advertised as a limit.
  */
 export const MAX_PROFILES_PER_ACCOUNT = 25;
 
@@ -78,8 +92,7 @@ export const MAX_PROFILES_PER_ACCOUNT = 25;
  * Only two levels are enforced today because only two are real: `basic` shows
  * headline counts, daily activity and top actions; `full` adds source
  * attribution, per-card breakdown, geography, time-of-day and CSV export.
- * The Commercial segment is *packaged* as "advanced" but is not sold a report
- * section that does not exist — §15 forbids claiming capability we lack.
+ * Nothing is sold as "advanced" — §15 forbids claiming capability we lack.
  */
 export type AnalyticsDepth = "basic" | "full";
 
@@ -101,26 +114,24 @@ export type SegmentDefinition = {
   name: string;
   /** Who this is for, in the owner's words. */
   audience: string;
-  /** What the segment unlocks once the account holds an active identity. */
-  entitlements: Entitlements;
-  /** Devices this segment is sold. */
+  /** Devices this segment is typically sold. Presentation only. */
   deviceKinds: DeviceKind[];
-  /** Commercial has no public checkout — it is quoted. */
+  /** Corporate has no public checkout — it is quoted (see /quote). */
   salesLed: boolean;
 };
 
+/**
+ * Marketing packaging. Carries no entitlements, by design (D-024).
+ *
+ * Every one of these buys the same product at the same price and gets the same
+ * capabilities; what differs is quantity and how the purchase happens. Attaching
+ * feature flags here is what turned into per-account plans last time.
+ */
 export const SEGMENTS: Record<Segment, SegmentDefinition> = {
-  professional: {
-    code: "professional",
-    name: "Professional",
-    audience: "Individuals with one card",
-    entitlements: {
-      analytics: "basic",
-      leadCapture: true,
-      customBranding: false,
-      teamManagement: false,
-      support: "standard",
-    },
+  individual: {
+    code: "individual",
+    name: "Individual",
+    audience: "One person, one card",
     deviceKinds: ["card"],
     salesLed: false,
   },
@@ -128,43 +139,30 @@ export const SEGMENTS: Record<Segment, SegmentDefinition> = {
     code: "business",
     name: "Business",
     audience: "SMEs running several cards and stands",
-    entitlements: {
-      analytics: "full",
-      leadCapture: true,
-      customBranding: true,
-      teamManagement: false,
-      support: "business",
-    },
     deviceKinds: ["card", "stand"],
     salesLed: false,
   },
-  commercial: {
-    code: "commercial",
-    name: "Commercial",
-    audience: "Organisations with multiple locations and teams",
-    entitlements: {
-      analytics: "full",
-      leadCapture: true,
-      customBranding: true,
-      teamManagement: true,
-      support: "priority",
-    },
+  corporate: {
+    code: "corporate",
+    name: "Corporate",
+    audience: "Organisations kitting out a whole team",
     deviceKinds: ["card", "stand"],
     salesLed: true,
   },
 };
 
-export const SEGMENT_ORDER: Segment[] = ["professional", "business", "commercial"];
+export const SEGMENT_ORDER: Segment[] = ["individual", "business", "corporate"];
 
 /**
  * What an account with **no active identity** gets.
  *
- * Signing up and building a profile is free, and the profile stays live — that
- * is the whole funnel (a person builds something, then buys the card that makes
- * it tappable). What free does not include is the two capabilities worth paying
- * for: enquiry capture and the full analytics report.
+ * Building a profile and previewing it costs nothing, and that draft is
+ * genuinely useful: it is how someone sees what they are buying. What it does
+ * not do is go live. There is no free tier here and no free plan — this is the
+ * unpaid state of an account that has not activated yet, or whose identities
+ * have all lapsed.
  */
-export const FREE_ENTITLEMENTS: Entitlements = {
+export const INACTIVE_ENTITLEMENTS: Entitlements = {
   analytics: "basic",
   leadCapture: false,
   customBranding: false,
@@ -173,37 +171,30 @@ export const FREE_ENTITLEMENTS: Entitlements = {
 };
 
 /**
- * The entitlements that actually apply right now.
+ * What an account holding at least one live identity gets.
  *
- * Segment describes what was *bought*; the active-identity count decides what is
- * still *owned*. An account whose every device has lapsed falls back to free —
- * the same "effective vs purchased" split that `effectivePlan` established in
- * UI-9, moved down to identity grain.
+ * One set, not three. `teamManagement` stays false for everyone because it is
+ * not built (D-017) and §15 forbids selling what we have not shipped; the flag
+ * is kept so the gate exists on the day it is.
  */
-export function entitlementsFor(
-  segment: Segment | null | undefined,
-  activeIdentities: number,
-): Entitlements {
-  if (activeIdentities <= 0) return FREE_ENTITLEMENTS;
-  return (SEGMENTS[segment ?? "professional"] ?? SEGMENTS.professional).entitlements;
-}
-
-export function segmentFor(code: string | null | undefined): SegmentDefinition {
-  return SEGMENTS[(code as Segment) ?? "professional"] ?? SEGMENTS.professional;
-}
+export const ACTIVE_ENTITLEMENTS: Entitlements = {
+  analytics: "full",
+  leadCapture: true,
+  customBranding: true,
+  teamManagement: false,
+  support: "standard",
+};
 
 /**
- * The segment an account's holdings imply, used when provisioning a purchase.
+ * The entitlements that actually apply right now.
  *
- * Commercial is never inferred — it is a commercial relationship with negotiated
- * terms, so it is only ever set deliberately by staff and is preserved here.
+ * One question decides it: does this account still own a working device. The
+ * "effective versus purchased" split that `effectivePlan` established in UI-9
+ * survives — an account whose every device has lapsed falls back to the inactive
+ * set — but the purchased half is no longer a stored tier.
  */
-export function suggestedSegment(
-  identityCount: number,
-  current?: Segment | null,
-): Segment {
-  if (current === "commercial") return "commercial";
-  return identityCount > 1 ? "business" : "professional";
+export function entitlementsFor(activeIdentities: number): Entitlements {
+  return activeIdentities > 0 ? ACTIVE_ENTITLEMENTS : INACTIVE_ENTITLEMENTS;
 }
 
 // ---------------------------------------------------------------------------

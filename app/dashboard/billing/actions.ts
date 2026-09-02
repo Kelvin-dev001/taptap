@@ -4,10 +4,22 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadBillingContext } from "@/lib/billing-context";
 import { renewalAmountKes, billableIdentities } from "@/lib/identity";
-import { formatKes } from "@/lib/pricing";
 import { stkPush, normalizePhone } from "@/lib/mpesa";
 
-export type CheckoutResult = { error?: string; success?: string };
+export type CheckoutResult = {
+  error?: string;
+  /**
+   * The Daraja CheckoutRequestID, so the UI can poll and resolve itself.
+   *
+   * This used to be a `success` sentence and nothing else, which meant a renewal
+   * ended at "check your phone" exactly as the hardware checkout did. Both now
+   * hand back a reference and share `PaymentStatus`, because two different
+   * waiting experiences for the same M-Pesa prompt is one more than anyone needs.
+   */
+  reference?: string;
+  amountKes?: number;
+  count?: number;
+};
 
 /**
  * Start a consolidated renewal (D-018).
@@ -114,9 +126,9 @@ export async function startRenewalAction(
     }
 
     return {
-      success: `Check your phone and enter your M-Pesa PIN to pay ${formatKes(amount)}. Your ${
-        tagIds.length === 1 ? "device renews" : "devices renew"
-      } once Safaricom confirms.`,
+      reference: checkoutRequestId,
+      amountKes: amount,
+      count: tagIds.length,
     };
   } catch (e) {
     return {

@@ -20,9 +20,13 @@ export default async function DevicesPage({
   const supabase = await createServerSupabase();
   const [{ data: devicesData, error: devicesError }, { data: pages }] = await Promise.all([
     supabase.rpc("get_devices_overview", { p_days: days }),
+    // Published only: a card must never be repointed at a draft, because the
+    // slug would not resolve and the failure lands in front of whoever tapped
+    // it (D-021). `rebindTagAction` re-checks this server-side.
     supabase
       .from("smart_pages")
       .select("id, slug, title")
+      .eq("status", "published")
       .order("created_at", { ascending: false }),
   ]);
 

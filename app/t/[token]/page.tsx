@@ -115,13 +115,27 @@ export default async function TagPage({
 
   const { data: pages } = await supabase
     .from("smart_pages")
-    .select("id, slug, title")
+    .select("id, slug, title, status")
     .order("created_at", { ascending: false });
+
+  // A card can only be linked to a page that resolves (D-021). Splitting the
+  // list here rather than filtering it means the screen can tell the difference
+  // between "you have nothing yet" and "the thing you built is still a draft",
+  // which need different next steps.
+  const all = (pages ?? []) as PageOption[];
 
   return (
     <ClaimForm
       token={token}
-      pages={(pages ?? []) as { id: string; slug: string; title: string | null }[]}
+      pages={all.filter((p) => p.status === "published")}
+      drafts={all.filter((p) => p.status !== "published")}
     />
   );
 }
+
+type PageOption = {
+  id: string;
+  slug: string;
+  title: string | null;
+  status: string | null;
+};

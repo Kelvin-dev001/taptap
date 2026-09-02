@@ -42,7 +42,6 @@ export default async function DashboardLayout({
     <AppShell
       businessName={billing.businessName}
       email={user.email ?? ""}
-      segment={billing.segment}
       summary={billing.summary}
       renewsOn={renewsOn}
       profiles={pages ?? []}

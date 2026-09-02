@@ -5,13 +5,21 @@
 > re-reading the original master-prompt PDF. Update this file whenever a major
 > decision changes.
 
-**Last updated:** 2026-08-30
-**Current phase:** **Sprint 6c — operations console (D-020), built and awaiting migrations
-`0017`/`0018` + acceptance.** Sprint 6a (per-identity billing, D-018) and renewal reminders shipped;
-migrations `0015`/`0016` applied 2026-08-30. UI/UX transformation complete (UI-0 → UI-12, 2026-08-15),
-plus UI-13 (lead-arrival email) and the auth follow-ups. Build sprints 0–5 remain
-code-complete. Migrations `0005`–`0016` are applied; **`0017` and `0018` are not yet
-applied**.
+**Last updated:** 2026-09-02
+**Current phase:** **Sprint 7 — purchase-gated activation (D-021 … D-024), shipped.** The free
+tier is gone: a profile is built for nothing and published only against a paid identity.
+Sprint 6b (order-to-cash, D-019) and 6c (ops console, D-020) shipped alongside it. Sprint 6a
+(per-identity billing, D-018) and renewal reminders shipped earlier. UI/UX transformation
+complete (UI-0 → UI-12, 2026-08-15), plus UI-13 (lead-arrival email) and the auth follow-ups.
+Build sprints 0–5 remain code-complete.
+
+**Migrations `0005`–`0019` are all applied** (`0017`/`0018`/`0019` on 2026-09-02).
+
+**Post-migration check, if it has not been run yet:** confirm nobody was unpublished by the
+Sprint 7 cutover —
+`select count(*) from smart_pages where status='published' and not entitlement_grandfathered`
+must return **0**. Anything else means a page went live between the backfill and the gate and
+needs flagging by hand.
 
 Deployed and login working in production (2026-08-15).
 
@@ -89,6 +97,10 @@ expand across East Africa, then the continent.
 | D-020 | **Ops console:** the board advances by menu, not drag — transitions are constrained, so illegal moves are unreachable rather than rejected. `/admin` requires a `staff` row; `ADMIN_TOKEN` is now only a second factor on minting |
 | D-019 | **Orders:** the Order is the spine — checkout creates it, payment provisions identities, staff fulfil it. Terms start at payment; cancelling switches the identity off. Staff are their own table, not `profiles.role` |
 | D-018 | **Billing:** per identity (the tag), not per-account plans. Hardware includes 12 months; KES 1,000/device/year after. Consolidated renewal is an action over true per-identity terms, not a shared date. Revises D-006 |
+| D-021 | **No free tier:** a profile is built for nothing and published against a paid identity. Four enforcement layers; the column grant on `smart_pages` is the one that was missing. Revises D-018's "free means free" |
+| D-022 | **Entitlement is a slot count**, not a device binding — identities exist weeks before the card ships, and repointing must never move who may be live |
+| D-023 | **Grandfathering** is a stored flag per page, set for everything already published. Nobody live today is unpublished |
+| D-024 | **Segments are marketing packaging**, not stored state. One paid entitlement set; `accounts.segment` goes unread then, later, away |
 
 ## MVP scope (one line)
 
@@ -130,6 +142,8 @@ else is out of v1.**
 - `docs/sprint-6b-order-to-cash.md` — checkout, orders & identity provisioning (D-019) — built, awaiting migration
 - `docs/sprint-6c-ops-console.md` — staff console, orders table, board & metrics (D-020) — built, awaiting migration
 - `docs/sprint-6-operations-prompt.md` — the brief Sprint 6b/6c were built from
+- `docs/sprint-7-paywall.md` — purchase-gated activation (D-021 … D-024) — built, awaiting migration
+- `docs/sprint-7-paywall-prompt.md` — the brief Sprint 7 was built from
 - `docs/launch-checklist.md` — **the remaining pre-launch work, all of it manual**
 - `docs/reference/` — supplied UI reference mockup (visual direction, not a pixel spec)
 - `docs/sprint-0-discovery.md` — full discovery: PRD, data model, security, pricing, GTM, risks

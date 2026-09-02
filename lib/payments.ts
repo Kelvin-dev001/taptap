@@ -3,6 +3,32 @@ export type PaymentStatus = "pending" | "paid" | "failed";
 /** What a payment bought. Null on Sprint 4 rows, which predate the split. */
 export type PaymentKind = "hardware" | "renewal";
 
+/**
+ * How money reached us when it did not come through M-Pesa (D-021).
+ *
+ * `payments.provider` has no CHECK constraint and never has, so this list is the
+ * only thing keeping it from becoming free text. It lives here rather than in
+ * the ops action because a `"use server"` module may only export async
+ * functions, and because the ops console and the payment history both need to
+ * name these the same way.
+ *
+ * `mpesa` is deliberately absent: that path is automatic, and offering staff a
+ * way to assert an M-Pesa payment by hand would let a callback and a person
+ * disagree about the same money.
+ */
+export const OFFLINE_METHODS = ["cash", "bank", "other"] as const;
+export type OfflineMethod = (typeof OFFLINE_METHODS)[number];
+
+export const OFFLINE_METHOD_LABELS: Record<OfflineMethod, string> = {
+  cash: "Cash",
+  bank: "Bank transfer",
+  other: "Other",
+};
+
+export function isOfflineMethod(value: string): value is OfflineMethod {
+  return (OFFLINE_METHODS as readonly string[]).includes(value);
+}
+
 export type PaymentRow = {
   id: string;
   /** Legacy per-account plan code (Sprint 4). Null on per-identity payments. */

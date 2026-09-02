@@ -90,16 +90,44 @@ describe("pricing teaser, no drift from lib/pricing.ts", () => {
     expect(screen.queryByText(/advanced/i)).toBeNull();
   });
 
-  it("does not offer team management on the Business plan", () => {
+  /**
+   * Team management is still unbuilt (D-017), so no column may claim it. This
+   * used to allow exactly one; under D-024 the answer is none, because there
+   * are no tiers left to differentiate and the feature still does not exist.
+   */
+  it("does not offer team management on any segment", () => {
     render(<PricingTeaser />);
-    // Exactly one plan (Commercial) may claim it.
-    expect(screen.getAllByText("Yes")).toHaveLength(1);
+    expect(screen.queryByText(/team management/i)).toBeNull();
   });
 
-  it("sends Commercial to sales rather than to signup", () => {
+  /**
+   * Segments are packaging, not tiers (D-024). Every paying account gets the
+   * same capabilities, so the table must not imply a restricted report on the
+   * cheaper column — which it did until Sprint 7.
+   */
+  it("does not gate the report behind a segment", () => {
+    render(<PricingTeaser />);
+    expect(screen.queryByText(/basic report/i)).toBeNull();
+    expect(screen.getAllByText("Included").length).toBeGreaterThan(0);
+  });
+
+  it("sends Corporate to the quote form rather than to signup", () => {
     render(<PricingTeaser />);
     const link = screen.getByRole("link", { name: /talk to sales/i });
-    expect(link.getAttribute("href")).toContain("mailto:sales@hornbilltech.co.ke");
+    // A mailto loses the enquiry on any phone with no mail client configured,
+    // and leaves staff nothing to work from (D-021).
+    expect(link.getAttribute("href")).toBe("/quote");
+  });
+
+  /**
+   * The load-bearing copy change of Sprint 7. The landing page must not imply
+   * that a page is live without a card, because it is not.
+   */
+  it("does not promise a live page for nothing", () => {
+    const { container } = render(<PricingTeaser />);
+    const text = container.textContent ?? "";
+    expect(text).not.toMatch(/free plan/i);
+    expect(text).toMatch(/activate it with a card/i);
   });
 });
 

@@ -4,6 +4,7 @@ import { loadBillingContext } from "@/lib/billing-context";
 import { PageHeader } from "@/components/shell/page-header";
 import { MigrationNotice } from "@/components/shell/migration-notice";
 import { isMissingSchemaError } from "@/lib/schema-guard";
+import { canPublishPage, publishBlockedReason } from "@/lib/entitlement";
 import Editor from "./editor";
 import type { Block, PageConfig, PublishStatus, Theme } from "@/lib/profile";
 
@@ -64,6 +65,20 @@ export default async function EditPage({
   // not that a plan code expired (D-018).
   const planLapsed = billing.summary.billable > 0 && billing.summary.active === 0;
 
+  // Whether this page may go live (D-021). Computed from the account's real
+  // holdings, and re-checked in the server action and again by the database —
+  // what is decided here is only what the button offers to do.
+  const entitlementRow = billing.pages.find((p) => p.id === page.id) ?? {
+    id: page.id,
+    status: page.status as PublishStatus,
+  };
+  const canPublish = canPublishPage(entitlementRow, billing.pages, billing.identities);
+  const publishBlocked = publishBlockedReason(
+    entitlementRow,
+    billing.pages,
+    billing.identities,
+  );
+
   return (
     <>
       <PageHeader
@@ -82,10 +97,12 @@ export default async function EditPage({
         initialConfig={(page.config ?? {}) as PageConfig}
         initialTheme={(page.theme ?? {}) as Theme}
         initialBlocks={(links ?? []) as Block[]}
-        initialStatus={((page.status as PublishStatus) ?? "published")}
+        initialStatus={((page.status as PublishStatus) ?? "draft")}
         initialPublishedAt={page.published_at ?? null}
         leadCaptureAllowed={billing.entitlements.leadCapture}
         planLapsed={planLapsed}
+        canPublish={canPublish}
+        publishBlockedReason={publishBlocked}
       />
     </>
   );

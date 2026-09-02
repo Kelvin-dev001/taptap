@@ -5,10 +5,9 @@ import {
   BUNDLED_MONTHS,
   SEGMENTS,
   SEGMENT_ORDER,
-  FREE_ENTITLEMENTS,
+  INACTIVE_ENTITLEMENTS,
+  ACTIVE_ENTITLEMENTS,
   entitlementsFor,
-  segmentFor,
-  suggestedSegment,
   renewalAmountKes,
   hardwareAmountKes,
   addMonths,
@@ -133,80 +132,68 @@ describe("renewedTermEnd", () => {
 
 describe("entitlements", () => {
   /**
-   * The commercial heart of D-018: building a profile is free, but the two
-   * capabilities worth paying for are not. Without this, the entire software
-   * product is obtainable by sharing a slug and never buying hardware.
+   * The commercial heart of D-021: an account that owns nothing gets the
+   * inactive set, and the profile it built stays a draft. There is no free tier
+   * to fall back to, and this is the assertion that says so.
    */
-  it("gives an account with no active device the free set", () => {
-    expect(entitlementsFor("business", 0)).toEqual(FREE_ENTITLEMENTS);
-    expect(entitlementsFor("commercial", 0).leadCapture).toBe(false);
-    expect(entitlementsFor("commercial", 0).analytics).toBe("basic");
-  });
-
-  it("unlocks the segment's set once one device is active", () => {
-    expect(entitlementsFor("professional", 1).leadCapture).toBe(true);
-    expect(entitlementsFor("business", 1).analytics).toBe("full");
-    expect(entitlementsFor("business", 1).customBranding).toBe(true);
-    expect(entitlementsFor("commercial", 1).teamManagement).toBe(true);
-  });
-
-  it("keeps Professional on the basic report and Hornbill branding", () => {
-    expect(entitlementsFor("professional", 3).analytics).toBe("basic");
-    expect(entitlementsFor("professional", 3).customBranding).toBe(false);
-  });
-
-  it("falls back to Professional for an unknown segment", () => {
-    expect(segmentFor("enterprise").code).toBe("professional");
-    expect(segmentFor(null).code).toBe("professional");
-  });
-
-  /** Team management is deferred (D-017) but the gate must already exist. */
-  it("reserves team management for Commercial", () => {
-    expect(SEGMENTS.professional.entitlements.teamManagement).toBe(false);
-    expect(SEGMENTS.business.entitlements.teamManagement).toBe(false);
-    expect(SEGMENTS.commercial.entitlements.teamManagement).toBe(true);
-  });
-});
-
-describe("suggestedSegment", () => {
-  it("follows holdings for self-serve accounts", () => {
-    expect(suggestedSegment(0)).toBe("professional");
-    expect(suggestedSegment(1)).toBe("professional");
-    expect(suggestedSegment(2)).toBe("business");
+  it("gives an account with no active device the inactive set", () => {
+    expect(entitlementsFor(0)).toEqual(INACTIVE_ENTITLEMENTS);
+    expect(entitlementsFor(0).leadCapture).toBe(false);
+    expect(entitlementsFor(0).analytics).toBe("basic");
+    expect(entitlementsFor(0).customBranding).toBe(false);
   });
 
   /**
-   * Commercial is a negotiated relationship, so buying one fewer card must
-   * never silently demote an account out of its agreement.
+   * One paid set, not three (D-024). With no segment stored on the account,
+   * paying is the only axis left, and a per-segment feature gate would be
+   * unimplementable even if we wanted one.
    */
-  it("never infers or overwrites Commercial", () => {
-    expect(suggestedSegment(9)).toBe("business");
-    expect(suggestedSegment(1, "commercial")).toBe("commercial");
-    expect(suggestedSegment(0, "commercial")).toBe("commercial");
+  it("unlocks everything once one device is active", () => {
+    expect(entitlementsFor(1)).toEqual(ACTIVE_ENTITLEMENTS);
+    expect(entitlementsFor(1).leadCapture).toBe(true);
+    expect(entitlementsFor(1).analytics).toBe("full");
+    expect(entitlementsFor(1).customBranding).toBe(true);
+  });
+
+  it("does not give more for owning more", () => {
+    expect(entitlementsFor(12)).toEqual(entitlementsFor(1));
+  });
+
+  /**
+   * Team management is deferred (D-017) and §15 forbids selling what we have
+   * not shipped. The flag exists so the gate is ready; it must stay false until
+   * the feature is real.
+   */
+  it("never claims team management, because it is not built", () => {
+    expect(ACTIVE_ENTITLEMENTS.teamManagement).toBe(false);
+    expect(INACTIVE_ENTITLEMENTS.teamManagement).toBe(false);
   });
 });
 
 describe("segment catalogue", () => {
-  it("never grants less as it goes up", () => {
-    expect(SEGMENT_ORDER).toEqual(["professional", "business", "commercial"]);
-    const rank = { basic: 0, full: 1 } as const;
-    for (let i = 1; i < SEGMENT_ORDER.length; i++) {
-      const prev = SEGMENTS[SEGMENT_ORDER[i - 1]].entitlements;
-      const curr = SEGMENTS[SEGMENT_ORDER[i]].entitlements;
-      expect(rank[curr.analytics]).toBeGreaterThanOrEqual(rank[prev.analytics]);
-      expect(Number(curr.customBranding)).toBeGreaterThanOrEqual(Number(prev.customBranding));
-      expect(Number(curr.teamManagement)).toBeGreaterThanOrEqual(Number(prev.teamManagement));
+  /**
+   * Segments are marketing packaging and must carry no entitlements (D-024).
+   * Attaching feature flags to them is exactly how the per-account plans D-018
+   * removed came into being, so this asserts the shape rather than the content.
+   */
+  it("carries no entitlements at all", () => {
+    for (const code of SEGMENT_ORDER) {
+      expect(SEGMENTS[code]).not.toHaveProperty("entitlements");
     }
   });
 
-  it("sells Commercial without a public checkout", () => {
-    expect(SEGMENTS.commercial.salesLed).toBe(true);
-    expect(SEGMENTS.professional.salesLed).toBe(false);
+  it("lists the three the pricing page shows", () => {
+    expect(SEGMENT_ORDER).toEqual(["individual", "business", "corporate"]);
+  });
+
+  it("sends Corporate to sales rather than to a self-serve checkout", () => {
+    expect(SEGMENTS.corporate.salesLed).toBe(true);
+    expect(SEGMENTS.individual.salesLed).toBe(false);
     expect(SEGMENTS.business.salesLed).toBe(false);
   });
 
-  it("sells stands only to segments that can use several devices", () => {
-    expect(SEGMENTS.professional.deviceKinds).toEqual(["card"]);
+  it("shows stands to the segments that can use several devices", () => {
+    expect(SEGMENTS.individual.deviceKinds).toEqual(["card"]);
     expect(SEGMENTS.business.deviceKinds).toContain("stand");
   });
 });

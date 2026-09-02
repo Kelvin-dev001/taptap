@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
+import Link from "next/link";
 import { Nfc } from "lucide-react";
 import { Button, Card, Field, Select, Alert } from "@/components/ui";
 import { Wordmark } from "@/components/shell/logo";
@@ -9,7 +10,7 @@ import { claimTagAction, type ClaimResult } from "./actions";
 
 const initial: ClaimResult = {};
 
-type PageOpt = { id: string; slug: string; title: string | null };
+type PageOpt = { id: string; slug: string; title: string | null; status?: string | null };
 
 function LinkButton() {
   const { pending } = useFormStatus();
@@ -32,9 +33,13 @@ function LinkButton() {
 export default function ClaimForm({
   token,
   pages,
+  drafts = [],
 }: {
   token: string;
+  /** Published pages only. A card must never point at something that 404s. */
   pages: PageOpt[];
+  /** Drafts, so the empty state can say which kind of empty this is. */
+  drafts?: PageOpt[];
 }) {
   const [state, action] = useActionState(claimTagAction, initial);
 
@@ -55,7 +60,24 @@ export default function ClaimForm({
           </p>
         </div>
 
-        {pages.length === 0 ? (
+        {pages.length === 0 && drafts.length > 0 ? (
+          /* They have built something, it just is not live. Almost always the
+             case for someone holding a card for the first time: they bought it,
+             built a page, and never pressed Publish. Sending them to buy
+             something would be both wrong and insulting. */
+          <div className="flex flex-col gap-3">
+            <Alert tone="warning" title="Publish your profile first">
+              {drafts.length === 1
+                ? `“${drafts[0].title || `/${drafts[0].slug}`}” is still a draft, so this card would open a page nobody can see.`
+                : "Your profiles are still drafts, so this card would open a page nobody can see."}
+            </Alert>
+            <Button asChild full>
+              <Link href={`/dashboard/profiles/${drafts[0].id}/edit`}>
+                Publish it, then tap again
+              </Link>
+            </Button>
+          </div>
+        ) : pages.length === 0 ? (
           <Alert tone="info" title="You have no profiles yet">
             Create one in your dashboard, then tap this card again to link it.
           </Alert>

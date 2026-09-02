@@ -19,8 +19,12 @@ export function CtaBand() {
             <h2 className="text-balance text-display text-on-inverse">
               Ready to stop handing out paper?
             </h2>
+            {/* This used to read "add a card or a stand whenever you are ready",
+                which implied the page worked without one. It does not: building
+                is free, going live needs a card (D-021), and the landing page is
+                the last place to be vague about that. */}
             <p className="text-body text-on-inverse-muted">
-              Setting up your page is free. Add a card or a stand whenever you are ready.
+              Build your page for nothing and see it first. A card or a stand makes it live.
             </p>
 
             <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
@@ -33,15 +37,18 @@ export function CtaBand() {
               >
                 Get started
               </Link>
-              <a
-                href="mailto:sales@hornbilltech.co.ke?subject=Hornbill%20TapTap%20-%20Talk%20to%20Sales"
+              {/* A real form rather than a mailto: half of these visitors are
+                  on a phone with no mail client configured, and a mailto that
+                  opens nothing loses the enquiry silently. */}
+              <Link
+                href="/quote"
                 className={cn(
                   buttonVariants({ variant: "inverse", size: "lg" }),
                   "ring-1 ring-white/15 transition-transform duration-fast active:scale-[0.97]",
                 )}
               >
                 Talk to Sales
-              </a>
+              </Link>
             </div>
           </div>
         </div>

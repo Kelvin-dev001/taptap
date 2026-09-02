@@ -550,5 +550,155 @@ living in a query someone has to remember to run.
 
 ---
 
+### D-021 — No free tier; the gate is publishing, not building
+**Date:** 2026-09-02 · **Status:** Accepted · **Revises:** the "free means free" clause of D-018
+
+**Context:** D-018 decided that "building and publishing a profile costs nothing — that is
+the funnel Sprint 6 depends on", and gated only lead capture and the full analytics report.
+The audit for this sprint found what that meant in practice: `smart_pages.status` has
+defaulted to `'published'` since 0009, so a profile created thirty seconds after signup
+resolves publicly at its slug, forever, for nothing. The entire software product was
+obtainable by sharing a slug and never buying hardware, on a product whose main
+distribution channel is WhatsApp.
+
+**Decision:** a profile is **built** for nothing and **published** against a paid identity.
+Everything else D-018 decided stands: the billing unit is still the tag, prices are
+unchanged, terms are still per identity, and consolidated renewal is still an action rather
+than a stored date.
+
+**Why the gate is publishing and not building.** Gating creation would mean asking someone
+to pay for something they have never seen. A draft is how a customer finds out whether the
+product is any good, and it costs us a database row. The moment worth charging for is the
+moment the thing becomes useful to them, which is when it is on the internet with a card
+pointing at it.
+
+**Why a draft 404s and a lapsed page does not.** They look similar and are not. The
+inactive notice exists to reassure the *cardholder's customer* — someone handed a card that
+suddenly stopped working, who never had the chance to pay — that the business is not
+broken. Nobody has ever been handed a draft, so there is nobody to reassure, and inventing a
+"this business has not paid yet" screen for a page that was never public would leak the
+owner's billing state to strangers.
+
+**Enforcement is four-layered, and layer two is the one that was missing.**
+`publish_page()` checks entitlement; column grants stop a direct PostgREST write; a trigger
+holds even against the service role; and `page_is_live()` decides what the public sees.
+Until this sprint `authenticated` held a table-wide UPDATE grant on `smart_pages` from
+0001, so `PATCH /rest/v1/smart_pages {"status":"published"}` would have published anything
+the caller owned whatever the RPC said. 0007 solved exactly this on `accounts` with
+column-level grants; `smart_pages` never got the same treatment. A gate in the RPC alone
+would have been decoration.
+
+**Consequences:** new pages are born `draft`. `claim_tag` and the device rebind path refuse
+an unpublished page, because a card pointing at a 404 fails in front of the cardholder's
+customer. Checkout moved out of the billing page to `/dashboard/checkout` so there is
+exactly one place money can be taken from, and the M-Pesa provisioning logic left the
+callback route for `lib/provisioning.ts` so the status poll and staff mark-as-paid run the
+identical path rather than a second implementation of it.
+
+**What was NOT gated, deliberately:** `app/api/qr/[slug]` still serves any slug. It is a
+pure encoder that never touches the database — it turns a string into a picture — so
+gating it would protect nothing, and the URL it encodes is public knowledge. What is gated
+is the page the QR points at, and the UI does not offer to share a link that does not
+resolve. A check there would have looked like security without being any.
+
+---
+
+### D-022 — Entitlement is a slot count, not a device binding
+**Date:** 2026-09-02 · **Status:** Accepted · **Builds on:** D-021
+
+**Context:** "one identity, one publishable profile" has an obvious implementation —
+publishing sets `nfc_tags.smart_page_id`, making the rule a literal foreign key.
+
+**Decision:** publishing consumes a **slot**, counted as
+`published, non-grandfathered pages < live identities`. No binding is created.
+
+**Why not the binding.** Two reasons, both structural. `provision_identities` gives a paying
+customer live identity rows at the moment of payment, **weeks before the physical card is
+produced and delivered**; a binding rule would make publishing wait on manufacturing, which
+is precisely the delay the customer is paying to skip. And repointing a card without
+re-encoding it is the core product promise (D-009, proven on real hardware in August) — if
+the binding carried the entitlement, every repoint would silently move which page is allowed
+to be live. Counting keeps publishing and repointing independent, which is the property that
+made the promise worth making.
+
+**The one place ordering matters.** When an account with two cards lets one lapse, *which*
+of its two pages goes dark must be a fact rather than a race. `page_is_live()` ranks an
+account's published pages by `published_at` ascending and keeps the first N, so the oldest
+survives — the one most likely to already be printed on something.
+
+**A behaviour change worth naming:** previously a page whose own bound card had lapsed went
+dark even when the account held another live card. The account's slot count now decides, so
+that page stays live and a different one goes dark instead. The lapsed *physical card* still
+fails correctly at `/t/<token>`, because `resolve_tag` checks `identity_is_live()` on the
+tag itself and that is unchanged.
+
+---
+
+### D-023 — Grandfathering is a stored flag on the page
+**Date:** 2026-09-02 · **Status:** Accepted · **Builds on:** D-021
+
+**Context:** changing the rule mid-flight risks the one outcome that would be genuinely
+harmful: a customer who is live today waking up unpublished because we changed our pricing
+model.
+
+**Decision:** `smart_pages.entitlement_grandfathered`, set by 0019 for every page that was
+`published` at the moment the migration ran. Such a page publishes and resolves without
+consuming a slot, permanently.
+
+**Why a stored flag rather than a date rule.** "Created before 2 September 2026" has to be
+re-argued every time someone reads it, cannot be corrected for a row that turns out to
+deserve different treatment, and gives no way to answer "is this page grandfathered" with a
+SELECT. A boolean does all three. The operator check after applying 0019 is one query:
+`select count(*) from smart_pages where status='published' and not entitlement_grandfathered`
+must return 0.
+
+**Why per page rather than per account.** Per account, grandfathering would quietly become
+an unlimited free tier for everyone who signed up before the cutover. Per page, an existing
+customer keeps exactly what they had and their *next* profile is a draft like everybody
+else's.
+
+**One asymmetry, found by a test rather than by reasoning:** the first implementation
+computed `max(1, slots + grandfathered)`, which gave an account with one grandfathered page
+and no identities a total allowance of one — so a customer who had been here since before
+the change could not start a second profile at all, while someone signing up that morning
+could. Grandfathered pages are now added **on top of** the floor rather than counted into
+it. Being here first must never cost someone anything.
+
+---
+
+### D-024 — Segments are marketing packaging, not stored state
+**Date:** 2026-09-02 · **Status:** Accepted · **Supersedes:** the segment half of D-018
+
+**Context:** D-018 replaced plan tiers with `accounts.segment` (professional / business /
+commercial) and hung `analytics`, `customBranding` and `teamManagement` off it. That is a
+per-account plan wearing a different word, and it was read in two places including SQL.
+
+**Decision:** segments are Individual / Business / Corporate, they live on the pricing page,
+and they carry **no entitlements**. Nothing is stored on the account. `entitlementsFor()`
+takes one argument: how many live identities the account holds.
+
+**Why there was no third option.** With the free tier gone, exactly one axis remains — does
+this account own a working device. A per-segment feature gate is not merely unwanted, it is
+unimplementable without storing a segment, and storing one recreates what D-018 removed.
+
+**The consequence, stated rather than buried:** every paying account can now hide the
+"Powered by Hornbill TapTap" footer, where previously only Business and Commercial could.
+That is free distribution given up on a product whose main channel is people sharing links.
+It was chosen over the alternatives because the honest version of one paid tier is one paid
+tier, and because selling a restriction we invented to fill three columns is the fabrication
+§15 forbids. **If the distribution turns out to matter more than the consistency, the change
+is one line in `ACTIVE_ENTITLEMENTS`.**
+
+**The pricing teaser lost two claims** rather than carrying them forward: "Basic report"
+against the cheaper column (untrue now that every paying account gets the full report) and
+team management (still unbuilt, D-017). §15 rules out both.
+
+**`accounts.segment` is left in place and unread.** Dropping a column in the same migration
+that changes entitlement means a rollback loses data. It goes in a later cleanup once 0019
+has proven itself, exactly as D-018 left `subscriptions` alone — and 0019 stops the signup
+trigger writing `subscriptions(plan='free')`, which was the last live free-tier remnant.
+
+---
+
 _Add new decisions above this line as `D-00N`, and mirror the one-liner into
 `PROJECT.md`._

@@ -84,7 +84,8 @@ export function Hero() {
             </div>
 
             <p className="text-body-sm text-muted">
-              Free to set up. Nobody has to download an app, not you and not them.
+              Build it free, then activate it with a card. Nobody has to download an app,
+              not you and not them.
             </p>
           </div>
 
