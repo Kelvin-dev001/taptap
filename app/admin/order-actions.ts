@@ -454,6 +454,35 @@ export async function unassignCardAction(
   return { success: "Card returned to stock." };
 }
 
+
+/**
+ * Send a corrected proof back to the customer.
+ *
+ * The other half of a revision request. Deliberately minimal: it returns the
+ * unit to `awaiting_approval` and clears the approval, and does not touch the
+ * profile — the front is generated from the customer's profile, and editing
+ * somebody else's profile is not something this console should do. Staff change
+ * what they can change (or ask the customer to), then resend.
+ */
+export async function resendProofAction(
+  _prev: OpsResult,
+  formData: FormData,
+): Promise<OpsResult> {
+  await requireStaff();
+
+  const unitId = String(formData.get("unitId") ?? "");
+  const orderId = String(formData.get("orderId") ?? "");
+  if (!unitId) return { error: "No card given." };
+
+  const supabase = await createServerSupabase();
+  const { error } = await supabase.rpc("resend_unit_proof", { p_unit_id: unitId });
+  if (error) return { error: humanisePostgresError(error.message) };
+
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/dashboard/orders");
+  return { success: "Sent back to the customer for approval." };
+}
+
 /**
  * The last scan on a stock order packs it.
  *
@@ -508,6 +537,7 @@ function humanisePostgresError(message: string): string {
     "is cancelled",
     "no identity to move",
     "nothing to undo",
+    "has not chosen a profile",
   ];
   const lower = message.toLowerCase();
   if (known.some((k) => lower.includes(k))) {

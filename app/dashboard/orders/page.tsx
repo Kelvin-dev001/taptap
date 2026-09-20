@@ -16,6 +16,8 @@ import {
 } from "@/lib/orders";
 import { cn } from "@/lib/cn";
 import { DeliveryDetails } from "./delivery-details";
+import { ProofPanel, type ProofUnit, type ProfileOption } from "./proof-panel";
+import { proofFieldsFromPage, type ProofSnapshot } from "@/lib/proof";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +41,22 @@ type OrderRow = {
   payments: { status: string }[] | null;
 };
 
+type PageRow = { id: string; slug: string; title: string | null; status: string | null };
+
+type ProofRow = {
+  id: string;
+  order_id: string;
+  unit_index: number;
+  proof_status: string | null;
+  proof_page_id: string | null;
+  proof_note: string | null;
+  proof_snapshot: unknown;
+  page_status: string | null;
+  page_title: string | null;
+  page_config: Record<string, unknown> | null;
+  page_theme: Record<string, unknown> | null;
+};
+
 /** How the zones are named to a customer. "Upcountry" is a price band, so the
  *  town they gave is preferred wherever there is one. */
 const ZONE_LABELS: Record<string, string> = {
@@ -50,13 +68,23 @@ const ZONE_LABELS: Record<string, string> = {
 export default async function OrdersPage() {
   const supabase = await createServerSupabase();
 
-  // RLS scopes this to the caller's own account (orders_select_own, 0017).
-  const { data, error } = await supabase
-    .from("orders")
-    .select(
-      "id, number, product_code, quantity, amount_kes, status, created_at, contact_name, contact_phone, delivery_zone, delivery_town, delivery_area, delivery_notes, dispatch_method, dispatch_reference, dispatched_at, payments(status)",
-    )
-    .order("created_at", { ascending: false });
+  // RLS scopes all three to the caller's own account (orders_select_own, 0017;
+  // order_unit_proofs inherits it through security_invoker, 0029).
+  const [{ data, error }, { data: proofData }, { data: pageData }] = await Promise.all([
+    supabase
+      .from("orders")
+      .select(
+        "id, number, product_code, quantity, amount_kes, status, created_at, contact_name, contact_phone, delivery_zone, delivery_town, delivery_area, delivery_notes, dispatch_method, dispatch_reference, dispatched_at, payments(status)",
+      )
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("order_unit_proofs")
+      .select(
+        "id, order_id, unit_index, proof_status, proof_page_id, proof_note, proof_snapshot, page_status, page_title, page_config, page_theme",
+      )
+      .order("unit_index"),
+    supabase.from("smart_pages").select("id, slug, title, status").order("created_at"),
+  ]);
 
   if (isMissingSchemaError(error)) {
     return (
@@ -68,6 +96,44 @@ export default async function OrdersPage() {
   }
 
   const orders = (data ?? []) as OrderRow[];
+
+  const profiles: ProfileOption[] = ((pageData ?? []) as PageRow[]).map((p) => ({
+    id: p.id,
+    slug: p.slug,
+    title: p.title,
+    published: p.status === "published",
+  }));
+
+  // An approved proof renders from its frozen snapshot, never from the live
+  // profile: the customer approved a specific card, and a later profile edit
+  // must not change what is already being printed (D-029).
+  const proofsByOrder = new Map<string, ProofUnit[]>();
+  for (const row of (proofData ?? []) as ProofRow[]) {
+    const approved = row.proof_status === "approved";
+    const snapshot = row.proof_snapshot as ProofSnapshot | null;
+    const fields = approved && snapshot
+      ? snapshot
+      : row.proof_page_id
+        ? proofFieldsFromPage({
+            title: row.page_title,
+            config: row.page_config,
+            theme: row.page_theme,
+          })
+        : null;
+
+    const list = proofsByOrder.get(row.order_id) ?? [];
+    list.push({
+      id: row.id,
+      unit_index: row.unit_index,
+      proof_status: row.proof_status,
+      proof_page_id: row.proof_page_id,
+      proof_note: row.proof_note,
+      page_status: row.page_status,
+      fields,
+      frozen: approved && Boolean(snapshot),
+    });
+    proofsByOrder.set(row.order_id, list);
+  }
 
   return (
     <>
@@ -152,6 +218,15 @@ export default async function OrdersPage() {
                         style={{ width: `${Math.round(progress * 100)}%` }}
                       />
                     </div>
+                  )}
+
+                  {/* The Premium front, when there is one to approve (D-029).
+                      Only on a paid order: an unpaid one has no units yet. */}
+                  {payment === "paid" && (proofsByOrder.get(order.id)?.length ?? 0) > 0 && (
+                    <ProofPanel
+                      units={proofsByOrder.get(order.id) ?? []}
+                      profiles={profiles}
+                    />
                   )}
 
                   {/* Where it is going, and who has it once it has gone.

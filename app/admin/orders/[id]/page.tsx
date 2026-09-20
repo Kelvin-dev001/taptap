@@ -22,6 +22,7 @@ import {
 import { AdvanceOrder } from "@/components/ops/advance-order";
 import { DispatchOrder } from "@/components/ops/dispatch-order";
 import { AssignCards, type AssignableUnit } from "@/components/ops/assign-cards";
+import { OrderProofs, type ProofRow } from "@/components/ops/order-proofs";
 import { RecordPayment } from "@/components/ops/record-payment";
 import { OrderNotes } from "./order-notes";
 
@@ -69,7 +70,8 @@ export default async function OrderDetailPage({
   const { id } = await params;
   const supabase = await createServerSupabase();
 
-  const [{ data, error }, { data: eventsData }, { data: paymentsData }] = await Promise.all([
+  const [{ data, error }, { data: eventsData }, { data: paymentsData }, { data: proofData }] =
+    await Promise.all([
     supabase.from("orders_overview").select("*").eq("id", id).maybeSingle(),
     supabase
       .from("order_events")
@@ -81,6 +83,16 @@ export default async function OrderDetailPage({
       .select("id, reference, amount, status, created_at, payment_tags(tag_id)")
       .eq("order_id", id)
       .order("created_at", { ascending: false }),
+    // Premium fronts (0029). Empty for every other path, so the card below
+    // simply does not render.
+    supabase
+      .from("order_unit_proofs")
+      .select(
+        "id, unit_index, proof_status, proof_note, page_slug, page_title, page_status, approved_at",
+      )
+      .eq("order_id", id)
+      .not("proof_status", "is", null)
+      .order("unit_index"),
   ]);
 
   if (isMissingSchemaError(error)) {
@@ -286,6 +298,20 @@ export default async function OrderDetailPage({
                 orderNumber={order.number}
                 destination={destination}
               />
+            </Card>
+          )}
+
+          {/* The Premium front, per card (D-029). Printing is offered whatever
+              the state, because staff sometimes need to look — but an
+              unapproved proof says so rather than being quietly hidden. */}
+          {((proofData ?? []) as ProofRow[]).length > 0 && (
+            <Card padding="md">
+              <h2 className="mb-1 text-section-title text-foreground">Card fronts</h2>
+              <p className="mb-4 text-body-sm text-muted">
+                Generated from the customer&rsquo;s profile and frozen when they approve it. Print
+                from the PNG on a dye-sub printer.
+              </p>
+              <OrderProofs orderId={order.id} units={(proofData ?? []) as ProofRow[]} />
             </Card>
           )}
 
