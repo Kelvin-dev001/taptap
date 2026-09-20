@@ -6,59 +6,35 @@ import { isValidToken } from "@/lib/tags";
 
 export type DeviceResult = { error?: string; success?: string };
 
+/**
+ * Repoints a card at a different profile.
+ *
+ * Ownership and the published-page rule (D-021) both live inside `rebind_tag`
+ * (migration 0020) rather than here. They used to be checked in this file and
+ * then written straight to `nfc_tags`, which worked only because the table
+ * carried a table-wide UPDATE grant — the same grant that let a customer write
+ * their own `term_end`. With the grant narrowed to `label`, the rule and the
+ * write are in one place and neither can happen without the other.
+ */
 export async function rebindTagAction(formData: FormData) {
   const tagId = String(formData.get("tagId") ?? "");
   const pageId = String(formData.get("pageId") ?? "");
 
   const supabase = await createServerSupabase();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("account_id")
-    .eq("id", user.id)
-    .single();
-  if (!profile) return;
-
-  // Verify the target page belongs to the caller before rebinding.
-  //
-  // Also that it is published (D-021). This path writes `nfc_tags.smart_page_id`
-  // directly rather than going through `claim_tag`, so the check 0019 added
-  // there does not cover it — and repointing a card at a draft would leave a
-  // working card opening a page that 404s, which is the worst version of this
-  // failure because it happens in front of the cardholder's customer.
-  const { data: page } = await supabase
-    .from("smart_pages")
-    .select("id, status")
-    .eq("id", pageId)
-    .eq("account_id", profile.account_id)
-    .maybeSingle();
-  if (!page || page.status !== "published") return;
-
-  // RLS also restricts the update to the caller's own tags.
-  await supabase
-    .from("nfc_tags")
-    .update({ smart_page_id: pageId, status: "assigned" })
-    .eq("id", tagId);
+  await supabase.rpc("rebind_tag", { p_tag_id: tagId, p_page_id: pageId });
 
   revalidatePath("/dashboard/devices");
 }
 
+/** Switches a card off (not billed, does not resolve) or back on. */
 export async function setTagStatusAction(formData: FormData) {
   const tagId = String(formData.get("tagId") ?? "");
   const status = String(formData.get("status") ?? "");
   if (status !== "assigned" && status !== "disabled") return;
 
   const supabase = await createServerSupabase();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
+  await supabase.rpc("set_tag_status", { p_tag_id: tagId, p_status: status });
 
-  await supabase.from("nfc_tags").update({ status }).eq("id", tagId);
   revalidatePath("/dashboard/devices");
 }
 

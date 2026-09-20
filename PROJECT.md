@@ -5,15 +5,35 @@
 > re-reading the original master-prompt PDF. Update this file whenever a major
 > decision changes.
 
-**Last updated:** 2026-09-02
-**Current phase:** **Sprint 7 — purchase-gated activation (D-021 … D-024), shipped.** The free
+**Last updated:** 2026-09-20
+**Current phase:** **Sprint 8a — stock cards (D-026 … D-030), built and applied.**
+Cards are printed in bulk and sit on a shelf; payment mints a placeholder identity and staff scan
+a card onto the order at fulfilment. Dispatch captures who is carrying the parcel and emails the
+customer the reference; the customer can correct their delivery details until it ships. Encoding
+(8b) and the Premium proof (8c) are still to come.
+Before it: **Sprint 7 — purchase-gated activation (D-021 … D-024), shipped.** The free
 tier is gone: a profile is built for nothing and published only against a paid identity.
 Sprint 6b (order-to-cash, D-019) and 6c (ops console, D-020) shipped alongside it. Sprint 6a
 (per-identity billing, D-018) and renewal reminders shipped earlier. UI/UX transformation
 complete (UI-0 → UI-12, 2026-08-15), plus UI-13 (lead-arrival email) and the auth follow-ups.
 Build sprints 0–5 remain code-complete.
 
-**Migrations `0005`–`0019` are all applied** (`0017`/`0018`/`0019` on 2026-09-02).
+**Migrations `0005`–`0025` are all applied** (`0020`–`0023` on 2026-09-20, verified read-only
+against the live database: every function present, every product and delivery zone seeded, the
+four pre-Sprint-8 tokens adopted into a LEGACY batch as `S-000001`–`S-000004`, and all seven
+customer-owned cards untouched and still resolving).
+**`0024` and `0025` applied 2026-09-20.** `0024` marks the LEGACY batch received. `0025` gives a
+term to the four claimed, actively-used identities that carried `term_end = NULL` and were
+therefore live forever and never billed — `/yassir`, `/dingo-mca-tononoka-2017`, `/kreto` and
+`/kenaru`, all self-claimed through the pre-D-027 hole. Their term ends **31 December 2026**, so
+the first reminder (T30) lands in the first days of December and the fourteen-day grace runs to
+about 14 January. **Nobody has told these four customers yet** — the email will be the first they
+hear of it unless somebody speaks to them first.
+
+**`0026` is written and NOT yet applied.** It adds `dispatch_notification_target`, which is what
+lets the "on its way" email find a recipient. Until it runs, dispatch still records the method
+and reference and shows them to staff and to the customer; only the email is skipped, and the
+skip is recorded rather than swallowed.
 
 **Post-migration check, if it has not been run yet:** confirm nobody was unpublished by the
 Sprint 7 cutover —
@@ -23,10 +43,10 @@ needs flagging by hand.
 
 Deployed and login working in production (2026-08-15).
 
-**Before launch — see `docs/launch-checklist.md` for the steps.** Nothing left is code:
-test Resend deliverability, prove the M-Pesa callback activates a plan, confirm the DRAFT
-plan prices, rotate the exposed Daraja credentials, and complete ODPC registration and the
-legal placeholders.
+**Before launch — see `docs/launch-checklist.md` for the steps.** Apply `0020` (the billing
+hole), then test Resend deliverability, prove the M-Pesa callback activates, rotate the exposed
+Daraja credentials, and complete ODPC registration. Prices are settled (D-018) and the legal
+placeholders are filled.
 ✅ DNS live, `ADMIN_TOKEN` set, minting verified in production (2026-08-15).
 ✅ **Physical NFC verification complete (2026-08-19)** — the UI-6 acceptance requirement
 open since the UI-0 audit. 26 taps across Android and iPhone, 100% carrying `source='nfc'`
@@ -101,6 +121,12 @@ expand across East Africa, then the continent.
 | D-022 | **Entitlement is a slot count**, not a device binding — identities exist weeks before the card ships, and repointing must never move who may be live |
 | D-023 | **Grandfathering** is a stored flag per page, set for everything already published. Nobody live today is unpublished |
 | D-024 | **Segments are marketing packaging**, not stored state. One paid entitlement set; `accounts.segment` goes unread then, later, away |
+| D-025 | **Column-level grants on `nfc_tags`:** a table-wide UPDATE grant let a customer write their own `term_end` and defeat billing, grace and the slot count in one request. Only `label` stays directly writable; repoint and disable move into SECURITY DEFINER RPCs. `replace_tag` now carries the term it continues |
+| D-026 | **Cards are stock, not made to order:** payment mints a placeholder identity, and scanning a printed card at fulfilment moves it onto the plastic. The unowned-pool draw is gone. Revises D-019's provisioning half |
+| D-027 | **Unowned cards cannot be self-claimed** — every stock card prints its QR, so a photograph was a free card. Card-first sales wait for activation codes. Revises D-009's claim flow |
+| D-028 | **Delivery is priced at checkout**, from a rate table, snapshotted per order. Revises Sprint 7's collect-after-payment rule and amends D-018 |
+| D-029 | **Premium is a custom front on a stock blank** — same billing kind, different blank, `custom` path. Sells now; the proof is produced by hand until 8c |
+| D-030 | **Dispatch carries a reference, and is refused without one.** Not a stage move: a form that asks how the parcel is going and who has it. `advanceOrderAction` refuses a bare move to `dispatched`, and the customer is emailed the reference once, idempotently |
 
 ## MVP scope (one line)
 

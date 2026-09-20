@@ -11,7 +11,9 @@
  * the rules cannot drift out of sync with a second copy written in SQL.
  */
 
-import type { DeviceKind } from "./pricing";
+import { PRODUCTS, isProductCode, type DeviceKind, type FulfilmentPath } from "./pricing";
+
+export type { FulfilmentPath };
 
 export const ORDER_STATUSES = [
   "new",
@@ -58,6 +60,9 @@ export type OrderEvent = {
 /**
  * The happy path, in order. `revision_requested` and `cancelled` sit outside it
  * because they are departures from the line rather than points on it.
+ *
+ * This is the full pipeline, which is what `custom` and `made_to_order` both
+ * walk. `stock` has its own, four stages long — see PIPELINE_BY_PATH.
  */
 export const FULFILMENT_PIPELINE: OrderStatus[] = [
   "new",
@@ -73,6 +78,28 @@ export const FULFILMENT_PIPELINE: OrderStatus[] = [
 ];
 
 /**
+ * A stock order is picked, packed and posted (D-026).
+ *
+ * There is no content stage because nothing is collected, no design stage
+ * because nothing is drawn, and no QC stage because the card was tested when its
+ * chip was encoded and locked — weeks before anyone bought it. Carrying the full
+ * pipeline here and expecting staff to click through six stages that mean
+ * nothing is how a board stops being believed.
+ */
+export const STOCK_PIPELINE: OrderStatus[] = [
+  "new",
+  "ready_for_dispatch",
+  "dispatched",
+  "delivered",
+];
+
+export const PIPELINE_BY_PATH: Record<FulfilmentPath, OrderStatus[]> = {
+  stock: STOCK_PIPELINE,
+  custom: FULFILMENT_PIPELINE,
+  made_to_order: FULFILMENT_PIPELINE,
+};
+
+/**
  * Legal moves.
  *
  * Written out rather than derived from the pipeline order, because the
@@ -80,7 +107,7 @@ export const FULFILMENT_PIPELINE: OrderStatus[] = [
  * for while a design is being approved, and an order can be cancelled at any
  * point before it ships but never after it has been delivered.
  */
-const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+const FULL_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   new: ["content_received", "cancelled"],
   content_received: ["design", "cancelled"],
   design: ["awaiting_approval", "cancelled"],
@@ -97,28 +124,70 @@ const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   cancelled: [],
 };
 
+/**
+ * Stock. Every production stage is unreachable rather than merely unused — a
+ * stage a stock order can never legally enter cannot be reached by a stale form
+ * post or a future code path that forgets which kind of order it is holding.
+ */
+const STOCK_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  new: ["ready_for_dispatch", "cancelled"],
+  ready_for_dispatch: ["dispatched", "cancelled"],
+  dispatched: ["delivered"],
+  delivered: [],
+  cancelled: [],
+  content_received: [],
+  design: [],
+  awaiting_approval: [],
+  revision_requested: [],
+  approved: [],
+  in_production: [],
+  qc: [],
+};
+
+const TRANSITIONS_BY_PATH: Record<FulfilmentPath, Record<OrderStatus, OrderStatus[]>> = {
+  stock: STOCK_TRANSITIONS,
+  custom: FULL_TRANSITIONS,
+  made_to_order: FULL_TRANSITIONS,
+};
+
+/**
+ * Which pipeline a product walks.
+ *
+ * Falls back to `made_to_order` for a code this build does not recognise, which
+ * is the conservative direction: an unknown product gets the longest pipeline
+ * with the most checkpoints rather than the one that ships in two clicks.
+ */
+export function pathForProduct(productCode: string | null | undefined): FulfilmentPath {
+  return isProductCode(productCode) ? PRODUCTS[productCode].path : "made_to_order";
+}
+
 export function isOrderStatus(value: string | null | undefined): value is OrderStatus {
   return ORDER_STATUSES.includes((value ?? "") as OrderStatus);
 }
 
-export function canTransition(from: OrderStatus, to: OrderStatus): boolean {
-  return (TRANSITIONS[from] ?? []).includes(to);
+export function canTransition(
+  path: FulfilmentPath,
+  from: OrderStatus,
+  to: OrderStatus,
+): boolean {
+  return (TRANSITIONS_BY_PATH[path][from] ?? []).includes(to);
 }
 
-export function allowedTransitions(from: OrderStatus): OrderStatus[] {
-  return TRANSITIONS[from] ?? [];
+export function allowedTransitions(path: FulfilmentPath, from: OrderStatus): OrderStatus[] {
+  return TRANSITIONS_BY_PATH[path][from] ?? [];
 }
 
-/** The next step along the happy path, if there is one. */
-export function nextStatus(from: OrderStatus): OrderStatus | null {
-  const index = FULFILMENT_PIPELINE.indexOf(from);
-  if (index < 0 || index === FULFILMENT_PIPELINE.length - 1) return null;
-  const next = FULFILMENT_PIPELINE[index + 1];
-  return canTransition(from, next) ? next : null;
+/** The next step along this path's happy line, if there is one. */
+export function nextStatus(path: FulfilmentPath, from: OrderStatus): OrderStatus | null {
+  const pipeline = PIPELINE_BY_PATH[path];
+  const index = pipeline.indexOf(from);
+  if (index < 0 || index === pipeline.length - 1) return null;
+  const next = pipeline[index + 1];
+  return canTransition(path, from, next) ? next : null;
 }
 
-export function isTerminal(status: OrderStatus): boolean {
-  return allowedTransitions(status).length === 0;
+export function isTerminal(path: FulfilmentPath, status: OrderStatus): boolean {
+  return allowedTransitions(path, status).length === 0;
 }
 
 /**
@@ -134,15 +203,52 @@ export function isTerminal(status: OrderStatus): boolean {
  */
 export const UNPAID_CEILING: OrderStatus = "content_received";
 
-export function requiresPayment(to: OrderStatus): boolean {
+export function requiresPayment(path: FulfilmentPath, to: OrderStatus): boolean {
   // Cancelling an unpaid order is exactly what should happen to it.
   if (to === "cancelled") return false;
+
+  // A stock order has no free stage. Its very first move spends a printed card
+  // off the shelf, so there is nothing below the ceiling to reach.
+  if (path === "stock") return to !== "new";
+
   const index = FULFILMENT_PIPELINE.indexOf(to);
   // Off-pipeline stages (revision_requested) are only reachable from deep in
   // the paid section anyway, but default to requiring payment rather than
   // assuming — the safe answer for a stage this does not recognise is "no".
   if (index < 0) return true;
   return index > FULFILMENT_PIPELINE.indexOf(UNPAID_CEILING);
+}
+
+/**
+ * How many of an order's physical units have a card against them.
+ *
+ * `bound` counts units where a real card has been scanned in; `total` is the
+ * order's quantity. A stand is bound at provisioning, because its token IS the
+ * unit — there is no shelf to take one from.
+ */
+export type UnitBinding = { total: number; bound: number };
+
+/**
+ * Every path refuses to pack what it has not picked.
+ *
+ * Enforced here rather than only hidden in the UI, because TT004 is exactly what
+ * happens when a rule lives in a rendered button: an order reached `delivered`
+ * with a failed payment because the board displayed a badge, and displaying is
+ * not enforcing. An order that reaches dispatch with an unbound unit is a parcel
+ * posted with a card in it that points at nobody.
+ */
+export function bindingBlockedReason(
+  to: OrderStatus,
+  units: UnitBinding | null | undefined,
+): string | null {
+  if (to !== "ready_for_dispatch") return null;
+  if (!units || units.total <= 0) return null;
+  if (units.bound >= units.total) return null;
+
+  const missing = units.total - units.bound;
+  return missing === units.total
+    ? `No cards scanned yet. Scan ${units.total === 1 ? "the card" : `all ${units.total} cards`} before packing.`
+    : `${missing} of ${units.total} cards still to scan.`;
 }
 
 /**
@@ -154,22 +260,31 @@ export function requiresPayment(to: OrderStatus): boolean {
  * drift.
  */
 export function transitionBlockedReason(
+  path: FulfilmentPath,
   from: OrderStatus,
   to: OrderStatus,
   isPaid: boolean,
+  units?: UnitBinding | null,
 ): string | null {
-  if (!canTransition(from, to)) {
+  if (!canTransition(path, from, to)) {
     return `${ORDER_STATUS_META[from].label} cannot move to ${ORDER_STATUS_META[to].label}.`;
   }
-  if (!isPaid && requiresPayment(to)) {
+  if (!isPaid && requiresPayment(path, to)) {
     return `${ORDER_STATUS_META[to].label} needs the payment to have cleared. Cancel it instead if it is not going to.`;
   }
-  return null;
+  return bindingBlockedReason(to, units);
 }
 
-/** The moves that may actually be made right now, payment included. */
-export function availableTransitions(from: OrderStatus, isPaid: boolean): OrderStatus[] {
-  return allowedTransitions(from).filter((to) => !transitionBlockedReason(from, to, isPaid));
+/** The moves that may actually be made right now, payment and cards included. */
+export function availableTransitions(
+  path: FulfilmentPath,
+  from: OrderStatus,
+  isPaid: boolean,
+  units?: UnitBinding | null,
+): OrderStatus[] {
+  return allowedTransitions(path, from).filter(
+    (to) => !transitionBlockedReason(path, from, to, isPaid, units),
+  );
 }
 
 /**
@@ -182,9 +297,22 @@ export function availableTransitions(from: OrderStatus, isPaid: boolean): OrderS
  */
 export type OrderPaymentStatus = "pending" | "paid" | "failed";
 
+/**
+ * What a stock order's stages are called to the person who bought it.
+ *
+ * "Ready to ship" is accurate for a workshop and slightly wrong for a customer:
+ * their card is not being prepared, it is in a bag with their name on it. Only
+ * the stages whose meaning actually changes are overridden.
+ */
+const STOCK_CUSTOMER_LABELS: Partial<Record<OrderStatus, Pick<StatusMeta, "customerLabel" | "description">>> = {
+  new: { customerLabel: "Paid", description: "Paid. We are picking your card" },
+  ready_for_dispatch: { customerLabel: "Packed", description: "Packed and waiting for the rider" },
+};
+
 export function customerFacingStatus(
   status: OrderStatus,
   payment: OrderPaymentStatus | null | undefined,
+  path: FulfilmentPath = "made_to_order",
 ): StatusMeta {
   if (status === "cancelled") return ORDER_STATUS_META.cancelled;
 
@@ -207,7 +335,9 @@ export function customerFacingStatus(
     };
   }
 
-  return ORDER_STATUS_META[status];
+  const base = ORDER_STATUS_META[status];
+  const override = path === "stock" ? STOCK_CUSTOMER_LABELS[status] : undefined;
+  return override ? { ...base, ...override } : base;
 }
 
 export type StatusMeta = {
@@ -322,27 +452,197 @@ const WAITING_ON_CUSTOMER: ReadonlySet<OrderStatus> = new Set<OrderStatus>([
  * count against us in the same way — flagging those as our problem would bury
  * the ones that genuinely are.
  */
+/**
+ * How long a path may sit still before it is our problem.
+ *
+ * A stock order is two minutes of work — scan, pack, hand to the rider — so two
+ * days of nothing is already an embarrassment. A stand is built by hand and five
+ * days at a stage is ordinary. One threshold for both would either cry wolf on
+ * every stand or stay silent while a paid card sat in a drawer for a week.
+ */
+export function stuckThresholdDays(path: FulfilmentPath): number {
+  return path === "stock" ? 2 : 5;
+}
+
 export function isStuck(
   order: Pick<Order, "status" | "updated_at" | "created_at">,
-  thresholdDays = 5,
+  path: FulfilmentPath = "made_to_order",
+  thresholdDays: number = stuckThresholdDays(path),
   now: Date = new Date(),
 ): boolean {
-  if (isTerminal(order.status)) return false;
+  if (isTerminal(path, order.status)) return false;
   if (WAITING_ON_CUSTOMER.has(order.status)) return false;
   return daysAtStage(order.updated_at, order.created_at, now) >= thresholdDays;
 }
 
-export const PRODUCT_KIND: Record<string, DeviceKind> = {
-  smart_card: "card",
-  smart_stand: "stand",
+/**
+ * Dispatched, and nobody has tapped it.
+ *
+ * Deliberately NOT "stuck": the parcel is with a rider or a courier and the next
+ * move belongs to the customer. It still needs a list, because a card that never
+ * gets tapped is either lost in transit or sitting unopened on a desk, and both
+ * are worth a phone call before the customer decides we sold them nothing.
+ */
+export const AWAITING_FIRST_TAP_DAYS = 7;
+
+export function isAwaitingFirstTap(
+  order: Pick<Order, "status" | "updated_at" | "created_at">,
+  firstTapAt: string | null | undefined,
+  now: Date = new Date(),
+): boolean {
+  if (order.status !== "dispatched") return false;
+  if (firstTapAt) return false;
+  return daysAtStage(order.updated_at, order.created_at, now) >= AWAITING_FIRST_TAP_DAYS;
+}
+
+/**
+ * Billing kind by product code (D-018): a Premium card is still a card.
+ *
+ * Derived from PRODUCTS so a new SKU cannot be added in one place and forgotten
+ * in the other. Unknown codes fall back to `card`, which is what every SKU but
+ * the stand is and what an unrecognised card-shaped product almost certainly is.
+ */
+export const PRODUCT_KIND: Record<string, DeviceKind> = Object.fromEntries(
+  Object.values(PRODUCTS).map((p) => [p.code, p.kind]),
+);
+
+/** How far along its own path an order is, for a progress indicator. */
+export function pipelineProgress(
+  status: OrderStatus,
+  path: FulfilmentPath = "made_to_order",
+): number {
+  if (status === "cancelled") return 0;
+  const pipeline = PIPELINE_BY_PATH[path];
+  const index = pipeline.indexOf(status === "revision_requested" ? "design" : status);
+  if (index < 0) return 0;
+  return (index + 1) / pipeline.length;
+}
+
+/**
+ * How a parcel actually left the building.
+ *
+ * "Dispatched" on its own cannot answer the only question a customer asks after
+ * it, which is "where is it". These three are the whole of how anything leaves
+ * here today: a rider on a bike in town, a courier upcountry, or a parcel under
+ * a shuttle bus. Kept in step with the `p_method` values `record_dispatch`
+ * (0023) refuses anything outside of — the database is what enforces it, this is
+ * what the form offers and what the customer is shown.
+ */
+export const DISPATCH_METHODS = ["rider", "courier", "shuttle"] as const;
+
+export type DispatchMethod = (typeof DISPATCH_METHODS)[number];
+
+export function isDispatchMethod(value: string | null | undefined): value is DispatchMethod {
+  return DISPATCH_METHODS.includes((value ?? "") as DispatchMethod);
+}
+
+export const DISPATCH_METHOD_META: Record<
+  DispatchMethod,
+  { label: string; referenceLabel: string; referenceHint: string; customerNoun: string }
+> = {
+  rider: {
+    label: "Rider",
+    referenceLabel: "Rider name and phone",
+    referenceHint: "So the customer can call the person holding their parcel.",
+    customerNoun: "with a rider",
+  },
+  courier: {
+    label: "Courier",
+    referenceLabel: "Waybill number",
+    referenceHint: "The tracking number on the courier's slip.",
+    customerNoun: "with a courier",
+  },
+  shuttle: {
+    label: "Shuttle",
+    referenceLabel: "Shuttle and parcel reference",
+    referenceHint: "Which sacco, and the number on the parcel ticket.",
+    customerNoun: "on a shuttle",
+  },
 };
 
-/** How far along the happy path an order is, for a progress indicator. */
-export function pipelineProgress(status: OrderStatus): number {
-  if (status === "cancelled") return 0;
-  const index = FULFILMENT_PIPELINE.indexOf(
-    status === "revision_requested" ? "design" : status,
-  );
-  if (index < 0) return 0;
-  return (index + 1) / FULFILMENT_PIPELINE.length;
+/**
+ * What the customer is told will happen next, by path.
+ *
+ * Per path because the paths genuinely differ, and the old single version
+ * promised every customer that "we will contact you about artwork" — true for a
+ * stand, and now a lie to somebody buying a Standard card that is already
+ * printed and sitting on a shelf. Wrong more often than right is worse than
+ * absent: it sets up a phone call that never comes.
+ *
+ * Here rather than in the page because it is the same rule as the customer
+ * labels above and is tested the same way. No em dashes: this is customer copy.
+ */
+export type NextStep = { title: string; body: string; icon: "publish" | "design" | "pack" | "deliver" | "tap" };
+
+const NEXT_STEPS: Record<FulfilmentPath, NextStep[]> = {
+  stock: [
+    {
+      icon: "publish",
+      title: "Publish your profile",
+      body: "Your identity is active, so your Tap Profile can go live now. You can keep editing it afterwards, and changes go out when you publish again.",
+    },
+    {
+      icon: "pack",
+      title: "We pack your card",
+      body: "Your card is already printed and encoded. We pair it with your profile and pack it, usually the same day.",
+    },
+    {
+      icon: "deliver",
+      title: "We send it to you",
+      body: "You get the rider's number or a tracking reference when it leaves us. Follow it from your orders at any point.",
+    },
+    {
+      icon: "tap",
+      title: "Tap it to go live",
+      body: "Android: tap the back of your phone. iPhone: tap near the top. No NFC? Scan the QR on the back.",
+    },
+  ],
+  custom: [
+    {
+      icon: "publish",
+      title: "Publish your profile",
+      body: "Your identity is active, so your Tap Profile can go live now. The card opens whichever profile you choose for it.",
+    },
+    {
+      icon: "design",
+      title: "You approve the front",
+      body: "We lay out your name, title and logo on the front of the card and send you a proof. Nothing is printed until you approve it.",
+    },
+    {
+      icon: "pack",
+      title: "We print and check it",
+      body: "We print the front onto your card, test the chip and pack it.",
+    },
+    {
+      icon: "deliver",
+      title: "We send it to you",
+      body: "You get the rider's number or a tracking reference when it leaves us.",
+    },
+  ],
+  made_to_order: [
+    {
+      icon: "publish",
+      title: "Publish your profile",
+      body: "Your identity is active, so your Tap Profile can go live now. You can keep editing it afterwards, and changes go out when you publish again.",
+    },
+    {
+      icon: "design",
+      title: "We design it with you",
+      body: "We will contact you about artwork and what you want printed. Nothing is produced until you approve the design.",
+    },
+    {
+      icon: "pack",
+      title: "We build and test it",
+      body: "Your stand is produced, the chip is encoded and locked, and we check it works before it is packed.",
+    },
+    {
+      icon: "deliver",
+      title: "We send it to you",
+      body: "You get the rider's number or a tracking reference when it leaves us.",
+    },
+  ],
+};
+
+export function checkoutNextSteps(path: FulfilmentPath = "made_to_order"): NextStep[] {
+  return NEXT_STEPS[path] ?? NEXT_STEPS.made_to_order;
 }

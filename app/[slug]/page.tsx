@@ -86,10 +86,18 @@ export default async function SlugPage({
   if (page.mode === "redirect") {
     if (!isSafeDestination(page.redirect_url)) notFound();
 
-    // An NFC tap was already recorded by /t/<token>, which is the only place
-    // that knows which card was involved. Logging again here would double-count
-    // every tap and attribute none of them.
-    if (src !== "nfc") {
+    // The interaction was already recorded by /t/<token>, which is the only
+    // place that knows which card was involved. Logging again here would
+    // double-count it and attribute the copy to nothing.
+    //
+    // `logged=1` is the marker. The bare `?src=nfc` meant the same thing before
+    // stock cards existed and still does — chips already encoded and locked in
+    // the field carry URLs that predate this, and they are permanent (D-026).
+    // A card-QR scan arrives as `?src=qr&logged=1`, so the marker is what has to
+    // be read: `src` alone would let every QR scan be counted twice.
+    const alreadyLogged = sp.logged === "1" || src === "nfc";
+
+    if (!alreadyLogged) {
       const eventType = src === "qr" ? "scan" : "tap";
       const h = await headers();
       const { device, os } = parseUA(h.get("user-agent"));

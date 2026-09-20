@@ -1,6 +1,12 @@
 import { createServerSupabase } from "@/lib/supabase/server";
 import { toCsv } from "@/lib/csv";
-import { isOrderStatus, ORDER_STATUS_META, daysAtStage, isStuck } from "@/lib/orders";
+import {
+  isOrderStatus,
+  ORDER_STATUS_META,
+  daysAtStage,
+  isStuck,
+  pathForProduct,
+} from "@/lib/orders";
 
 /**
  * Order export for staff.
@@ -65,7 +71,7 @@ export async function GET(request: Request) {
     o.payment_status ?? "unpaid",
     String(o.identity_count),
     String(daysAtStage(o.updated_at, o.created_at)),
-    isStuck(o) ? "yes" : "no",
+    isStuck(o, pathForProduct(o.product_code)) ? "yes" : "no",
     new Date(o.created_at).toISOString(),
   ]);
 

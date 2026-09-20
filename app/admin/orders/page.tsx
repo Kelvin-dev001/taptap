@@ -22,6 +22,7 @@ import {
   ORDER_STATUS_META,
   isOrderStatus,
   isStuck,
+  pathForProduct,
   daysAtStage,
   type OrderStatus,
 } from "@/lib/orders";
@@ -54,6 +55,18 @@ export type OrderOverviewRow = {
   identity_count: number;
   created_at: string;
   updated_at: string | null;
+  // Appended by 0023 (Sprint 8a).
+  product_code: string;
+  fulfilment_path: string | null;
+  product_variant: string | null;
+  delivery_zone: string | null;
+  delivery_town: string | null;
+  delivery_fee_kes: number | null;
+  dispatch_method: string | null;
+  dispatch_reference: string | null;
+  units_total: number | null;
+  units_bound: number | null;
+  first_tap_at: string | null;
 };
 
 export default async function AdminOrdersPage({
@@ -198,7 +211,7 @@ export default async function AdminOrdersPage({
           ) : (
             orders.map((order) => {
               const meta = ORDER_STATUS_META[order.status];
-              const stuck = isStuck(order);
+              const stuck = isStuck(order, pathForProduct(order.product_code));
               const days = daysAtStage(order.updated_at, order.created_at);
 
               return (

@@ -31,13 +31,135 @@ export type Segment = "individual" | "business" | "corporate";
 // ---------------------------------------------------------------------------
 
 /**
- * One-time hardware price. **Includes the first 12 months of service** — this
- * is why buying a device starts a term rather than merely shipping an object.
+ * What a product is, and what happens in the workshop when someone buys one.
+ *
+ * `kind` is the BILLING unit (D-018) and stays two-valued: a Premium card is a
+ * card, renews like a card, and counts as one identity. `variant` is which SKU
+ * comes off the shelf, and `path` is what the workshop does with it. Three axes
+ * because they genuinely vary independently — a Standard replacement is kind
+ * card, variant standard, path stock, and provisions no identity at all.
+ */
+export type ProductCode =
+  | "smart_card"
+  | "smart_card_premium"
+  | "smart_stand"
+  | "smart_card_replacement"
+  | "smart_card_premium_replacement";
+
+/** How an order is fulfilled. Drives the pipeline in lib/orders.ts. */
+export type FulfilmentPath = "stock" | "custom" | "made_to_order";
+
+/** Which printed card a unit needs off the shelf. */
+export type CardVariant = "standard" | "premium";
+
+export type ProductDefinition = {
+  code: ProductCode;
+  name: string;
+  kind: DeviceKind;
+  variant: CardVariant | null;
+  path: FulfilmentPath;
+  /** One-time price. Includes `bundledMonths` of service. */
+  priceKes: number;
+  bundledMonths: number;
+  /** False for replacements: the identity already exists and was already paid for. */
+  provisionsIdentity: boolean;
+  /** Whether it appears in the customer's product chooser at checkout. */
+  sellable: boolean;
+  /** One line, in the customer's words. Empty where there is nothing to add. */
+  blurb: string;
+};
+
+export const PRODUCTS: Record<ProductCode, ProductDefinition> = {
+  smart_card: {
+    code: "smart_card",
+    name: "Standard Card",
+    kind: "card",
+    variant: "standard",
+    path: "stock",
+    priceKes: 1_500,
+    bundledMonths: 12,
+    provisionsIdentity: true,
+    sellable: true,
+    blurb: "Ready to go. Tap it or scan it and your profile opens.",
+  },
+  smart_card_premium: {
+    code: "smart_card_premium",
+    name: "Premium Card",
+    kind: "card",
+    variant: "premium",
+    path: "custom",
+    priceKes: 2_500,
+    bundledMonths: 12,
+    provisionsIdentity: true,
+    sellable: true,
+    blurb: "Your name, title and logo printed on the front. You approve a proof before we print.",
+  },
+  smart_stand: {
+    code: "smart_stand",
+    name: "Smart Stand",
+    kind: "stand",
+    variant: null,
+    path: "made_to_order",
+    priceKes: 2_000,
+    bundledMonths: 12,
+    provisionsIdentity: true,
+    sellable: true,
+    blurb: "For a counter or a table. Made to order.",
+  },
+  smart_card_replacement: {
+    code: "smart_card_replacement",
+    name: "Replacement Card",
+    kind: "card",
+    variant: "standard",
+    path: "stock",
+    priceKes: 1_000,
+    bundledMonths: 0,
+    provisionsIdentity: false,
+    sellable: false,
+    blurb: "A new card for a profile you already own. Your remaining time comes with it.",
+  },
+  smart_card_premium_replacement: {
+    code: "smart_card_premium_replacement",
+    name: "Replacement Premium Card",
+    kind: "card",
+    variant: "premium",
+    path: "custom",
+    priceKes: 1_000,
+    bundledMonths: 0,
+    provisionsIdentity: false,
+    sellable: false,
+    blurb: "A new Premium card, printed from the artwork you already approved.",
+  },
+};
+
+/** The products a customer can choose at checkout, in display order. */
+export const SELLABLE_PRODUCTS: ProductDefinition[] = [
+  PRODUCTS.smart_card,
+  PRODUCTS.smart_card_premium,
+  PRODUCTS.smart_stand,
+];
+
+export function isProductCode(value: string | null | undefined): value is ProductCode {
+  return Object.prototype.hasOwnProperty.call(PRODUCTS, value ?? "");
+}
+
+/**
+ * One-time hardware price by device kind. **Includes the first 12 months of
+ * service** — this is why buying a device starts a term rather than merely
+ * shipping an object.
+ *
+ * Derived from PRODUCTS rather than stated again, so the cheapest card and the
+ * Standard Card can never drift apart. Kept because a dozen surfaces ask "what
+ * does a card cost" without caring which SKU, and the honest answer to that is
+ * still the entry price.
  */
 export const HARDWARE_PRICE_KES: Record<DeviceKind, number> = {
-  card: 1_500,
-  stand: 2_000,
+  card: PRODUCTS.smart_card.priceKes,
+  stand: PRODUCTS.smart_stand.priceKes,
 };
+
+/** What a replacement piece of plastic costs, identity untouched. */
+export const REPLACEMENT_PRICE_KES = PRODUCTS.smart_card_replacement.priceKes;
 
 /** Annual renewal per active identity, charged from year 2 onward. */
 export const RENEWAL_PER_IDENTITY_KES = 1_000;
@@ -211,6 +333,70 @@ export function renewalAmountKes(count: number): number {
 export function hardwareAmountKes(kind: DeviceKind, quantity = 1): number {
   if (!Number.isFinite(quantity) || quantity <= 0) return 0;
   return HARDWARE_PRICE_KES[kind] * Math.floor(quantity);
+}
+
+// ---------------------------------------------------------------------------
+// Delivery (D-028)
+// ---------------------------------------------------------------------------
+
+/**
+ * Where a parcel is going, priced.
+ *
+ * Zones rather than towns: a town list for Kenya is either wrong or enormous,
+ * and the only distinction that costs us anything is whether a rider can reach
+ * it today. The customer's town is recorded alongside as free text, because the
+ * rider still has to find the place.
+ */
+export type DeliveryZone = "mombasa" | "nairobi" | "other";
+
+export const DELIVERY_ZONES: DeliveryZone[] = ["mombasa", "nairobi", "other"];
+
+export function isDeliveryZone(value: string | null | undefined): value is DeliveryZone {
+  return DELIVERY_ZONES.includes((value ?? "") as DeliveryZone);
+}
+
+/** A row of `delivery_rates`. The table is the source of truth for the figure. */
+export type DeliveryRate = {
+  zone: string;
+  label: string;
+  fee_kes: number;
+  is_active?: boolean | null;
+};
+
+/**
+ * The fee for a zone, from the rates the database returned.
+ *
+ * Deliberately has no number of its own to fall back to. A hard-coded default
+ * here would be the second copy D-018 forbids, and the failure it would hide —
+ * rates not loading — is one that must be visible at checkout rather than
+ * quietly charging somebody the wrong amount. An unknown zone is 0, which is the
+ * safe direction to be wrong in: we absorb a delivery rather than overcharge.
+ */
+export function deliveryFeeKes(
+  zone: string | null | undefined,
+  rates: DeliveryRate[] | null | undefined,
+): number {
+  const match = (rates ?? []).find((r) => r.zone === zone && r.is_active !== false);
+  const fee = match?.fee_kes;
+  return Number.isFinite(fee) && (fee as number) > 0 ? Math.floor(fee as number) : 0;
+}
+
+/**
+ * What an order costs in total: the things, plus getting them there.
+ *
+ * One delivery fee per order regardless of what is in the parcel — a card and a
+ * stand cost the same to put on a shuttle, and a rate table with a row per
+ * product is a rate table nobody keeps current.
+ */
+export function orderTotalKes(
+  product: ProductDefinition,
+  quantity: number,
+  deliveryFee: number,
+): number {
+  const units = Number.isFinite(quantity) && quantity > 0 ? Math.floor(quantity) : 0;
+  const fee = Number.isFinite(deliveryFee) && deliveryFee > 0 ? Math.floor(deliveryFee) : 0;
+  if (units === 0) return 0;
+  return product.priceKes * units + fee;
 }
 
 export function formatKes(amount: number): string {

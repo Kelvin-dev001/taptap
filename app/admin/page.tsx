@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { MigrationNotice } from "@/components/shell/migration-notice";
 import { isMissingSchemaError } from "@/lib/schema-guard";
 import { Card, MetricCard, Alert, Badge } from "@/components/ui";
-import { isStuck, ORDER_STATUS_META, type OrderStatus } from "@/lib/orders";
+import { isStuck, pathForProduct, ORDER_STATUS_META, type OrderStatus } from "@/lib/orders";
 import type { OrderOverviewRow } from "./orders/page";
 
 export const dynamic = "force-dynamic";
@@ -50,7 +50,7 @@ export default async function OpsOverviewPage() {
 
   const overview = (overviewData ?? null) as OpsOverview | null;
   const open = (openData ?? []) as OrderOverviewRow[];
-  const stuck = open.filter((o) => isStuck(o));
+  const stuck = open.filter((o) => isStuck(o, pathForProduct(o.product_code)));
 
   const byStage = new Map<OrderStatus, number>();
   for (const order of open) {

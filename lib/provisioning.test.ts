@@ -127,14 +127,21 @@ describe("settlePayment", () => {
       values: { status: "paid" },
     });
     const paidAt = admin.calls.updates.findIndex((u) => u.table === "payments");
-    const provisionedAt = admin.calls.rpcs.findIndex(
-      (r) => r.fn === "provision_identities",
-    );
+    const provisionedAt = admin.calls.rpcs.findIndex((r) => r.fn === "provision_order");
     expect(paidAt).toBeGreaterThanOrEqual(0);
     expect(provisionedAt).toBeGreaterThanOrEqual(0);
   });
 
-  it("provisions exactly what the order bought", async () => {
+  /**
+   * One call, naming the order and the payment, and nothing else.
+   *
+   * What gets minted — how many, of what kind, for how long, and whether it is a
+   * placeholder or a real encodable token — is decided inside `provision_order`
+   * from the order and its product (0022). Passing a quantity and a kind from
+   * here would be a second copy of the catalogue that can disagree with the
+   * first, which is what D-019 kept prices out of the database to avoid.
+   */
+  it("hands the whole job to one atomic call", async () => {
     const admin = fakeAdmin({
       order: {
         id: "order-1",
@@ -143,20 +150,36 @@ describe("settlePayment", () => {
         product_code: "smart_stand",
         products: { kind: "stand", bundled_months: 12 },
       },
-      provisionResult: ["t1", "t2", "t3"],
     });
 
     await settlePayment(admin, hardware);
 
+    expect(admin.calls.rpcs).toHaveLength(1);
     expect(admin.calls.rpcs[0]).toEqual({
-      fn: "provision_identities",
-      args: {
-        p_account_id: "acct-1",
-        p_kind: "stand",
-        p_count: 3,
-        p_months: 12,
+      fn: "provision_order",
+      args: { p_order_id: "order-1", p_payment_id: "pay-1" },
+    });
+  });
+
+  /**
+   * The pool draw is gone (D-026). With printed stock on a shelf it bound a
+   * specific card, sitting in a drawer, to a customer who would then be posted a
+   * different one. Asserted by name so re-introducing it fails here.
+   */
+  it("never draws from an unowned pool", async () => {
+    const admin = fakeAdmin({
+      order: {
+        id: "order-1",
+        account_id: "acct-1",
+        quantity: 1,
+        product_code: "smart_card",
+        products: { kind: "card", bundled_months: 12 },
       },
     });
+
+    await settlePayment(admin, hardware);
+
+    expect(admin.calls.rpcs.map((r) => r.fn)).not.toContain("provision_identities");
   });
 
   /**
@@ -164,7 +187,7 @@ describe("settlePayment", () => {
    * payment covered, so a repeated callback extends the same set rather than a
    * recomputed one (D-018).
    */
-  it("records which identities the payment covered", async () => {
+  it("records which identities the payment covered, inside the same transaction", async () => {
     const admin = fakeAdmin({
       order: {
         id: "order-1",
@@ -173,18 +196,16 @@ describe("settlePayment", () => {
         product_code: "smart_card",
         products: { kind: "card", bundled_months: 12 },
       },
-      provisionResult: ["tag-a", "tag-b"],
     });
 
     await settlePayment(admin, hardware);
 
-    expect(admin.calls.inserts).toContainEqual({
-      table: "payment_tags",
-      rows: [
-        { payment_id: "pay-1", tag_id: "tag-a" },
-        { payment_id: "pay-1", tag_id: "tag-b" },
-      ],
-    });
+    // The insert moved INTO provision_order. It used to happen here, after the
+    // mint returned — and a crash in between left identities with no payment
+    // link, which silently breaks renewals and the cancel trigger in a way
+    // nothing notices until a card dies a year later.
+    expect(admin.calls.inserts.filter((i) => i.table === "payment_tags")).toHaveLength(0);
+    expect(admin.calls.rpcs[0].fn).toBe("provision_order");
   });
 
   /** Safaricom retries, and the poll can land in the same second as the callback. */
@@ -199,16 +220,20 @@ describe("settlePayment", () => {
   });
 
   /**
-   * Belt and braces behind the already-paid return. If this somehow runs twice
-   * it must not mint a second set of cards, so an order that already has
-   * identities provisions nothing further.
+   * Belt and braces behind the already-paid return, now one level down.
+   *
+   * The guard moved into `provision_order`, which is idempotent on the ORDER:
+   * it counts the order's units and returns what exists rather than minting a
+   * second set. That is stronger than the check it replaces — the old one read
+   * `payment_tags` in a separate round trip, so two callbacks arriving together
+   * could both read nothing and both mint.
    */
-  it("does not mint a second set of cards for an order that already has some", async () => {
+  it("still calls provisioning when the order already has identities, and lets it decide", async () => {
     const admin = fakeAdmin({ existingTags: [{ tag_id: "already-there" }] });
 
     await settlePayment(admin, hardware);
 
-    expect(admin.calls.rpcs).toHaveLength(0);
+    expect(admin.calls.rpcs.map((r) => r.fn)).toEqual(["provision_order"]);
     expect(admin.calls.inserts).toHaveLength(0);
   });
 
@@ -254,10 +279,9 @@ describe("settlePayment", () => {
 
     // No `raw` written, because there is no callback to record.
     expect(admin.calls.updates[0].values).toEqual({ status: "paid" });
-    expect(admin.calls.rpcs[0].fn).toBe("provision_identities");
-    expect(admin.calls.inserts).toContainEqual({
-      table: "payment_tags",
-      rows: [{ payment_id: "pay-1", tag_id: "tag-x" }],
+    expect(admin.calls.rpcs[0]).toEqual({
+      fn: "provision_order",
+      args: { p_order_id: "order-1", p_payment_id: "pay-1" },
     });
   });
 });

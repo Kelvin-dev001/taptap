@@ -9,7 +9,7 @@ const ITEMS = [
   { label: "Orders", href: "/admin/orders", exact: false },
   { label: "Board", href: "/admin/board", exact: false },
   { label: "Quotes", href: "/admin/quotes", exact: false },
-  { label: "Mint cards", href: "/admin/mint", exact: false },
+  { label: "Stock", href: "/admin/stock", exact: false },
 ];
 
 export function StaffNav() {

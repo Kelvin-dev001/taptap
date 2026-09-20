@@ -94,9 +94,23 @@ export async function failPayment(
  * `orders_deactivate_on_cancel` exists: a cancelled order must not leave a live
  * card behind.
  *
- * Token selection and the pool race live in `provision_identities` — atomic in
- * the database, because two concurrent callbacks drawing from the same pool of
- * blanks would otherwise hand one physical card to two customers.
+ * ALL OF IT is one database call now (`provision_order`, migration 0022), where
+ * it used to be a mint here and a `payment_tags` insert there. Three things moved
+ * inside that transaction: creating the order's units, linking the payment to the
+ * identities, and the "have we already done this" check. Before, a crash between
+ * the mint returning and the link landing left identities with no payment row —
+ * which silently breaks renewals and the cancel trigger, in a way nothing would
+ * notice until a customer's card died a year later.
+ *
+ * What it mints changed too (D-026). A stock or Premium order gets a PLACEHOLDER:
+ * a real, billable, publishable identity whose token is never printed and never
+ * encoded, so the customer can publish the moment they pay (D-022) while the
+ * shelf stays untouched. Scanning a card at fulfilment moves the identity onto
+ * the plastic. Only a stand still mints a token anyone will ever encode.
+ *
+ * The unowned-pool draw is gone entirely. With printed stock on a shelf it bound
+ * a specific card, sitting in a drawer, to a customer who would be posted a
+ * different one.
  */
 async function provisionForOrder(
   admin: Admin,
@@ -105,35 +119,14 @@ async function provisionForOrder(
 ): Promise<void> {
   if (!orderId) return;
 
-  // Belt and braces behind the already-paid early return: if this somehow runs
-  // twice, it must not mint a second set of cards.
-  const { data: existing } = await admin
-    .from("payment_tags")
-    .select("tag_id")
-    .eq("payment_id", paymentId)
-    .limit(1);
-  if (existing && existing.length > 0) return;
-
-  const { data: order } = await admin
-    .from("orders")
-    .select("id, account_id, quantity, product_code, products(kind, bundled_months)")
-    .eq("id", orderId)
-    .single();
-  if (!order) return;
-
-  const product = (order.products ?? null) as { kind?: string; bundled_months?: number } | null;
-
-  const { data: tagIds, error } = await admin.rpc("provision_identities", {
-    p_account_id: order.account_id,
-    p_kind: product?.kind ?? "card",
-    p_count: order.quantity,
-    p_months: product?.bundled_months ?? 12,
+  // Idempotent on the ORDER inside the function, so a replayed callback finds
+  // the units already there and returns what exists rather than minting twice.
+  // The early return in settlePayment is still the first line of defence; this
+  // is the one that holds when two callbacks arrive at once.
+  await admin.rpc("provision_order", {
+    p_order_id: orderId,
+    p_payment_id: paymentId,
   });
-  if (error || !Array.isArray(tagIds) || tagIds.length === 0) return;
-
-  await admin
-    .from("payment_tags")
-    .insert((tagIds as string[]).map((tagId) => ({ payment_id: paymentId, tag_id: tagId })));
 }
 
 /**

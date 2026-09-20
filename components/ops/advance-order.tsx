@@ -1,13 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { Button, Alert } from "@/components/ui";
+import { Button, Alert, buttonVariants } from "@/components/ui";
+import { cn } from "@/lib/cn";
 import {
   allowedTransitions,
   availableTransitions,
   ORDER_STATUS_META,
   type OrderStatus,
+  type FulfilmentPath,
+  type UnitBinding,
 } from "@/lib/orders";
 import { advanceOrderAction, type OpsResult } from "@/app/admin/order-actions";
 
@@ -48,22 +52,39 @@ export function AdvanceOrder({
   orderId,
   status,
   isPaid,
+  path = "made_to_order",
+  units,
   compact,
+  dispatchHref,
 }: {
   orderId: string;
   status: OrderStatus;
   /** Whether a payment for this order has actually cleared. */
   isPaid: boolean;
+  /** Which pipeline this order walks. A stock order has four stages, not ten. */
+  path?: FulfilmentPath;
+  /** How many of its units have a card scanned onto them. */
+  units?: UnitBinding | null;
   /** Board cards show only the forward move; the detail page shows everything. */
   compact?: boolean;
+  /**
+   * Where to send someone who wants to dispatch this order.
+   *
+   * Dispatch is never a plain move: it has to capture how the parcel is going
+   * and who has it (`dispatchOrderAction`), and the server refuses a bare
+   * transition to `dispatched`. So a surface that cannot show that form links to
+   * one that can, and a surface that renders the form itself passes nothing and
+   * the move is simply not offered here.
+   */
+  dispatchHref?: string;
 }) {
   const [state, action] = useActionState(advanceOrderAction, initial);
 
-  const moves = availableTransitions(status, isPaid);
+  const moves = availableTransitions(path, status, isPaid, units);
   // Offered nothing but cancellation while the money is outstanding — spending
   // design time or a blank card on an unpaid order is the thing being prevented.
   const withheldForPayment =
-    !isPaid && allowedTransitions(status).length > moves.length;
+    !isPaid && allowedTransitions(path, status).length > moves.length;
   if (moves.length === 0) {
     return compact ? null : (
       <p className="text-caption text-muted">
@@ -73,11 +94,17 @@ export function AdvanceOrder({
   }
 
   const forward = moves.filter((m) => m !== "cancelled");
-  const shown = compact ? forward.slice(0, 1) : moves;
+  const shown = (compact ? forward.slice(0, 1) : moves).filter((m) => m !== "dispatched");
+  const canDispatch = moves.includes("dispatched");
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
+        {canDispatch && dispatchHref && (
+          <Link href={dispatchHref} className={cn(buttonVariants({ size: "sm" }))}>
+            Dispatch…
+          </Link>
+        )}
         {shown.map((to) => (
           <form key={to} action={action}>
             <input type="hidden" name="orderId" value={orderId} />

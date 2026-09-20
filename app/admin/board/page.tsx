@@ -10,6 +10,7 @@ import {
   ORDER_STATUS_META,
   isStuck,
   daysAtStage,
+  pathForProduct,
   type OrderStatus,
 } from "@/lib/orders";
 import { AdvanceOrder } from "@/components/ops/advance-order";
@@ -67,7 +68,7 @@ export default async function BoardPage() {
     byStatus.set(order.status, list);
   }
 
-  const stuckCount = orders.filter((o) => isStuck(o)).length;
+  const stuckCount = orders.filter((o) => isStuck(o, pathForProduct(o.product_code))).length;
 
   return (
     <>
@@ -103,7 +104,7 @@ export default async function BoardPage() {
               ) : (
                 <ul className="flex flex-col gap-2">
                   {column.map((order) => {
-                    const stuck = isStuck(order);
+                    const stuck = isStuck(order, pathForProduct(order.product_code));
                     const days = daysAtStage(order.updated_at, order.created_at);
                     return (
                       <li
@@ -142,7 +143,10 @@ export default async function BoardPage() {
                           orderId={order.id}
                           status={order.status}
                           isPaid={order.payment_status === "paid"}
+                          path={pathForProduct(order.product_code)}
+                          units={{ total: order.units_total ?? 0, bound: order.units_bound ?? 0 }}
                           compact
+                          dispatchHref={`/admin/orders/${order.id}`}
                         />
                       </li>
                     );

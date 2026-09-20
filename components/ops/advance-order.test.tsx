@@ -123,3 +123,46 @@ describe("AdvanceOrder — unpaid orders", () => {
     }
   });
 });
+
+/**
+ * Dispatch is never a plain move.
+ *
+ * It has to capture how the parcel is going and who has it, and
+ * `advanceOrderAction` refuses a bare transition to `dispatched`. If this
+ * component ever renders that as an ordinary button again, staff get a button
+ * that always fails, and the capture the whole of `record_dispatch` exists for
+ * is silently skipped.
+ */
+describe("AdvanceOrder — dispatch", () => {
+  it("never offers dispatch as a plain move button", () => {
+    render(<AdvanceOrder orderId="o1" status="ready_for_dispatch" isPaid path="stock" />);
+    expect(screen.queryByRole("button", { name: "Dispatched" })).toBeNull();
+  });
+
+  it("links to the order page when it cannot show the form itself", () => {
+    render(
+      <AdvanceOrder
+        orderId="o1"
+        status="ready_for_dispatch"
+        isPaid
+        path="stock"
+        compact
+        dispatchHref="/admin/orders/o1"
+      />,
+    );
+    const link = screen.getByRole("link", { name: /dispatch/i });
+    expect(link.getAttribute("href")).toBe("/admin/orders/o1");
+  });
+
+  /** The detail page renders the real form, so it passes no href and gets no link. */
+  it("offers no dispatch affordance at all when no href is given", () => {
+    render(<AdvanceOrder orderId="o1" status="ready_for_dispatch" isPaid path="stock" />);
+    expect(screen.queryByRole("link", { name: /dispatch/i })).toBeNull();
+  });
+
+  /** The other moves from that stage are untouched by any of this. */
+  it("still offers cancellation from ready_for_dispatch", () => {
+    render(<AdvanceOrder orderId="o1" status="ready_for_dispatch" isPaid path="stock" />);
+    expect(screen.getByRole("button", { name: /cancel order/i })).toBeTruthy();
+  });
+});

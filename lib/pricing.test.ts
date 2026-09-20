@@ -14,6 +14,12 @@ import {
   termEndFromPurchase,
   renewedTermEnd,
   formatKes,
+  PRODUCTS,
+  SELLABLE_PRODUCTS,
+  isProductCode,
+  deliveryFeeKes,
+  isDeliveryZone,
+  orderTotalKes,
 } from "./pricing";
 
 describe("prices", () => {
@@ -195,5 +201,165 @@ describe("segment catalogue", () => {
   it("shows stands to the segments that can use several devices", () => {
     expect(SEGMENTS.individual.deviceKinds).toEqual(["card"]);
     expect(SEGMENTS.business.deviceKinds).toContain("stand");
+  });
+});
+
+/**
+ * Products, delivery and totals (D-026, D-028).
+ */
+describe("the product catalogue", () => {
+  it("prices each product as decided", () => {
+    expect(PRODUCTS.smart_card.priceKes).toBe(1_500);
+    expect(PRODUCTS.smart_card_premium.priceKes).toBe(2_500);
+    expect(PRODUCTS.smart_stand.priceKes).toBe(2_000);
+    expect(PRODUCTS.smart_card_replacement.priceKes).toBe(1_000);
+  });
+
+  /**
+   * D-018: the billing unit is the identity, and a Premium card is one identity
+   * exactly like a Standard one. If `kind` ever diverged, a Premium customer
+   * would renew at a different price from the one they were sold.
+   */
+  it("bills every card as a card, whatever it is printed with", () => {
+    for (const p of Object.values(PRODUCTS)) {
+      if (p.code === "smart_stand") continue;
+      expect(p.kind).toBe("card");
+    }
+    expect(PRODUCTS.smart_stand.kind).toBe("stand");
+  });
+
+  /**
+   * A replacement buys plastic, not an identity. Provisioning one would charge
+   * the customer twice for a thing they already own.
+   */
+  it("does not provision an identity for a replacement", () => {
+    expect(PRODUCTS.smart_card_replacement.provisionsIdentity).toBe(false);
+    expect(PRODUCTS.smart_card_premium_replacement.provisionsIdentity).toBe(false);
+    expect(PRODUCTS.smart_card.provisionsIdentity).toBe(true);
+  });
+
+  it("bundles no months into a replacement, because the term travels with the identity", () => {
+    expect(PRODUCTS.smart_card_replacement.bundledMonths).toBe(0);
+    expect(PRODUCTS.smart_card.bundledMonths).toBe(BUNDLED_MONTHS);
+  });
+
+  it("offers only the three sellable products at checkout", () => {
+    expect(SELLABLE_PRODUCTS.map((p) => p.code)).toEqual([
+      "smart_card",
+      "smart_card_premium",
+      "smart_stand",
+    ]);
+    for (const p of SELLABLE_PRODUCTS) expect(p.sellable).toBe(true);
+  });
+
+  /** A replacement is reached from the Devices screen, never from the shop. */
+  it("keeps replacements out of the chooser", () => {
+    expect(SELLABLE_PRODUCTS.map((p) => p.code)).not.toContain("smart_card_replacement");
+  });
+
+  it("recognises only real product codes", () => {
+    expect(isProductCode("smart_card")).toBe(true);
+    expect(isProductCode("smart_card_premium")).toBe(true);
+    expect(isProductCode("gold_card")).toBe(false);
+    expect(isProductCode(null)).toBe(false);
+  });
+
+  /**
+   * A dozen surfaces ask "what does a card cost" without caring which SKU. The
+   * honest answer is the entry price, and deriving it means it cannot drift away
+   * from the Standard Card it quotes.
+   */
+  it("derives the headline hardware price from the catalogue", () => {
+    expect(HARDWARE_PRICE_KES.card).toBe(PRODUCTS.smart_card.priceKes);
+    expect(HARDWARE_PRICE_KES.stand).toBe(PRODUCTS.smart_stand.priceKes);
+  });
+
+  /** Non-colour, non-jargon communication: every product needs a plain line (§24). */
+  it("gives every sellable product a name and a blurb", () => {
+    for (const p of SELLABLE_PRODUCTS) {
+      expect(p.name.length).toBeGreaterThan(0);
+      expect(p.blurb.length).toBeGreaterThan(0);
+    }
+  });
+
+  /** House style: no em dashes in anything a customer reads. */
+  it("uses no em dashes in customer-facing product copy", () => {
+    for (const p of Object.values(PRODUCTS)) {
+      expect(p.name).not.toContain("—");
+      expect(p.blurb).not.toContain("—");
+    }
+  });
+});
+
+describe("delivery", () => {
+  const rates = [
+    { zone: "mombasa", label: "Mombasa", fee_kes: 0 },
+    { zone: "nairobi", label: "Nairobi", fee_kes: 0 },
+    { zone: "other", label: "Another town", fee_kes: 300 },
+  ];
+
+  it("is free where a rider can reach it", () => {
+    expect(deliveryFeeKes("mombasa", rates)).toBe(0);
+    expect(deliveryFeeKes("nairobi", rates)).toBe(0);
+  });
+
+  it("charges for anywhere a courier has to go", () => {
+    expect(deliveryFeeKes("other", rates)).toBe(300);
+  });
+
+  /**
+   * No hard-coded fallback, deliberately. A default here would be the second
+   * copy of the number that D-018 forbids, and the failure it would hide —
+   * rates not loading — must be visible at checkout rather than quietly
+   * charging the wrong amount. Zero is the safe direction: we absorb a
+   * delivery rather than overcharge somebody.
+   */
+  it("charges nothing rather than guessing when the rates are missing", () => {
+    expect(deliveryFeeKes("other", [])).toBe(0);
+    expect(deliveryFeeKes("other", null)).toBe(0);
+    expect(deliveryFeeKes("atlantis", rates)).toBe(0);
+    expect(deliveryFeeKes(null, rates)).toBe(0);
+  });
+
+  it("ignores a rate that has been switched off", () => {
+    expect(deliveryFeeKes("other", [{ ...rates[2], is_active: false }])).toBe(0);
+  });
+
+  it("recognises only real zones", () => {
+    expect(isDeliveryZone("mombasa")).toBe(true);
+    expect(isDeliveryZone("other")).toBe(true);
+    expect(isDeliveryZone("kisumu")).toBe(false);
+    expect(isDeliveryZone(null)).toBe(false);
+  });
+});
+
+describe("orderTotalKes", () => {
+  it("adds the cards and the delivery", () => {
+    expect(orderTotalKes(PRODUCTS.smart_card, 2, 300)).toBe(3_300);
+    expect(orderTotalKes(PRODUCTS.smart_card_premium, 1, 0)).toBe(2_500);
+  });
+
+  /**
+   * One fee per order regardless of what is in the parcel: a card and a stand
+   * cost the same to put on a shuttle, and a rate table with a row per product
+   * is one nobody keeps current.
+   */
+  it("charges delivery once however many are in the box", () => {
+    expect(orderTotalKes(PRODUCTS.smart_card, 5, 300)).toBe(5 * 1_500 + 300);
+  });
+
+  it("refuses to price nothing", () => {
+    expect(orderTotalKes(PRODUCTS.smart_card, 0, 300)).toBe(0);
+    expect(orderTotalKes(PRODUCTS.smart_card, -1, 300)).toBe(0);
+    expect(orderTotalKes(PRODUCTS.smart_card, Number.NaN, 300)).toBe(0);
+  });
+
+  it("treats a nonsense fee as no fee rather than as a negative charge", () => {
+    expect(orderTotalKes(PRODUCTS.smart_card, 1, -500)).toBe(1_500);
+    expect(orderTotalKes(PRODUCTS.smart_card, 1, Number.NaN)).toBe(1_500);
+  });
+
+  it("ignores a fractional quantity rather than charging a fraction of a card", () => {
+    expect(orderTotalKes(PRODUCTS.smart_card, 2.9, 0)).toBe(3_000);
   });
 });

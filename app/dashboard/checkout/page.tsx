@@ -6,7 +6,7 @@ import { MigrationNotice } from "@/components/shell/migration-notice";
 import { Alert, Card, buttonVariants } from "@/components/ui";
 import { isMissingSchemaError } from "@/lib/schema-guard";
 import { PRODUCT_KIND } from "@/lib/orders";
-import { DEVICE_LABELS, formatKes, type DeviceKind } from "@/lib/pricing";
+import { DEVICE_LABELS, formatKes, type DeviceKind, type DeliveryRate } from "@/lib/pricing";
 import { PaymentStatus } from "@/components/billing/payment-status";
 import { CheckoutForm } from "./checkout-form";
 import { cn } from "@/lib/cn";
@@ -97,6 +97,20 @@ export default async function CheckoutPage({
   const parsedQty = parseInt(qty ?? "", 10);
   const defaultQuantity = Number.isFinite(parsedQty) && parsedQty > 0 ? Math.min(parsedQty, 20) : 1;
 
+  // The delivery rates the form prices against. Read here rather than in the
+  // client component so the figures arrive with the page: a total that appears a
+  // moment after the products do reads as a price that changed its mind.
+  //
+  // If this comes back empty the zone buttons render nothing and the form cannot
+  // be submitted, which is the correct failure — silently charging zero for an
+  // upcountry courier is worse than saying delivery is unavailable.
+  const { data: rateRows } = await supabase
+    .from("delivery_rates")
+    .select("zone, label, fee_kes, is_active")
+    .eq("is_active", true)
+    .order("sort_order");
+  const rates = (rateRows ?? []) as DeliveryRate[];
+
   const paybill = process.env.NEXT_PUBLIC_MPESA_PAYBILL || null;
   const paybillHint = process.env.NEXT_PUBLIC_MPESA_PAYBILL_NAME || null;
 
@@ -150,6 +164,7 @@ export default async function CheckoutPage({
             defaultPhone={defaultPhone}
             paybill={paybill}
             paybillHint={paybillHint}
+            rates={rates}
           />
         )}
 

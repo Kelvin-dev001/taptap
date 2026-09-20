@@ -700,5 +700,220 @@ trigger writing `subscriptions(plan='free')`, which was the last live free-tier 
 
 ---
 
+### D-025 — Column-level grants on `nfc_tags`
+**Date:** 2026-09-19 · **Status:** Accepted · **Builds on:** D-018, D-021 · **Found by:** the Sprint 8 audit
+
+**Context:** `nfc_tags` has carried a table-wide UPDATE policy for `authenticated` since 0005
+and was never given column-level grants. Every other table a signed-in user can write got that
+treatment the moment it grew a write path — `accounts` in 0007, `leads` in 0012, `orders` in
+0017, `smart_pages` and `quote_requests` in 0019. This one was missed, and it is the table that
+decides what the product charges for.
+
+**The exposure, stated plainly:** an RLS policy controls which ROWS a user may write, never
+which COLUMNS, so `PATCH /rest/v1/nfc_tags?id=eq.<their own tag> {"term_end":"2099-01-01"}`
+succeeded. `nfc_tags_update_own` verified only that the row stayed on the caller's account.
+`account_live_identities` (`0019:78-90`) reads `status` and `term_end`, both writable, so one
+request defeated renewal enforcement (D-018), the fourteen-day grace window, and the publish
+slot count (D-022) together. There is no evidence anyone found it; the fix does not depend on
+that.
+
+**Decision:** `revoke insert, update, delete on public.nfc_tags from authenticated`, then
+`grant update (label)` and nothing else. `label` is a name the owner chose for a card, read by
+nobody but them, and no rule depends on its value. Repointing and switching a card off move into
+`rebind_tag()` and `set_tag_status()`, SECURITY DEFINER, carrying the rules the application code
+carried in TypeScript.
+
+**Why this ships on its own rather than inside Sprint 8.** Sprint 8 adds `stock_state`,
+`serial`, `batch_id` and `variant` to this same table. Every one of them would have been
+customer-writable, and a customer who can write `stock_state` can take a card out of somebody
+else's order. Fixing the grant first makes the sprint's new columns safe by construction rather
+than by remembering.
+
+**`replace_tag` is corrected in the same migration**, because it is the same hole reached from
+the other side. 0010's version copied `smart_page_id` onto the replacement and nothing else — no
+`kind`, no `term_start`, no `term_end`. A replacement card therefore landed with `term_end` NULL,
+which `identity_is_live` (`0015:128`) treats as live unconditionally and forever, since failing
+open on a missing timestamp was the right call for a backfill. Replacing a card converted a term
+that expires into one that does not. It now carries the term it is continuing.
+
+**What was deliberately NOT changed.** The row-level policies are correct; the row half was never
+the problem, and rewriting them would be changing the wrong thing. `rebind_tag` still accepts a
+disabled tag and re-enables it as a side effect, exactly as the Devices screen has always
+behaved — a permissions fix is the wrong place to change what a button does. And which tags
+`replace_tag` will accept is left alone here: with stock cards printing their own QR on the back,
+accepting any unowned token becomes a way to collect a free card, but that is a product decision
+and it belongs to D-027.
+
+**Consequences:** `app/dashboard/devices/actions.ts` calls two RPCs where it wrote the table.
+`lib/tag-write-enforcement.test.ts` asserts against the migration text in the
+`publish-enforcement` style, including that no future migration re-grants `term_end`, `term_start`,
+`status` or `account_id` — the test fails in CI rather than in production.
+
+---
+
+### D-026 — Cards are stock, not made to order
+**Date:** 2026-09-19 · **Status:** Accepted · **Revises:** D-019's provisioning half
+
+**Context:** every card was made to order: a customer paid, `provision_identities` drew an
+unowned token from a pool, and somebody encoded that token onto a blank card. That works for one
+customer and becomes chaos at ten. The supplier can print cards generically in bulk, each
+carrying its own pre-minted token, a printed serial and a QR — which turns a two-week production
+job into about two minutes of picking and packing.
+
+**Decision:** the supplier prints generic stock and never prints anything customer-specific. A
+customer is joined to a physical card **inside our system, by staff, at fulfilment**. Payment
+mints a PLACEHOLDER identity; scanning a card moves that identity onto the plastic.
+
+**Why a placeholder rather than waiting for the card.** D-022 established that entitlement is a
+slot count precisely because identities exist weeks before hardware ships. A customer who pays
+on Monday must be able to publish on Monday, not when a parcel arrives on Friday. The placeholder
+is a real identity in every respect that matters — billable, publishable, renewable — and differs
+only in that its token is never printed and never encoded, so `resolve_tag` refuses it.
+
+**Why the pool draw had to go rather than be fixed.** With stock on a shelf, drawing a token at
+payment binds a specific physical card, sitting in a drawer in Mombasa, to a customer who will be
+posted a different one. There is no version of that which is correct; the concept of "the pool"
+stopped existing the moment cards became objects with locations.
+
+**The invariant, made executable.** `bind_order_unit` reads `account_live_identities` before and
+after the move and raises if the number changed. A bind that quietly added a slot would let
+somebody publish a page they have not paid for; one that quietly removed a slot would darken a
+page printed on a shopfront. A comment cannot fail, so it is a check.
+
+**Two axes, deliberately.** `nfc_tags.status` keeps exactly its 0005 meaning — it describes the
+IDENTITY. `stock_state` describes the PLASTIC. A card can be `in_stock` owned by nobody; an
+identity can be `assigned` with no plastic at all. This is the same separation D-019 made between
+fulfilment and payment, for the same reason.
+
+**Cancelling returns the card to stock** rather than disabling it. 0017's trigger was right when
+"what the order provisioned" was a token nobody had touched; it would now destroy a printed,
+encoded, locked object because somebody cancelled before it shipped.
+
+**Consequences:** `provision_identities` is dropped and `provision_order` replaces it, absorbing
+the unit creation, the `payment_tags` insert and the idempotency check into one transaction — a
+crash between the mint and the link used to leave identities with no payment row, which breaks
+renewals silently for a year. `/admin/mint` becomes `/admin/stock`. Fulfilment paths become
+path-dependent in `lib/orders.ts`: a stock order is four stages, not ten.
+
+---
+
+### D-027 — Unowned cards cannot be self-claimed
+**Date:** 2026-09-19 · **Status:** Accepted · **Revises:** D-009's claim flow
+
+**Context:** D-009 designed the claim flow around "bulk-encode blank cards, sell, let customers
+self-claim". That was safe while a token was a 32-character random string nobody could see. Stock
+cards print their QR on the back, so the token is now visible to anyone who photographs a card in
+a display case or picks one off a counter.
+
+**Decision:** `claim_tag` refuses any tag with `account_id is null`, and `replace_tag` refuses any
+token not already owned by the caller. A card is joined to its owner by staff at fulfilment and by
+nobody else. `claim_tag` stops meaning "claim a card" and starts meaning "link a card I own".
+
+**Why this closes a real hole and not a theoretical one.** The claimant needed only a published
+page, which every paying customer has. And because `identity_is_live` treats a NULL `term_end` as
+live unconditionally (0015, a deliberate fail-open for the backfill), the free card would have
+stayed free permanently. Photograph, claim, done.
+
+**What this costs, stated rather than buried:** card-first sales are now impossible. An agent
+cannot hand someone a card at an event and have them activate it themselves. That is a real
+channel being given up for now, and the way back is an **activation code printed separately from
+the QR** — something you must physically possess the card to read, which a photograph of the back
+does not give you. Until that exists, nobody self-claims anything.
+
+**The unowned-card screen is warm, not a 404.** Whoever reaches it is holding a real card. Telling
+them it does not exist would be both unhelpful and untrue, so it says the card has not been
+activated yet and offers a link to buy one.
+
+---
+
+### D-028 — Delivery is priced at checkout
+**Date:** 2026-09-19 · **Status:** Accepted · **Revises:** Sprint 7's collect-after-payment rule · **Amends:** D-018
+
+**Context:** Sprint 7 decided to ask for product, quantity and M-Pesa number and nothing else,
+because "every field before a payment is a place to abandon it". Delivery was free and arranged
+afterwards. It is not free any more: a rider drop in Mombasa or Nairobi costs us nothing, and
+anywhere else is a courier or a shuttle parcel.
+
+**Decision:** one question moves in front of the payment — where is this going — because it
+changes the amount. Everything else about delivery stays after it, and stays editable from the
+order page until it ships.
+
+**Why only the zone.** Sprint 7's reasoning has not changed; what changed is that the STK amount
+cannot be computed without knowing the destination. Zones rather than towns because a town list
+for Kenya is either wrong or enormous, and the only distinction that costs money is whether a
+rider can reach it today. The customer's town is captured as free text alongside, because the
+rider still has to find the place.
+
+**The rate lives in the database, which is an exception to D-018.** `lib/pricing.ts` is otherwise
+the single source of truth for money. Courier rates move on somebody else's schedule, and a price
+that needs a deploy to change is a price that stays wrong for a week. It is still exactly ONE copy
+of the number — `delivery_rates` is the source, `lib/pricing.ts` holds the arithmetic and no
+figure of its own — and `deliveryFeeKes` has no hard-coded fallback, deliberately, so rates
+failing to load is visible at checkout rather than quietly charging somebody nothing.
+
+**Snapshotted onto the order.** `orders.delivery_fee_kes` records what was charged. Changing a
+rate never rewrites what somebody already paid.
+
+---
+
+### D-029 — Premium is a custom front on a stock blank
+**Date:** 2026-09-19 · **Status:** Accepted (partially built) · **Builds on:** D-026
+
+**Decision:** a Premium card is the same stock card with its front left blank and printable. The
+back is printed identically — QR, serial, "Tap or scan" — and we print the customer's name, title
+and logo on the front in-house from their Tap Profile, on a fixed CR80 template, after they
+approve a proof.
+
+**Why it is a variant and not a product line.** It is kind `card` for billing (D-018): it renews
+at the same price and counts as one identity. What differs is which blank comes off the shelf and
+that the order walks the `custom` path instead of `stock`. Treating it as a separate product would
+have meant a second pricing model and a second renewal rule for a piece of plastic.
+
+**It sells before the proof flow is automated**, by decision. Staff produce the front by hand and
+mark the unit approved in the console; 8c then automates a process that is already running rather
+than inventing one. The alternative was hiding a product we can already make.
+
+**The proof will freeze at approval.** `order_units` carries the snapshot columns from the start,
+so a customer editing their profile after approving cannot change what gets printed — and cannot
+discover the difference when the card arrives.
+
+---
+
+### D-030 — Dispatch carries a reference, and is refused without one
+**Date:** 2026-09-20 · **Status:** Accepted · **Builds on:** D-019, D-020, D-028
+
+**Context:** 0023 gave an order a dispatch method, a reference and a timestamp, and nothing wrote
+them. "Dispatched" was one more button in the row of stage moves, which meant a parcel could leave
+the building with no record of who was carrying it.
+
+**Decision:** dispatch is not a stage move. It is a form that asks how the parcel is going and who
+has it, and `advanceOrderAction` **refuses** a bare transition to `dispatched` so that no surface
+can skip it. The board links to the order page rather than offering the move; the order page shows
+the form.
+
+**Why refuse it rather than hide the button.** The same reasoning D-020 used for the transition
+rules: hiding a control is presentation, and presentation is not enforcement. A colleague with a
+stale page, a second tab, or a replayed form post would otherwise dispatch an order with no
+reference, and the fact is unrecoverable afterwards. Nobody can reconstruct which rider took a
+parcel three days ago.
+
+**"Dispatched" on its own cannot answer the only question that follows it.** The customer's
+question after a parcel leaves is always "where is it". A rider's name and number, or a waybill,
+is the difference between an answer and an apology, and the only moment it is knowable is while
+somebody is standing over the parcel.
+
+**The facts are recorded before the status moves.** `record_dispatch` writes `dispatched_at`, and
+`dispatch_notification_target` returns nothing for an order that has not been dispatched. A crash
+between the two therefore leaves an order staff can see has gone out and can announce again,
+rather than an email about a parcel still on the bench.
+
+**The email is idempotent and is not re-sent on a correction.** It claims
+`notification_deliveries` before sending, exactly as `notifyNewLead` does, so a retry is a skip
+rather than a second email. Correcting a waybill afterwards therefore does not re-notify, which is
+the right way round: one email with a wrong digit prompts a phone call, two emails with different
+numbers prompt a complaint.
+
+---
+
 _Add new decisions above this line as `D-00N`, and mirror the one-liner into
 `PROJECT.md`._

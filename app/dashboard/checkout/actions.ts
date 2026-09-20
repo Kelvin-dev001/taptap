@@ -3,8 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { hardwareAmountKes, type DeviceKind } from "@/lib/pricing";
-import { PRODUCT_KIND } from "@/lib/orders";
+import {
+  PRODUCTS,
+  isProductCode,
+  isDeliveryZone,
+  deliveryFeeKes,
+  orderTotalKes,
+  type DeliveryRate,
+} from "@/lib/pricing";
 import { stkPush, stkQuery, normalizePhone, describeStkFailure } from "@/lib/mpesa";
 import {
   settlePayment,
@@ -40,8 +46,12 @@ export type StartCheckoutResult = {
  * sentence ("check your phone"), which is where the flow ended; it now returns
  * the reference so the UI can poll and resolve itself.
  *
- * We ask for as little as possible before taking money: product, quantity and
- * the number to prompt. Delivery name and artwork are collected after it clears.
+ * ONE question moved in front of the payment in Sprint 8 (D-028): where is this
+ * going. Sprint 7 was right that "every field before a payment is a place to
+ * abandon it", and that reasoning has not changed — but a rider drop in Mombasa
+ * or Nairobi is free and anywhere else is a courier, so the amount cannot be
+ * known without it. Everything else about delivery is still collected after the
+ * money clears, and stays editable from the order page until it ships.
  */
 export async function startCheckoutAction(
   _prev: StartCheckoutResult,
@@ -50,9 +60,17 @@ export async function startCheckoutAction(
   const productCode = String(formData.get("product") ?? "");
   const quantityRaw = parseInt(String(formData.get("quantity") ?? "1"), 10);
   const phoneRaw = String(formData.get("phone") ?? "");
+  const zone = String(formData.get("deliveryZone") ?? "");
+  const town = String(formData.get("deliveryTown") ?? "").trim();
 
-  const kind: DeviceKind | undefined = PRODUCT_KIND[productCode];
-  if (!kind) return { error: "Choose a product." };
+  if (!isProductCode(productCode)) return { error: "Choose a product." };
+  const product = PRODUCTS[productCode];
+  if (!product.sellable) return { error: "That product is not sold here." };
+
+  if (!isDeliveryZone(zone)) return { error: "Tell us where to deliver it." };
+  // The zone decides the price; the town is what the rider actually needs. Only
+  // demanded when the zone cannot supply it.
+  if (zone === "other" && !town) return { error: "Which town should we deliver to?" };
 
   const quantity = Number.isFinite(quantityRaw) ? quantityRaw : 0;
   if (quantity < 1) return { error: "Order at least one." };
@@ -78,9 +96,17 @@ export async function startCheckoutAction(
     .single();
   if (!profile) return { error: "No account found." };
 
-  // Priced server-side from lib/pricing.ts, never from the form. A posted amount
-  // would let a client name its own price.
-  const amount = hardwareAmountKes(kind, quantity);
+  // Priced server-side, never from the form. A posted amount would let a client
+  // name its own price. The rate comes from `delivery_rates` because courier
+  // rates move on somebody else's schedule and a fee that needs a deploy to
+  // change is a fee that stays wrong for a week (D-028).
+  const { data: rateRows } = await supabase
+    .from("delivery_rates")
+    .select("zone, label, fee_kes, is_active");
+  const rates = (rateRows ?? []) as DeliveryRate[];
+
+  const deliveryFee = deliveryFeeKes(zone, rates);
+  const amount = orderTotalKes(product, quantity, deliveryFee);
   if (amount <= 0) return { error: "Could not price that order." };
 
   const admin = createAdminClient();
@@ -91,7 +117,12 @@ export async function startCheckoutAction(
       account_id: profile.account_id,
       product_code: productCode,
       quantity,
+      // The total charged. The fee is stored alongside it rather than derived
+      // later, so a rate change never rewrites what somebody already paid.
       amount_kes: amount,
+      delivery_fee_kes: deliveryFee,
+      delivery_zone: zone,
+      delivery_town: zone === "other" ? town : null,
       contact_phone: phone,
     })
     .select("id, number")

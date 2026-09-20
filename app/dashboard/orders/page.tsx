@@ -9,11 +9,13 @@ import { formatKes, DEVICE_LABELS, type DeviceKind } from "@/lib/pricing";
 import {
   customerFacingStatus,
   pipelineProgress,
+  pathForProduct,
   PRODUCT_KIND,
   type OrderPaymentStatus,
   type OrderStatus,
 } from "@/lib/orders";
 import { cn } from "@/lib/cn";
+import { DeliveryDetails } from "./delivery-details";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +27,24 @@ type OrderRow = {
   amount_kes: number;
   status: OrderStatus;
   created_at: string;
+  contact_name: string | null;
+  contact_phone: string | null;
+  delivery_zone: string | null;
+  delivery_town: string | null;
+  delivery_area: string | null;
+  delivery_notes: string | null;
+  dispatch_method: string | null;
+  dispatch_reference: string | null;
+  dispatched_at: string | null;
   payments: { status: string }[] | null;
+};
+
+/** How the zones are named to a customer. "Upcountry" is a price band, so the
+ *  town they gave is preferred wherever there is one. */
+const ZONE_LABELS: Record<string, string> = {
+  mombasa: "Mombasa",
+  nairobi: "Nairobi",
+  other: "Upcountry",
 };
 
 export default async function OrdersPage() {
@@ -34,7 +53,9 @@ export default async function OrdersPage() {
   // RLS scopes this to the caller's own account (orders_select_own, 0017).
   const { data, error } = await supabase
     .from("orders")
-    .select("id, number, product_code, quantity, amount_kes, status, created_at, payments(status)")
+    .select(
+      "id, number, product_code, quantity, amount_kes, status, created_at, contact_name, contact_phone, delivery_zone, delivery_town, delivery_area, delivery_notes, dispatch_method, dispatch_reference, dispatched_at, payments(status)",
+    )
     .order("created_at", { ascending: false });
 
   if (isMissingSchemaError(error)) {
@@ -81,9 +102,10 @@ export default async function OrdersPage() {
                   ? "failed"
                   : null;
 
-            const meta = customerFacingStatus(order.status, payment);
+            const path = pathForProduct(order.product_code);
+            const meta = customerFacingStatus(order.status, payment, path);
             const kind: DeviceKind = PRODUCT_KIND[order.product_code] ?? "card";
-            const progress = payment === "paid" ? pipelineProgress(order.status) : 0;
+            const progress = payment === "paid" ? pipelineProgress(order.status, path) : 0;
 
             return (
               <li key={order.id}>
@@ -128,6 +150,34 @@ export default async function OrdersPage() {
                       <div
                         className="h-full rounded-full bg-primary-strong transition-[width] duration-slow ease-standard"
                         style={{ width: `${Math.round(progress * 100)}%` }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Where it is going, and who has it once it has gone.
+                      Only for an order that is actually happening: a failed
+                      payment has no parcel, and offering to correct an address
+                      for one would imply otherwise. */}
+                  {payment === "paid" && order.status !== "cancelled" && (
+                    <div className="border-t border-border pt-3">
+                      <DeliveryDetails
+                        delivery={{
+                          orderId: order.id,
+                          contactName: order.contact_name,
+                          contactPhone: order.contact_phone,
+                          town: order.delivery_town,
+                          area: order.delivery_area,
+                          notes: order.delivery_notes,
+                          zoneLabel: ZONE_LABELS[order.delivery_zone ?? ""] ?? null,
+                          dispatchMethod: order.dispatch_method,
+                          dispatchReference: order.dispatch_reference,
+                          dispatchedAt: order.dispatched_at,
+                          // The database refuses an edit once it has shipped
+                          // (update_order_delivery); this keeps the UI honest
+                          // about it rather than offering a form that will fail.
+                          editable:
+                            order.status !== "dispatched" && order.status !== "delivered",
+                        }}
                       />
                     </div>
                   )}

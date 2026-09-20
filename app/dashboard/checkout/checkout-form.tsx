@@ -4,15 +4,16 @@ import * as React from "react";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
-import { CreditCard, RectangleHorizontal, ShieldCheck } from "lucide-react";
+import { CreditCard, RectangleHorizontal, Sparkles, ShieldCheck } from "lucide-react";
 import { Card, Button, Field, Input, Alert } from "@/components/ui";
 import {
-  HARDWARE_PRICE_KES,
-  DEVICE_LABELS,
+  SELLABLE_PRODUCTS,
   BUNDLED_MONTHS,
-  hardwareAmountKes,
+  deliveryFeeKes,
+  orderTotalKes,
   formatKes,
-  type DeviceKind,
+  type ProductCode,
+  type DeliveryRate,
 } from "@/lib/pricing";
 import { PaymentStatus } from "@/components/billing/payment-status";
 import { startCheckoutAction, type StartCheckoutResult } from "./actions";
@@ -20,25 +21,14 @@ import { cn } from "@/lib/cn";
 
 const initial: StartCheckoutResult = {};
 
-const PRODUCTS: {
-  code: string;
-  kind: DeviceKind;
-  icon: typeof CreditCard;
-  blurb: string;
-}[] = [
-  {
-    code: "smart_card",
-    kind: "card",
-    icon: CreditCard,
-    blurb: "A tappable card for one person or one counter.",
-  },
-  {
-    code: "smart_stand",
-    kind: "stand",
-    icon: RectangleHorizontal,
-    blurb: "A countertop stand for reviews, menus or Wi-Fi.",
-  },
-];
+/** Icons only. What each product IS lives in lib/pricing.ts (D-018). */
+const PRODUCT_ICONS: Record<ProductCode, typeof CreditCard> = {
+  smart_card: CreditCard,
+  smart_card_premium: Sparkles,
+  smart_stand: RectangleHorizontal,
+  smart_card_replacement: CreditCard,
+  smart_card_premium_replacement: Sparkles,
+};
 
 function PayButton({ amount }: { amount: number }) {
   const { pending } = useFormStatus();
@@ -52,11 +42,15 @@ function PayButton({ amount }: { amount: number }) {
 /**
  * Checkout.
  *
- * Three fields, and two of them are pre-answered. Everything that is not needed
- * to take the money — delivery name, artwork, who the card is for — is asked
- * afterwards, because each field before a payment is a place to abandon it, and
- * we already know the customer well enough to produce their card once they have
- * paid.
+ * Four fields, and three of them are pre-answered or one tap. Everything that is
+ * not needed to take the money — the recipient, the exact address, artwork — is
+ * still asked afterwards, because each field before a payment is a place to
+ * abandon it.
+ *
+ * The exception, added in Sprint 8 (D-028), is WHERE it is going. A rider drop in
+ * Mombasa or Nairobi is free and anywhere else is a courier, so the amount cannot
+ * be computed without it. It is one radio group, and it changes the total on
+ * screen as it is answered rather than surprising anybody at the PIN prompt.
  *
  * The total is recomputed on screen as the choice changes, because an M-Pesa
  * prompt for an amount the customer did not expect is where trust in a payment
@@ -69,20 +63,28 @@ export function CheckoutForm({
   defaultPhone,
   paybill,
   paybillHint,
+  rates,
 }: {
   defaultProduct: string;
   defaultQuantity: number;
   defaultPhone: string;
   paybill: string | null;
   paybillHint: string | null;
+  /** From `delivery_rates`. The table is the source of truth for the figure. */
+  rates: DeliveryRate[];
 }) {
   const [state, action] = useActionState(startCheckoutAction, initial);
   const [code, setCode] = React.useState(defaultProduct);
   const [quantity, setQuantity] = React.useState(defaultQuantity);
   const [phone, setPhone] = React.useState(defaultPhone);
+  const [zone, setZone] = React.useState("");
+  const [town, setTown] = React.useState("");
 
-  const selected = PRODUCTS.find((p) => p.code === code) ?? PRODUCTS[0];
-  const amount = hardwareAmountKes(selected.kind, Number.isFinite(quantity) ? quantity : 0);
+  const selected =
+    SELLABLE_PRODUCTS.find((p) => p.code === code) ?? SELLABLE_PRODUCTS[0];
+  const qty = Number.isFinite(quantity) ? quantity : 0;
+  const deliveryFee = zone ? deliveryFeeKes(zone, rates) : 0;
+  const amount = orderTotalKes(selected, qty, deliveryFee);
 
   // Once a prompt is out, the form is done. Leaving it on screen invites a
   // second order for money that is already being collected.
@@ -106,9 +108,9 @@ export function CheckoutForm({
       <Card padding="md" className="flex flex-col gap-5">
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-2 text-label text-foreground">What are you getting?</legend>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {PRODUCTS.map((p) => {
-              const Icon = p.icon;
+          <div className="grid gap-2 sm:grid-cols-3">
+            {SELLABLE_PRODUCTS.map((p) => {
+              const Icon = PRODUCT_ICONS[p.code];
               const active = p.code === code;
               return (
                 <label
@@ -131,11 +133,10 @@ export function CheckoutForm({
                   <span className="flex min-w-0 flex-col">
                     <span className="flex items-center gap-1.5 text-body-sm font-medium text-foreground">
                       <Icon className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden="true" />
-                      {DEVICE_LABELS[p.kind]}
+                      {p.name}
                     </span>
                     <span className="text-caption text-muted">
-                      {formatKes(HARDWARE_PRICE_KES[p.kind])} each, first {BUNDLED_MONTHS}{" "}
-                      months included
+                      {formatKes(p.priceKes)} each, first {BUNDLED_MONTHS} months included
                     </span>
                     <span className="mt-0.5 text-caption text-muted">{p.blurb}</span>
                   </span>
@@ -143,6 +144,62 @@ export function CheckoutForm({
               );
             })}
           </div>
+        </fieldset>
+
+        {/* Where it is going (D-028).
+            In front of the payment because it changes the amount, and nothing
+            else about delivery is asked here: the recipient and the exact
+            address are collected after the money clears, and stay editable from
+            the order page until it ships. */}
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-2 text-label text-foreground">Where should we deliver?</legend>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {rates.map((rate) => {
+              const active = rate.zone === zone;
+              return (
+                <label
+                  key={rate.zone}
+                  className={cn(
+                    "flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors duration-fast",
+                    active
+                      ? "border-primary-strong bg-primary-soft"
+                      : "border-border hover:border-border-strong",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="deliveryZone"
+                    value={rate.zone}
+                    checked={active}
+                    onChange={() => setZone(rate.zone)}
+                    required
+                    className="mt-1 h-4 w-4 accent-[#C2560A]"
+                  />
+                  <span className="flex min-w-0 flex-col">
+                    <span className="text-body-sm font-medium text-foreground">{rate.label}</span>
+                    <span className="text-caption text-muted">
+                      {rate.fee_kes > 0 ? `${formatKes(rate.fee_kes)} delivery` : "Free delivery"}
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+
+          {/* Only the zone we cannot guess the town from. Asking every customer
+              to type a town we already know is a field for nothing. */}
+          {zone === "other" && (
+            <Field label="Which town" required className="mt-1 max-w-sm">
+              <Input
+                name="deliveryTown"
+                required
+                value={town}
+                onChange={(e) => setTown(e.target.value)}
+                placeholder="Kisumu"
+                autoComplete="address-level2"
+              />
+            </Field>
+          )}
         </fieldset>
 
         <div className="flex flex-wrap items-end gap-3">
@@ -179,7 +236,8 @@ export function CheckoutForm({
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
           <div>
             <p className="text-body-sm text-muted">
-              {quantity > 0 ? quantity : 0} × {formatKes(HARDWARE_PRICE_KES[selected.kind])}
+              {qty} × {formatKes(selected.priceKes)}
+              {zone && (deliveryFee > 0 ? ` + ${formatKes(deliveryFee)} delivery` : " + free delivery")}
             </p>
             <p className="text-page-title text-foreground">{formatKes(amount)}</p>
           </div>
@@ -193,8 +251,8 @@ export function CheckoutForm({
         <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         <p>
           One-off M-Pesa payment. We store no card details and set up no standing order,
-          so nothing can charge you again on its own. We will ask for your delivery and
-          artwork details once this clears.{" "}
+          so nothing can charge you again on its own. We will ask who to address the
+          parcel to once this clears.{" "}
           <Link href="/quote" className="underline">
             Buying for a team?
           </Link>

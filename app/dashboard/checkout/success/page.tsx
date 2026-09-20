@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { CircleCheck, Palette, Truck, Rocket } from "lucide-react";
+import { CircleCheck, Palette, Truck, Rocket, Package, Nfc } from "lucide-react";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/shell/page-header";
 import { Card, Alert, Badge, buttonVariants } from "@/components/ui";
 import { DEVICE_LABELS, formatKes, BUNDLED_MONTHS, type DeviceKind } from "@/lib/pricing";
-import { PRODUCT_KIND } from "@/lib/orders";
+import { PRODUCT_KIND, pathForProduct, checkoutNextSteps, type NextStep } from "@/lib/orders";
 import { mpesaReceiptNumber } from "@/lib/payments";
 import { cn } from "@/lib/cn";
 
@@ -107,25 +107,28 @@ export default async function CheckoutSuccessPage({
           )}
         </Card>
 
+        {/* What happens next, by fulfilment path.
+            This used to promise every customer that we would contact them about
+            artwork. True for a stand, and a lie to somebody who has just bought
+            a Standard card that is already printed and sitting on a shelf
+            (D-025). The wording lives in lib/orders.ts with the other
+            path-dependent copy, and is tested there. */}
         <Card padding="md" className="flex flex-col gap-3">
           <h2 className="text-section-title text-foreground">What happens next</h2>
           <ol className="flex flex-col gap-3">
-            <Step icon={Rocket} title="Publish your profile">
-              Your identity is active, so your Tap Profile can go live now. You can keep
-              editing it afterwards, and changes go out when you publish again.
-            </Step>
-            <Step icon={Palette} title="We design your card">
-              We will contact you about artwork and what you want printed. Nothing is
-              produced until you approve the design.
-            </Step>
-            <Step icon={Truck} title="We make it and send it">
-              Your card is printed, encoded and delivered. Follow it from{" "}
-              <Link href="/dashboard/orders" className="underline">
-                your orders
-              </Link>{" "}
-              at any point.
-            </Step>
+            {checkoutNextSteps(pathForProduct(order.product_code)).map((step) => (
+              <Step key={step.title} icon={STEP_ICONS[step.icon]} title={step.title}>
+                {step.body}
+              </Step>
+            ))}
           </ol>
+          <p className="text-body-sm text-muted">
+            Follow it from{" "}
+            <Link href="/dashboard/orders" className="underline">
+              your orders
+            </Link>{" "}
+            at any point.
+          </p>
         </Card>
 
         {/* Your twelve months started at payment, not at delivery (D-019). Saying
@@ -160,6 +163,18 @@ export default async function CheckoutSuccessPage({
     </>
   );
 }
+
+/** The copy names an icon; this is the only place that knows which one. */
+const STEP_ICONS: Record<
+  NextStep["icon"],
+  React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>
+> = {
+  publish: Rocket,
+  design: Palette,
+  pack: Package,
+  deliver: Truck,
+  tap: Nfc,
+};
 
 function Step({
   icon: Icon,
