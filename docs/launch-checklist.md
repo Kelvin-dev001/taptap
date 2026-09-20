@@ -172,6 +172,22 @@ capabilities it had, and Billing shows a migration notice.
 
 ---
 
+## 3b. Encoding — built 2026-09-20, UNPROVEN on hardware
+
+`/admin/encode` writes, verifies and locks blank chips, which is the transition that turns a
+minted card into sellable stock (D-031). Until it runs against a real chip it is theory.
+
+**There are no blank cards.** Eleven tags exist: four LEGACY (already encoded) and seven
+pre-stock-model customer cards. No batch has ever been minted through `/admin/stock`, so the
+first real test is gated on the supplier. Chase them: this is the last thing standing between
+a paid order and a card that can be posted.
+
+The acceptance walkthrough is in `docs/sprint-8b-encoding-first-tap.md` §6. It must be done on
+**Chrome on Android, on the production site** — the page refuses to write from anywhere else,
+because a locked chip carries whatever URL it was given for the life of the card.
+
+---
+
 ## 4. Rotate the Daraja sandbox credentials
 
 `MPESA_CONSUMER_KEY` and `MPESA_CONSUMER_SECRET` were exposed in the same leak as the

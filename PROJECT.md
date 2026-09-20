@@ -6,7 +6,11 @@
 > decision changes.
 
 **Last updated:** 2026-09-20
-**Current phase:** **Sprint 8a — stock cards (D-026 … D-030), built and applied.**
+**Current phase:** **Sprint 8b — encoding and first tap (D-031, D-032), built and applied.**
+Blank chips are written, verified and locked in-house at `/admin/encode`, which is the
+transition that makes a minted card sellable. The first tap after dispatch closes the order and
+emails the owner. **Not yet tested on hardware: no blank cards exist.**
+Before it: **Sprint 8a — stock cards (D-026 … D-030), built and applied.**
 Cards are printed in bulk and sit on a shelf; payment mints a placeholder identity and staff scan
 a card onto the order at fulfilment. Dispatch captures who is carrying the parcel and emails the
 customer the reference; the customer can correct their delivery details until it ships. Encoding
@@ -132,6 +136,8 @@ expand across East Africa, then the continent.
 | D-027 | **Unowned cards cannot be self-claimed** — every stock card prints its QR, so a photograph was a free card. Card-first sales wait for activation codes. Revises D-009's claim flow |
 | D-028 | **Delivery is priced at checkout**, from a rate table, snapshotted per order. Revises Sprint 7's collect-after-payment rule and amends D-018 |
 | D-029 | **Premium is a custom front on a stock blank** — same billing kind, different blank, `custom` path. Sells now; the proof is produced by hand until 8c |
+| D-031 | **A card is stock only once its chip is written, verified and locked.** Write, read back, compare, lock, then record `in_stock`. Refused anywhere but the live site, because a locked chip carries that URL for the life of the card |
+| D-032 | **The first tap after dispatch closes the order** and emails the owner. Service-role only, from inside `after()`, idempotent by construction. Taps before dispatch are staff testing and never count |
 | D-030 | **Dispatch carries a reference, and is refused without one.** Not a stage move: a form that asks how the parcel is going and who has it. `advanceOrderAction` refuses a bare move to `dispatched`, and the customer is emailed the reference once, idempotently |
 
 ## MVP scope (one line)

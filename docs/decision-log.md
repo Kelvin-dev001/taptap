@@ -915,5 +915,72 @@ numbers prompt a complaint.
 
 ---
 
+### D-031 — A card is stock only once its chip is written, verified and locked
+**Date:** 2026-09-20 · **Status:** Accepted · **Builds on:** D-026 · **Sprint:** 8b
+
+**Context:** 8a gave cards a `received` state and an `in_stock` state and nothing that could
+move between them. `receiveBatchAction` set `received`; the only code that ever produced
+`in_stock` was the one-off LEGACY adoption in `0021`. A card minted through `/admin/stock`
+could never become sellable, and the sprint doc's acceptance script said "set it by hand for
+now".
+
+**Decision:** encoding is that transition, and it is one atomic step: write one NDEF URL
+record, read the chip back, compare, lock, and only then record the card as `in_stock` with
+`encoded_at`, `locked_at` and `encoded_by`.
+
+**The order of operations is the design, because the last step is irreversible.** Locking
+first, or locking without reading back, turns a chip that took a mangled write into a
+permanently dead card that looks perfectly fine until a customer taps it. There is no
+recovery: the chip is read-only and the plastic is printed.
+
+**The card identifies itself.** Staff scan the QR printed on its back or type its serial, and
+we write that card's own token. Working down a list in serial order would be faster and
+wrong, because blanks are physically indistinguishable except for the serial printed on them,
+so "the next one" is not something anyone can pick up reliably.
+
+**Encoding is refused anywhere but the live site.** `isProductionSiteUrl` allows exactly one
+host over HTTPS: not localhost, not a preview deployment, not a staging subdomain that merely
+ends with the right string. The server action re-checks it rather than trusting the page,
+because the cost of being wrong is a drawer of cards nobody can fix.
+
+**A failed lock is recorded as unlocked, not claimed as locked.** `makeReadOnly()` support is
+uneven. A chip that works but stayed rewritable is a real state, and a shelf that cannot tell
+which is which is worse than no record at all, so the batch list shows the count.
+
+---
+
+### D-032 — The first tap after dispatch closes the order
+**Date:** 2026-09-20 · **Status:** Accepted · **Builds on:** D-019, D-030 · **Sprint:** 8b
+
+**Context:** an order sat at `dispatched` until a staff member remembered to mark it
+delivered, so "delivered" recorded somebody's memory rather than an event.
+
+**Decision:** the first tap or card-QR scan of an allocated card, after its order has been
+dispatched, sets `first_tap_at`, moves the order to `delivered` and emails the owner. It is
+the best delivery confirmation available: the customer is holding the card and it works. No
+courier receipt proves the chip survived the journey.
+
+**Taps before dispatch do not count.** Staff test cards, and a test tap in the workshop must
+never mark a parcel delivered that is still on the bench.
+
+**Service-role only, from inside `after()`.** `log_event` is granted to `anon` because logging
+a view is harmless; closing an order is not, so `record_first_tap` is unreachable from a
+browser and is called with the admin client after the redirect has already gone out. The tap
+path is the hottest in the product — somebody is standing in front of a customer with a phone
+against a card — and an email provider having a slow afternoon must not be something either
+of them can feel.
+
+**Idempotent by construction rather than by checking first.** The UPDATE carries
+`first_tap_at is null`, so the second tap updates nothing and the caller is told there is
+nothing to announce. That is what makes it safe to call on EVERY tap, which in turn keeps the
+decision off the hot path: deciding in the application would mean an extra read to answer a
+question that is almost always "no".
+
+**The audit trail says the customer did it.** The status trigger stamps `changed_by` from
+`auth.uid()`, which is null here, and the event is noted "First tap" rather than naming
+whichever staff member happened to be adjacent.
+
+---
+
 _Add new decisions above this line as `D-00N`, and mirror the one-liner into
 `PROJECT.md`._
