@@ -14,6 +14,9 @@ import {
   STOCK_STATES,
   STOCK_STATE_META,
   LOW_STOCK_THRESHOLD,
+  isProductionSiteUrl,
+  chipWriteMatches,
+  encodeBlockedReason,
 } from "./stock";
 
 const TOKEN = "a1b2c3d4e5f60718293a4b5c6d7e8f90";
@@ -225,5 +228,129 @@ describe("stock states", () => {
       expect(STOCK_STATE_META[state].label.length).toBeGreaterThan(0);
       expect(STOCK_STATE_META[state].description.length).toBeGreaterThan(0);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Encoding (Sprint 8b)
+// ---------------------------------------------------------------------------
+
+/**
+ * The guard that stands between a workshop phone and a drawer of dead cards.
+ *
+ * Locking is irreversible. A chip written from localhost or a preview
+ * deployment carries that URL for the life of the card and looks perfectly fine
+ * until a customer taps it. Every case below is a card nobody could have fixed.
+ */
+describe("isProductionSiteUrl", () => {
+  it("accepts the live site over HTTPS", () => {
+    expect(isProductionSiteUrl("https://taptap.hornbilltech.co.ke")).toBe(true);
+    expect(isProductionSiteUrl("https://taptap.hornbilltech.co.ke/")).toBe(true);
+    expect(isProductionSiteUrl("https://TapTap.HornbillTech.co.ke")).toBe(true);
+  });
+
+  it("refuses localhost, which is where this would otherwise be tested", () => {
+    expect(isProductionSiteUrl("http://localhost:3000")).toBe(false);
+    expect(isProductionSiteUrl("https://localhost:3000")).toBe(false);
+    expect(isProductionSiteUrl("http://127.0.0.1:3000")).toBe(false);
+  });
+
+  it("refuses preview deployments", () => {
+    expect(isProductionSiteUrl("https://taptap-3irf5bf1n-kelvins-projects.vercel.app")).toBe(false);
+    expect(isProductionSiteUrl("https://taptap-omega.vercel.app")).toBe(false);
+  });
+
+  /** A subdomain is not the site, however much of the name it shares. */
+  it("refuses anything that merely ends with the right string", () => {
+    expect(isProductionSiteUrl("https://staging.taptap.hornbilltech.co.ke")).toBe(false);
+    expect(isProductionSiteUrl("https://evil-taptap.hornbilltech.co.ke.attacker.com")).toBe(false);
+    expect(isProductionSiteUrl("https://hornbilltech.co.ke")).toBe(false);
+  });
+
+  it("refuses plain HTTP even on the right host", () => {
+    expect(isProductionSiteUrl("http://taptap.hornbilltech.co.ke")).toBe(false);
+  });
+
+  it("refuses nonsense rather than throwing", () => {
+    expect(isProductionSiteUrl("")).toBe(false);
+    expect(isProductionSiteUrl(null)).toBe(false);
+    expect(isProductionSiteUrl(undefined)).toBe(false);
+    expect(isProductionSiteUrl("not a url")).toBe(false);
+    expect(isProductionSiteUrl("taptap.hornbilltech.co.ke")).toBe(false);
+  });
+});
+
+/**
+ * Read-back is the only thing standing between a bad write and a locked bad
+ * card, so it compares exactly. Anything cleverer would be this function
+ * deciding that a difference does not matter.
+ */
+describe("chipWriteMatches", () => {
+  const url = "https://taptap.hornbilltech.co.ke/t/abc123";
+
+  it("accepts an identical read-back, and tolerates surrounding whitespace", () => {
+    expect(chipWriteMatches(url, url)).toBe(true);
+    expect(chipWriteMatches(url, `  ${url}\n`)).toBe(true);
+  });
+
+  it("refuses a truncated write, which is what a bad chip actually produces", () => {
+    expect(chipWriteMatches(url, "https://taptap.hornbilltech.co.ke/t/abc")).toBe(false);
+  });
+
+  it("refuses another card's token", () => {
+    expect(chipWriteMatches(url, "https://taptap.hornbilltech.co.ke/t/zzz999")).toBe(false);
+  });
+
+  it("refuses the QR variant, which is a different URL", () => {
+    expect(chipWriteMatches(url, `${url}?src=qr`)).toBe(false);
+  });
+
+  it("refuses an empty or missing read", () => {
+    expect(chipWriteMatches(url, "")).toBe(false);
+    expect(chipWriteMatches(url, null)).toBe(false);
+    expect(chipWriteMatches(url, undefined)).toBe(false);
+  });
+});
+
+/**
+ * Mirrors `encode_card`'s refusals (0027) so the page can explain the situation
+ * before anyone holds a card to a phone. The database stays the enforcement.
+ */
+describe("encodeBlockedReason", () => {
+  it("allows a received card, which is the only encodable state", () => {
+    expect(encodeBlockedReason({ stock_state: "received" })).toBeNull();
+  });
+
+  it("refuses a card that has not physically arrived", () => {
+    expect(encodeBlockedReason({ stock_state: "at_supplier" })).toMatch(/received/i);
+  });
+
+  it("refuses one that is already encoded", () => {
+    expect(encodeBlockedReason({ stock_state: "in_stock" })).toMatch(/already encoded/i);
+  });
+
+  /** Re-encoding a card somebody has bought would break a working card. */
+  it("refuses one that is on an order", () => {
+    expect(encodeBlockedReason({ stock_state: "allocated" })).toMatch(/already on an order/i);
+  });
+
+  it("refuses a written-off chip", () => {
+    expect(encodeBlockedReason({ stock_state: "defective" })).toMatch(/defective/i);
+  });
+
+  /** A placeholder token is never printed and never encoded (D-026). */
+  it("refuses a placeholder identity whatever its stock state", () => {
+    expect(encodeBlockedReason({ stock_state: "received", is_placeholder: true })).toMatch(
+      /placeholder/i,
+    );
+  });
+
+  it("refuses a stand, which is encoded from its order", () => {
+    expect(encodeBlockedReason({ stock_state: "received", kind: "stand" })).toMatch(/stand/i);
+  });
+
+  it("refuses a card with no stock state at all", () => {
+    expect(encodeBlockedReason({ stock_state: null })).not.toBeNull();
+    expect(encodeBlockedReason({})).not.toBeNull();
   });
 });

@@ -252,3 +252,83 @@ export function lowStockVariants(
     .filter((v) => v.inStock < threshold)
     .sort((a, b) => a.inStock - b.inStock);
 }
+
+// ---------------------------------------------------------------------------
+// Encoding (Sprint 8b)
+// ---------------------------------------------------------------------------
+
+/**
+ * The production host. Encoding is permanent, so this is a constant rather than
+ * a setting: a variable that can be wrong is the failure mode being prevented.
+ */
+export const PRODUCTION_HOST = "taptap.hornbilltech.co.ke";
+
+/**
+ * Is this site URL safe to burn onto a chip forever?
+ *
+ * Locking a chip cannot be undone. A card encoded from a laptop running
+ * `localhost:3000`, or from a Vercel preview deployment, carries that URL for
+ * the life of the card — it is a permanently dead card that looks perfectly
+ * fine until a customer taps it. There is no recovery: the chip is read-only and
+ * the plastic is printed.
+ *
+ * So the encode page refuses to write anything unless the URL it would write is
+ * the real one, over HTTPS. Deliberately strict: an unknown host is refused
+ * rather than assumed good, and a subdomain like `staging.taptap…` does not pass
+ * by virtue of ending in the right string.
+ */
+export function isProductionSiteUrl(raw: string | null | undefined): boolean {
+  if (!raw) return false;
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== "https:") return false;
+  return url.hostname.toLowerCase() === PRODUCTION_HOST;
+}
+
+/**
+ * Did the chip come back carrying exactly what we wrote?
+ *
+ * Read-back is the whole point of verifying before locking. A chip that took a
+ * truncated or mangled write is indistinguishable from a good one until someone
+ * taps it, and by then it is locked. Compared after trimming only: any other
+ * normalisation here would be this function deciding that a difference does not
+ * matter, which is exactly the judgement it must not make.
+ */
+export function chipWriteMatches(
+  expected: string,
+  readBack: string | null | undefined,
+): boolean {
+  if (!readBack) return false;
+  return readBack.trim() === expected.trim();
+}
+
+/** What the encode page is allowed to do next with a given card. */
+export type EncodeBlockedReason = string | null;
+
+/**
+ * Why this card cannot be encoded, or null if it can.
+ *
+ * Mirrors `encode_card`'s refusals (migration 0027) so the page can explain the
+ * situation before anyone holds a card to a phone, rather than after the
+ * database has refused it. The database remains the enforcement: this is the
+ * good error message, exactly as `transitionBlockedReason` is for orders.
+ */
+export function encodeBlockedReason(card: {
+  stock_state?: string | null;
+  is_placeholder?: boolean | null;
+  kind?: string | null;
+}): EncodeBlockedReason {
+  if (card.is_placeholder) return "This is a placeholder identity, not a physical card.";
+  if (card.kind === "stand") return "This is a stand. Encode it from its order.";
+  if (card.stock_state === "defective") return "This card is marked defective.";
+  if (card.stock_state === "allocated") return "This card is already on an order.";
+  if (card.stock_state === "in_stock") return "This card is already encoded.";
+  if (card.stock_state !== "received") {
+    return "Mark the batch received before encoding it.";
+  }
+  return null;
+}

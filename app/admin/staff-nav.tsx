@@ -10,6 +10,7 @@ const ITEMS = [
   { label: "Board", href: "/admin/board", exact: false },
   { label: "Quotes", href: "/admin/quotes", exact: false },
   { label: "Stock", href: "/admin/stock", exact: false },
+  { label: "Encode", href: "/admin/encode", exact: false },
 ];
 
 export function StaffNav() {
