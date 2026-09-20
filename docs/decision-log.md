@@ -982,5 +982,37 @@ whichever staff member happened to be adjacent.
 
 ---
 
+### D-033 — The approved proof is frozen, and it is the customer who approves it
+**Date:** 2026-09-20 · **Status:** Accepted · **Builds on:** D-021, D-029 · **Sprint:** 8c
+
+**Decision:** the Premium front is generated from the customer's Tap Profile on one fixed
+template, the customer approves it, and approval stores a snapshot of exactly what they saw.
+Every print surface reads that snapshot and never the live profile.
+
+**Why freeze it.** A customer approves a specific card. If they then rename the profile or swap
+the logo, the card already in production would silently change, and they would discover the
+difference when it arrived. Freezing makes the approval mean something.
+
+**One renderer, three uses.** The preview, the print page and the 300dpi PNG all render the same
+component. Two renderers would be two designs, and the gap between them would only ever be found
+by a customer holding the wrong card.
+
+**Text fitting is character-based rather than measured.** The same answer has to come out in a
+browser, a print page and Satori, and only one of those can measure a font. An approximation that
+is identical everywhere beats an exact measurement that differs between the proof and the print.
+
+**Approval requires a published profile** (D-021). A card whose front is printed but whose chip
+opens a draft nobody can see is dead on arrival.
+
+**The customer is recorded as the actor.** The proof functions run as the customer rather than
+the service role, so the `order_events` trigger stamps their id. The approval is the one event in
+the whole fulfilment pipeline that is genuinely theirs.
+
+**The replacement SKU is derived from the lost card**, never posted with the form: a Premium
+replacement has to be Premium, or somebody pays KES 1,000 and receives something other than what
+they lost.
+
+---
+
 _Add new decisions above this line as `D-00N`, and mirror the one-liner into
 `PROJECT.md`._
