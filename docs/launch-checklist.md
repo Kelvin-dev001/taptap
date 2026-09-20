@@ -58,29 +58,49 @@ provider id, and a duplicate was refused by `notification_deliveries_once_idx` (
 Renewal reminders and lead emails ride the same transport and sending domain, so their
 deliverability is now reasonably evidenced too — though neither has been fired in production.
 
-### 1b. Supabase Auth mail (magic links, password resets) — STILL UNPROVEN ❌
+### 1b. Supabase Auth mail (magic links, password resets)
 
-Not tested on 2026-09-20; sign-in was achieved by generating a link through the admin API,
-which **bypasses email entirely**. Magic links remain the whole login path for a new customer, so
-a fault here still locks people out. Confirm:
+**Same provider, different transport.** Auth mail does not use the Resend API; it goes over
+**Resend SMTP** — verified in the remote config on 2026-09-20: `smtp.resend.com:465`, user
+`resend`, sender `Hornbill TapTap <noreply@hornbilltech.co.ke>`. So it shares the sending domain
+and DNS records proven in §1a, and only the transport differs.
 
-1. It arrives at all, and from the `hornbilltech.co.ke` sender rather than Supabase's
+`auth.rate_limit.email_sent` is already raised to **30** (the default of 2 assumes the throttled
+built-in mailer), and `max_frequency` is `1m`.
+
+A real magic link was requested on 2026-09-20 via `POST /auth/v1/otp` with
+`redirect_to=/auth/callback?next=/admin` (accepted, HTTP 200). Confirm:
+
+1. It arrives, from `hornbilltech.co.ke` rather than Supabase's default sender
 2. It lands in **inbox, not spam**
-3. Clicking it lands where it should, already signed in
+3. Clicking it lands on **`/admin`**, already signed in, rather than the front door
 
-Also raise the auth rate limit in Supabase; the default assumes the throttled built-in mailer.
+### 1c. The redirect allowlist is CORRECT — earlier note retracted
 
-### 1c. Redirect allowlist is too narrow — found 2026-09-20 ❌
+An earlier version of this file claimed the allowlist held only the bare origin. **That was
+wrong.** The remote config actually contains:
 
-`generate_link` was asked to return to `/auth/callback?next=/admin/orders/<id>` and Supabase
-**stripped it to the bare origin**, which means the allowlist holds only
-`https://taptap.hornbilltech.co.ke`. No auth link can therefore carry a destination, silently
-defeating the `?next=` handling the app implements and explaining why "clicking a magic link
-lands you already signed in where you were going" has never worked.
+```
+https://taptap.hornbilltech.co.ke/auth/callback
+http://localhost:3000/auth/callback
+https://taptap.hornbilltech.co.ke/**
+```
 
-**Fix:** Supabase → Authentication → URL Configuration → Redirect URLs, add
-`https://taptap.hornbilltech.co.ke/**`. Retest 1b afterwards, since this is probably the cause
-of step 3 there.
+The claim came from watching `POST /auth/v1/admin/generate_link` return a link whose
+`redirect_to` had been trimmed to the origin. That is a behaviour of the **admin generate_link
+endpoint**, not evidence about the allowlist, and it says nothing about the ordinary magic-link
+flow — which is what step 3 of §1b actually tests. Nothing was changed to "fix" this.
+
+### 1d. Never run `supabase config push` against this project ⚠️
+
+`supabase config pull` **cannot** capture the SMTP block, because writing it requires the SMTP
+password, which the API will not return; the CLI skips it as `would_invalidate`. The pulled
+`config.toml` is therefore an incomplete picture of production, and pushing it would **disable
+production auth email and Twilio**, reset `site_url` and replace the redirect allowlist.
+
+`supabase/config.toml` is deliberately absent from this repo for that reason. Migrations do not
+need it: `supabase db push` works from the link state in `supabase/.temp`. If you ever do need
+it, `supabase init && supabase config pull --force`, then delete it again when done.
 
 ---
 
