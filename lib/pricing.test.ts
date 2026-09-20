@@ -20,6 +20,8 @@ import {
   deliveryFeeKes,
   isDeliveryZone,
   orderTotalKes,
+  replacementProductFor,
+  REPLACEMENT_PRICE_KES,
 } from "./pricing";
 
 describe("prices", () => {
@@ -361,5 +363,47 @@ describe("orderTotalKes", () => {
 
   it("ignores a fractional quantity rather than charging a fraction of a card", () => {
     expect(orderTotalKes(PRODUCTS.smart_card, 2.9, 0)).toBe(3_000);
+  });
+});
+
+/**
+ * A replacement has to match what was lost.
+ *
+ * A Premium card's front is printed with artwork the customer approved; a
+ * Standard replacement of one would arrive as something they never agreed to,
+ * for the same money.
+ */
+describe("replacementProductFor", () => {
+  it("replaces Premium with Premium", () => {
+    expect(replacementProductFor("premium").code).toBe("smart_card_premium_replacement");
+    expect(replacementProductFor("premium").path).toBe("custom");
+  });
+
+  it("replaces Standard with Standard", () => {
+    expect(replacementProductFor("standard").code).toBe("smart_card_replacement");
+    expect(replacementProductFor("standard").path).toBe("stock");
+  });
+
+  /** An unknown or missing variant is a pre-stock-model card: Standard. */
+  it("falls back to Standard for a card with no variant", () => {
+    expect(replacementProductFor(null).code).toBe("smart_card_replacement");
+    expect(replacementProductFor(undefined).code).toBe("smart_card_replacement");
+    expect(replacementProductFor("nonsense").code).toBe("smart_card_replacement");
+  });
+
+  /** The billing unit is the identity, not the plastic (D-018). */
+  it("provisions no identity and bundles no months, at the replacement price", () => {
+    for (const v of ["standard", "premium"]) {
+      const p = replacementProductFor(v);
+      expect(p.provisionsIdentity).toBe(false);
+      expect(p.bundledMonths).toBe(0);
+      expect(p.priceKes).toBe(REPLACEMENT_PRICE_KES);
+    }
+  });
+
+  /** Never in the product chooser: a replacement starts from a specific card. */
+  it("is not sellable from the ordinary checkout", () => {
+    expect(replacementProductFor("standard").sellable).toBe(false);
+    expect(replacementProductFor("premium").sellable).toBe(false);
   });
 });

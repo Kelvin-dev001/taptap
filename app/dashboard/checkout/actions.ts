@@ -8,6 +8,7 @@ import {
   isProductCode,
   isDeliveryZone,
   deliveryFeeKes,
+  replacementProductFor,
   orderTotalKes,
   type DeliveryRate,
 } from "@/lib/pricing";
@@ -62,17 +63,16 @@ export async function startCheckoutAction(
   const phoneRaw = String(formData.get("phone") ?? "");
   const zone = String(formData.get("deliveryZone") ?? "");
   const town = String(formData.get("deliveryTown") ?? "").trim();
-
-  if (!isProductCode(productCode)) return { error: "Choose a product." };
-  const product = PRODUCTS[productCode];
-  if (!product.sellable) return { error: "That product is not sold here." };
+  // A replacement starts from a specific card, not from the product chooser.
+  const replacesTagId = String(formData.get("replaces") ?? "").trim() || null;
 
   if (!isDeliveryZone(zone)) return { error: "Tell us where to deliver it." };
   // The zone decides the price; the town is what the rider actually needs. Only
   // demanded when the zone cannot supply it.
   if (zone === "other" && !town) return { error: "Which town should we deliver to?" };
 
-  const quantity = Number.isFinite(quantityRaw) ? quantityRaw : 0;
+  // One card replaces one card. Quantity is not a customer decision here.
+  const quantity = replacesTagId ? 1 : Number.isFinite(quantityRaw) ? quantityRaw : 0;
   if (quantity < 1) return { error: "Order at least one." };
   if (quantity > MAX_QUANTITY) {
     return {
@@ -96,6 +96,34 @@ export async function startCheckoutAction(
     .single();
   if (!profile) return { error: "No account found." };
 
+  // Which product, and for a replacement, which card it replaces.
+  //
+  // The SKU is DERIVED from the lost card rather than posted with the form. A
+  // Premium replacement has to be Premium, because its front is printed with
+  // artwork the customer already approved; letting the form name the product
+  // would let somebody pay for a Standard replacement of a Premium card and
+  // receive something that is not what they lost (D-029).
+  let product;
+  if (replacesTagId) {
+    // RLS-scoped: another account's card reads as missing, so this is also the
+    // ownership check.
+    const { data: lost } = await supabase
+      .from("nfc_tags")
+      .select("id, variant, status, is_placeholder")
+      .eq("id", replacesTagId)
+      .maybeSingle();
+
+    if (!lost) return { error: "That card is not one of yours." };
+    if (lost.is_placeholder) {
+      return { error: "That card has not been issued yet, so there is nothing to replace." };
+    }
+    product = replacementProductFor(lost.variant);
+  } else {
+    if (!isProductCode(productCode)) return { error: "Choose a product." };
+    product = PRODUCTS[productCode];
+    if (!product.sellable) return { error: "That product is not sold here." };
+  }
+
   // Priced server-side, never from the form. A posted amount would let a client
   // name its own price. The rate comes from `delivery_rates` because courier
   // rates move on somebody else's schedule and a fee that needs a deploy to
@@ -115,8 +143,9 @@ export async function startCheckoutAction(
     .from("orders")
     .insert({
       account_id: profile.account_id,
-      product_code: productCode,
+      product_code: product.code,
       quantity,
+      replaces_tag_id: replacesTagId,
       // The total charged. The fee is stored alongside it rather than derived
       // later, so a rate change never rewrites what somebody already paid.
       amount_kes: amount,

@@ -139,6 +139,27 @@ export const SELLABLE_PRODUCTS: ProductDefinition[] = [
   PRODUCTS.smart_stand,
 ];
 
+/**
+ * The replacement SKU for a card that was lost or damaged.
+ *
+ * Derived from the lost card rather than chosen by the customer: a Premium
+ * replacement has to be Premium, because the front is printed and the customer
+ * already approved that artwork. Offering the choice would let somebody pay
+ * KES 1,000 for a Standard replacement of a Premium card and receive something
+ * that is not what they lost.
+ *
+ * Both replacements cost the same and bundle no months (D-018): the billing
+ * unit is the identity, not the plastic, and the identity's term carries over
+ * untouched.
+ */
+export function replacementProductFor(
+  variant: string | null | undefined,
+): ProductDefinition {
+  return variant === "premium"
+    ? PRODUCTS.smart_card_premium_replacement
+    : PRODUCTS.smart_card_replacement;
+}
+
 export function isProductCode(value: string | null | undefined): value is ProductCode {
   return Object.prototype.hasOwnProperty.call(PRODUCTS, value ?? "");
 }

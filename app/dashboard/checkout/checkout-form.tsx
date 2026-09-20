@@ -8,6 +8,7 @@ import { CreditCard, RectangleHorizontal, Sparkles, ShieldCheck } from "lucide-r
 import { Card, Button, Field, Input, Alert } from "@/components/ui";
 import {
   SELLABLE_PRODUCTS,
+  type ProductDefinition,
   BUNDLED_MONTHS,
   deliveryFeeKes,
   orderTotalKes,
@@ -64,6 +65,7 @@ export function CheckoutForm({
   paybill,
   paybillHint,
   rates,
+  replacing,
 }: {
   defaultProduct: string;
   defaultQuantity: number;
@@ -72,6 +74,12 @@ export function CheckoutForm({
   paybillHint: string | null;
   /** From `delivery_rates`. The table is the source of truth for the figure. */
   rates: DeliveryRate[];
+  /**
+   * Set when this is a replacement for a specific card (D-029). The product and
+   * the quantity are then not the customer's to choose: one card replaces one
+   * card, and a Premium replacement has to be Premium.
+   */
+  replacing?: { tagId: string; label: string; product: ProductDefinition } | null;
 }) {
   const [state, action] = useActionState(startCheckoutAction, initial);
   const [code, setCode] = React.useState(defaultProduct);
@@ -81,8 +89,10 @@ export function CheckoutForm({
   const [town, setTown] = React.useState("");
 
   const selected =
-    SELLABLE_PRODUCTS.find((p) => p.code === code) ?? SELLABLE_PRODUCTS[0];
-  const qty = Number.isFinite(quantity) ? quantity : 0;
+    replacing?.product ??
+    SELLABLE_PRODUCTS.find((p) => p.code === code) ??
+    SELLABLE_PRODUCTS[0];
+  const qty = replacing ? 1 : Number.isFinite(quantity) ? quantity : 0;
   const deliveryFee = zone ? deliveryFeeKes(zone, rates) : 0;
   const amount = orderTotalKes(selected, qty, deliveryFee);
 
@@ -105,7 +115,22 @@ export function CheckoutForm({
 
   return (
     <form action={action} className="flex flex-col gap-5">
+      {replacing && <input type="hidden" name="replaces" value={replacing.tagId} />}
+
       <Card padding="md" className="flex flex-col gap-5">
+        {/* A replacement is not a shopping decision. The product is fixed by the
+            card being replaced and the quantity is one, so the chooser is
+            replaced by a statement of what is being ordered (D-029). */}
+        {replacing ? (
+          <div className="flex flex-col gap-1">
+            <p className="text-label text-foreground">Replacing {replacing.label}</p>
+            <p className="text-body-sm text-foreground-secondary">
+              {replacing.product.name} · {formatKes(replacing.product.priceKes)}. Your profile
+              keeps working on the old card until the new one arrives and is activated, and your
+              remaining time comes with it.
+            </p>
+          </div>
+        ) : (
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-2 text-label text-foreground">What are you getting?</legend>
           <div className="grid gap-2 sm:grid-cols-3">
@@ -145,6 +170,7 @@ export function CheckoutForm({
             })}
           </div>
         </fieldset>
+        )}
 
         {/* Where it is going (D-028).
             In front of the payment because it changes the amount, and nothing

@@ -6,7 +6,9 @@ import { MigrationNotice } from "@/components/shell/migration-notice";
 import { Alert, Card, buttonVariants } from "@/components/ui";
 import { isMissingSchemaError } from "@/lib/schema-guard";
 import { PRODUCT_KIND } from "@/lib/orders";
-import { DEVICE_LABELS, formatKes, type DeviceKind, type DeliveryRate } from "@/lib/pricing";
+import { DEVICE_LABELS, formatKes, type DeviceKind, type DeliveryRate,
+  replacementProductFor,
+} from "@/lib/pricing";
 import { PaymentStatus } from "@/components/billing/payment-status";
 import { CheckoutForm } from "./checkout-form";
 import { cn } from "@/lib/cn";
@@ -35,9 +37,9 @@ type OrderRow = {
 export default async function CheckoutPage({
   searchParams,
 }: {
-  searchParams: Promise<{ product?: string; qty?: string }>;
+  searchParams: Promise<{ product?: string; qty?: string; replaces?: string }>;
 }) {
-  const { product, qty } = await searchParams;
+  const { product, qty, replaces } = await searchParams;
 
   const supabase = await createServerSupabase();
   const {
@@ -51,6 +53,29 @@ export default async function CheckoutPage({
     .eq("id", user.id)
     .single();
   if (!profile) redirect("/login");
+
+  // The card being replaced, when there is one. RLS-scoped, so another
+  // account's card simply reads as missing and the page falls back to an
+  // ordinary purchase rather than leaking that the id exists.
+  const { data: lostCard } = replaces
+    ? await supabase
+        .from("nfc_tags")
+        .select("id, label, serial, variant, is_placeholder")
+        .eq("id", replaces)
+        .maybeSingle()
+    : { data: null };
+
+  const replacing =
+    lostCard && !lostCard.is_placeholder
+      ? {
+          tagId: lostCard.id as string,
+          label:
+            (lostCard.label as string | null) ||
+            (lostCard.serial as string | null) ||
+            "your card",
+          product: replacementProductFor(lostCard.variant as string | null),
+        }
+      : null;
 
   const [{ data: account }, { data: orderData, error: orderError }] = await Promise.all([
     supabase.from("accounts").select("profile").eq("id", profile.account_id).single(),
@@ -165,6 +190,7 @@ export default async function CheckoutPage({
             paybill={paybill}
             paybillHint={paybillHint}
             rates={rates}
+            replacing={replacing}
           />
         )}
 

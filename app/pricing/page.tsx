@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { Check, CreditCard, RectangleHorizontal } from "lucide-react";
+import { Check, CreditCard, RectangleHorizontal, Sparkles } from "lucide-react";
 import { Card, Badge, buttonVariants } from "@/components/ui";
 import { Wordmark } from "@/components/shell/logo";
 import {
   SEGMENTS,
   SEGMENT_ORDER,
+  SELLABLE_PRODUCTS,
+  type ProductDefinition,
   ACTIVE_ENTITLEMENTS,
   HARDWARE_PRICE_KES,
   RENEWAL_PER_IDENTITY_KES,
@@ -15,6 +17,13 @@ import {
 } from "@/lib/pricing";
 import { cn } from "@/lib/cn";
 import { WhatsAppButton } from "@/components/marketing/whatsapp-button";
+
+/** Icons only; everything else about a product comes from the catalogue. */
+const PRODUCT_ICONS: Record<string, typeof CreditCard> = {
+  smart_card: CreditCard,
+  smart_card_premium: Sparkles,
+  smart_stand: RectangleHorizontal,
+};
 
 export const metadata = {
   title: "Pricing",
@@ -55,16 +64,9 @@ export default function PricingPage() {
       <section className="flex flex-col gap-3">
         <h2 className="text-section-title text-foreground">Devices</h2>
         <div className="grid gap-3 sm:grid-cols-2">
-          <DeviceCard
-            icon={CreditCard}
-            kind="card"
-            description="A tappable card for one person or one counter."
-          />
-          <DeviceCard
-            icon={RectangleHorizontal}
-            kind="stand"
-            description="A countertop stand for reviews, menus or Wi-Fi."
-          />
+          {SELLABLE_PRODUCTS.map((product) => (
+            <DeviceCard key={product.code} product={product} />
+          ))}
         </div>
         <p className="text-body-sm text-muted">
           One device publishes one Tap Profile. After your first year, each card or stand you
@@ -144,26 +146,27 @@ const INCLUDED: string[] = [
   `${BUNDLED_MONTHS} months of service, then ${formatKes(RENEWAL_PER_IDENTITY_KES)} a year`,
 ];
 
-function DeviceCard({
-  icon: Icon,
-  kind,
-  description,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  kind: "card" | "stand";
-  description: string;
-}) {
+/**
+ * One product, priced from the catalogue.
+ *
+ * Took a `kind` until Premium existed, which meant the page could only ever
+ * show one card — and a second hard-coded list of what we sell. `lib/pricing.ts`
+ * is the single source of truth for money (D-018), so it is also the list.
+ */
+function DeviceCard({ product }: { product: ProductDefinition }) {
+  const Icon = PRODUCT_ICONS[product.code] ?? CreditCard;
+
   return (
     <Card padding="md" className="flex flex-col gap-1">
       <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-soft">
         <Icon className="h-4 w-4 text-primary-strong" />
       </span>
-      <h3 className="mt-2 text-card-title text-foreground">{DEVICE_LABELS[kind]}</h3>
-      <p className="text-page-title text-foreground">{formatKes(HARDWARE_PRICE_KES[kind])}</p>
+      <h3 className="mt-2 text-card-title text-foreground">{product.name}</h3>
+      <p className="text-page-title text-foreground">{formatKes(product.priceKes)}</p>
       <p className="text-caption text-muted">
-        One-off, includes {BUNDLED_MONTHS} months of service
+        One-off, includes {product.bundledMonths} months of service
       </p>
-      <p className="mt-1 text-body-sm text-foreground-secondary">{description}</p>
+      <p className="mt-1 text-body-sm text-foreground-secondary">{product.blurb}</p>
     </Card>
   );
 }

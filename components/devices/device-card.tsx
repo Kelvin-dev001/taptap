@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Nfc, QrCode, Pencil, RefreshCw, Check, X } from "lucide-react";
 import {
@@ -20,9 +21,12 @@ import {
   DialogFooter,
   DialogClose,
   useToast,
+  buttonVariants,
 } from "@/components/ui";
 import { QrPreview } from "@/components/qr/qr-preview";
 import { relativeTime } from "@/lib/metrics";
+import { formatKes, REPLACEMENT_PRICE_KES } from "@/lib/pricing";
+import { cn } from "@/lib/cn";
 import {
   renameTagAction,
   replaceTagAction,
@@ -260,6 +264,25 @@ function ReplaceDialog({ device, displayName }: { device: Device; displayName: s
         title={`Replace ${displayName}`}
         description="Use this if the card is lost or damaged. The new card takes over this card's destination, and the old one stops working immediately."
       >
+        {/* Ordering one is the normal path now. Since D-027 nobody can claim an
+            unowned card, so the code below only helps the rare customer who
+            already owns a spare — which is why it is second, not gone. */}
+        <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
+          <p className="text-body-sm font-medium text-foreground">Order a replacement</p>
+          <p className="text-caption text-muted">
+            {formatKes(REPLACEMENT_PRICE_KES)} plus delivery. Your remaining time comes with
+            it, and this card keeps working until the new one arrives.
+          </p>
+          <Link
+            href={`/dashboard/checkout?replaces=${device.id}`}
+            className={cn(buttonVariants({ size: "sm" }), "self-start")}
+          >
+            Order a replacement
+          </Link>
+        </div>
+
+        <p className="text-caption text-muted">Already have a spare card? Enter its code.</p>
+
         <Field
           label="New card code"
           hint="On the back of the replacement card, or in the /t/… link it opens."

@@ -1,34 +1,20 @@
 import Link from "next/link";
-import { CreditCard, RectangleHorizontal, ArrowRight } from "lucide-react";
+import { CreditCard, RectangleHorizontal, Sparkles, ArrowRight } from "lucide-react";
 import { Card, buttonVariants } from "@/components/ui";
-import {
-  HARDWARE_PRICE_KES,
-  DEVICE_LABELS,
-  BUNDLED_MONTHS,
-  formatKes,
-  type DeviceKind,
-} from "@/lib/pricing";
+import { SELLABLE_PRODUCTS, BUNDLED_MONTHS, formatKes } from "@/lib/pricing";
 import { cn } from "@/lib/cn";
 
-const PRODUCTS: {
-  code: string;
-  kind: DeviceKind;
-  icon: typeof CreditCard;
-  blurb: string;
-}[] = [
-  {
-    code: "smart_card",
-    kind: "card",
-    icon: CreditCard,
-    blurb: "A tappable card for one person or one counter.",
-  },
-  {
-    code: "smart_stand",
-    kind: "stand",
-    icon: RectangleHorizontal,
-    blurb: "A countertop stand for reviews, menus or Wi-Fi.",
-  },
-];
+/**
+ * Icons only. This used to carry its own list of products, prices and blurbs —
+ * a second copy of the catalogue, which is how Premium came to be missing from
+ * the chooser entirely and how a Premium card would have been shown at the
+ * Standard price (D-018: one source of truth for money).
+ */
+const PRODUCT_ICONS: Record<string, typeof CreditCard> = {
+  smart_card: CreditCard,
+  smart_card_premium: Sparkles,
+  smart_stand: RectangleHorizontal,
+};
 
 /**
  * The way in to checkout, not a checkout.
@@ -47,12 +33,12 @@ export function BuyDevice() {
       <h2 className="mb-1 text-section-title text-foreground">Add a device</h2>
       <p className="mb-4 text-body-sm text-muted">
         Each one includes {BUNDLED_MONTHS} months and lets you publish one more Tap
-        Profile. We ask about artwork once your payment clears.
+        Profile.
       </p>
 
-      <div className="grid gap-2 sm:grid-cols-2">
-        {PRODUCTS.map((p) => {
-          const Icon = p.icon;
+      <div className="grid gap-2 sm:grid-cols-3">
+        {SELLABLE_PRODUCTS.map((p) => {
+          const Icon = PRODUCT_ICONS[p.code] ?? CreditCard;
           return (
             <Link
               key={p.code}
@@ -63,11 +49,9 @@ export function BuyDevice() {
                 <Icon className="h-4 w-4 text-primary-strong" aria-hidden="true" />
               </span>
               <span className="flex min-w-0 flex-col">
-                <span className="text-body-sm font-medium text-foreground">
-                  {DEVICE_LABELS[p.kind]}
-                </span>
+                <span className="text-body-sm font-medium text-foreground">{p.name}</span>
                 <span className="text-caption text-muted">
-                  {formatKes(HARDWARE_PRICE_KES[p.kind])} each
+                  {formatKes(p.priceKes)} each
                 </span>
                 <span className="mt-0.5 text-caption text-muted">{p.blurb}</span>
               </span>
