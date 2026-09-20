@@ -39,7 +39,7 @@ Production live and verified at `https://taptap.hornbilltech.co.ke`.
 
 ---
 
-## 1. Email — the app's Resend path is PROVEN; Supabase Auth mail is NOT
+## 1. Email — delivery is PROVEN on both paths; magic-link `next` is BROKEN
 
 **Two different senders, and only one of them has been tested.** The application's own
 notifications (lead arrival, renewal reminders, dispatch) go through `lib/notifications/send.ts`
@@ -68,12 +68,34 @@ and DNS records proven in §1a, and only the transport differs.
 `auth.rate_limit.email_sent` is already raised to **30** (the default of 2 assumes the throttled
 built-in mailer), and `max_frequency` is `1m`.
 
-A real magic link was requested on 2026-09-20 via `POST /auth/v1/otp` with
-`redirect_to=/auth/callback?next=/admin` (accepted, HTTP 200). Confirm:
+**Tested 2026-09-20. Two of three pass.**
 
-1. It arrives, from `hornbilltech.co.ke` rather than Supabase's default sender
-2. It lands in **inbox, not spam**
-3. Clicking it lands on **`/admin`**, already signed in, rather than the front door
+1. ✅ **Arrives, in the inbox not spam**, from `Hornbill TapTap <noreply@hornbilltech.co.ke>`.
+   Deliverability for auth mail is proven.
+2. ✅ Sender is our own domain, not Supabase's.
+3. ❌ **`next` is still lost.** Signing out, hitting `/admin`, being bounced to
+   `/login?next=/admin` and using the emailed link does **not** land on `/admin`. Reproduced
+   through the app's own flow, not just a hand-rolled request.
+
+**Root cause NOT yet found.** What has been ruled out:
+
+- The allowlist (§1c): `generate_link` preserves `/auth/callback?next=/admin` verbatim and
+  refuses off-site URLs, so Supabase accepts the query string happily.
+- The app's construction: `login-form.tsx` builds
+  `${origin}/auth/callback?next=${encodeURIComponent(next)}` and passes it as
+  `emailRedirectTo`, which is the correct supabase-js shape.
+- `/login` validating and forwarding `next` (`page.tsx` → `safeNext` → form prop).
+- `safeNext` defaulting: a missing `next` yields `/dashboard`, so landing anywhere else means
+  the callback did not run with the parameter attached.
+
+**Where to look next:** capture the actual href of the emailed link and compare it to what
+`generate_link` produces for the same input. That single comparison separates "supabase-js
+sent it differently" from "the verify redirect drops it". Until then this is an open bug, not
+a configuration error.
+
+**Impact is limited:** password sign-in works, and that is how staff reach `/admin` today. It
+hurts new customers, for whom the magic link is the default path, and staff following the
+`/admin` gate.
 
 ### 1c. The redirect allowlist is CORRECT — earlier note retracted
 
