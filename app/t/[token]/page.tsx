@@ -9,6 +9,7 @@ import { parseUA } from "@/lib/ua";
 import { Button, Card } from "@/components/ui";
 import { Wordmark } from "@/components/shell/logo";
 import { InactiveNotice } from "@/components/profile/inactive-notice";
+import { handleFirstTap } from "@/lib/notifications/notify-first-tap";
 import ClaimForm from "./claim-form";
 
 export const dynamic = "force-dynamic";
@@ -93,6 +94,7 @@ export default async function TagPage({
       const country = h.get("x-vercel-ip-country");
       const region = h.get("x-vercel-ip-country-region");
       const edge = createEdgeClient();
+      const tagId = result.tag_id;
       after(async () => {
         await edge.rpc("log_event", {
           p_page_id: result.page_id,
@@ -102,8 +104,20 @@ export default async function TagPage({
           p_country: country,
           p_region: region,
           p_source: eventSource,
-          p_tag_id: result.tag_id,
+          p_tag_id: tagId,
         });
+
+        // The first tap after dispatch is the best delivery confirmation there
+        // is: the customer is holding the card and it works (D-031). Runs after
+        // the redirect, never before it — somebody is standing in front of a
+        // customer with a phone against a card, and an email provider having a
+        // slow afternoon must not be something either of them can feel.
+        //
+        // Called on EVERY tap and scan because it is `record_first_tap` that
+        // decides whether this one counts, atomically. Deciding here would mean
+        // reading the card first, which is a round trip on the hot path to
+        // answer a question that is almost always "no".
+        await handleFirstTap(tagId);
       });
     }
 
