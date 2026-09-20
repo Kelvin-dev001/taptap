@@ -30,10 +30,16 @@ the first reminder (T30) lands in the first days of December and the fourteen-da
 about 14 January. **Nobody has told these four customers yet** — the email will be the first they
 hear of it unless somebody speaks to them first.
 
-**`0026` is written and NOT yet applied.** It adds `dispatch_notification_target`, which is what
-lets the "on its way" email find a recipient. Until it runs, dispatch still records the method
-and reference and shows them to staff and to the customer; only the email is skipped, and the
-skip is recorded rather than swallowed.
+**`0026` applied 2026-09-20** via the Supabase CLI. It adds `dispatch_notification_target`, which
+is what lets the "on its way" email find a recipient. Verified after apply: `service_role` can
+call it, `anon` is refused at the database with `42501 permission denied for function`, and it
+returns null for an order that has not been dispatched.
+
+**Migrations now run through the Supabase CLI.** `0001`–`0025` were applied by hand in the SQL
+editor, so the remote history table was empty and a plain `supabase db push` would have tried to
+replay all of them, `0025`'s data change included. The history was reconciled with
+`supabase migration repair --status applied` (bookkeeping only, executes nothing) before pushing
+`0026` alone. All 25 are now synced, so future migrations are an ordinary `supabase db push`.
 
 **Post-migration check, if it has not been run yet:** confirm nobody was unpublished by the
 Sprint 7 cutover —

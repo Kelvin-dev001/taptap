@@ -2,7 +2,7 @@
 
 **Status:** built, tested, and **applied 2026-09-20** (`0020`–`0025`), verified read-only against
 the live database. Completed 2026-09-20 with dispatch capture, customer delivery editing and
-per-path checkout copy; `0026` is written and **not yet applied**.
+per-path checkout copy. All migrations `0020`–`0026` are applied.
 **Builds on:** D-018, D-019, D-021, D-022. **Records:** D-025 … D-030.
 
 Cards stop being made to order. A supplier prints them generically in bulk, each carrying its
@@ -58,7 +58,7 @@ rows so a replayed renewal cannot extend a card sitting on a shelf.
 
 ---
 
-## 3. Migrations (`0020`–`0025` applied 2026-09-20; `0026` pending)
+## 3. Migrations (all applied 2026-09-20)
 
 | File | What it does |
 |---|---|
@@ -68,7 +68,7 @@ rows so a replayed renewal cannot extend a card sitting on a shelf.
 | `0023_delivery.sql` | `delivery_rates`; delivery and dispatch columns on `orders`; `update_order_delivery()`; `record_dispatch()`; `orders_overview` extended by appending. |
 | `0024_legacy_batch_received.sql` | Marks the LEGACY batch received, so it stops badging "At supplier" while its cards sit on the shelf. |
 | `0025_terms_for_untermed_identities.sql` | Gives a term (ending 31 Dec 2026) to the four claimed, actively-used identities that carried `term_end = NULL` and were therefore live forever and never billed. |
-| `0026_dispatch_notification.sql` | **NOT YET APPLIED.** `dispatch_notification_target()`: one SECURITY DEFINER read returning the owner's address and the parcel's facts, so the "on its way" email has a recipient. Returns nothing for an order that has not been dispatched. |
+| `0026_dispatch_notification.sql` | `dispatch_notification_target()`: one SECURITY DEFINER read returning the owner's address and the parcel's facts, so the "on its way" email has a recipient. Returns nothing for an order that has not been dispatched. |
 
 **Applied in order on 2026-09-20**, `0020` first and alone.
 
@@ -183,10 +183,12 @@ Deferred deliberately, and named so nobody assumes otherwise:
   production migration, and a rebuild from migrations would then have silently omitted renewal
   reminders. Nothing else in the working tree was line-ending noise: the other 26 files were the
   sprint's real work.
-- **`0026_dispatch_notification.sql` is not applied.** Until it is, marking an order dispatched
-  records and displays the method and reference normally, and the email is skipped. The skip is
-  recorded rather than swallowed, and `notifyDispatched` never throws, so the dispatch itself
-  cannot fail because of it.
+- ~~**`0026_dispatch_notification.sql` is not applied.**~~ **Applied 2026-09-20** through the
+  Supabase CLI, after reconciling a migration history table that was empty because `0001`–`0025`
+  went in by hand. `anon` is refused at the database (`42501`), verified against the live API.
+- **The dispatch email has still never actually been sent.** The function it needs now exists,
+  but Resend has never been exercised in production (see `docs/launch-checklist.md`). The first
+  real dispatch is also the first test of that path.
 - ~~The legacy adoption is unverified against reality.~~ **Settled 2026-09-20.** Four tokens were
   adopted as `S-000001`–`S-000004`, and Kelvin confirmed four real encoded cards exist for them.
   They carry no printed QR or serial, so the NFC tap path in the assign panel is the only way to
