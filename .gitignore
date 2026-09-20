@@ -37,3 +37,10 @@ yarn-error.log*
 
 .vercel
 .env*
+
+# Source media kept beside the repo, never in it.
+# Renders and brand originals: tens of megabytes that nothing in the app
+# imports, and git history is permanent. Keeping them out means a clone and a
+# Vercel build stay small. The files themselves stay on disk.
+/marketing
+/logo
