@@ -39,19 +39,48 @@ Production live and verified at `https://taptap.hornbilltech.co.ke`.
 
 ---
 
-## 1. Test Resend end to end — **do this before announcing anything**
+## 1. Email — the app's Resend path is PROVEN; Supabase Auth mail is NOT
 
-Configured 2026-08-19 but **never exercised**. Magic links make email the entire login
-path, so a deliverability fault is not a degraded experience — it locks people out.
+**Two different senders, and only one of them has been tested.** The application's own
+notifications (lead arrival, renewal reminders, dispatch) go through `lib/notifications/send.ts`
+straight to the Resend API. Magic links and password resets are sent by **Supabase Auth**, from
+its own SMTP settings. Proving one says nothing about the other.
 
-Sign up at `/login` → **Email me a sign-in link**, then confirm:
+### 1a. Resend (the app's own mail) — done 2026-09-20 ✅
 
-1. It arrives, from the `hornbilltech.co.ke` sender rather than Supabase's
-2. It lands in **inbox, not spam** — the real test of the SPF/DKIM records
-3. Clicking it lands in `/dashboard` **already signed in** — this step has never worked
+First production email ever accepted AND delivered: the "on its way" dispatch notice for a test
+order, **landed in the inbox, not spam**. Resend message id `01a0bda3-16ed-724f-b1d5-65103778ef9c`.
+That exercised the whole chain — ops UI → `dispatchOrderAction` → `record_dispatch` → `after()` →
+`dispatch_notification_target` → `composeDispatchEmail` → Resend → inbox — and confirmed the
+`hornbilltech.co.ke` sending domain has working SPF/DKIM. The delivery log recorded `sent` with a
+provider id, and a duplicate was refused by `notification_deliveries_once_idx` (`23505`).
 
-Also raise the auth rate limit in Supabase; the default assumes the throttled built-in
-mailer.
+Renewal reminders and lead emails ride the same transport and sending domain, so their
+deliverability is now reasonably evidenced too — though neither has been fired in production.
+
+### 1b. Supabase Auth mail (magic links, password resets) — STILL UNPROVEN ❌
+
+Not tested on 2026-09-20; sign-in was achieved by generating a link through the admin API,
+which **bypasses email entirely**. Magic links remain the whole login path for a new customer, so
+a fault here still locks people out. Confirm:
+
+1. It arrives at all, and from the `hornbilltech.co.ke` sender rather than Supabase's
+2. It lands in **inbox, not spam**
+3. Clicking it lands where it should, already signed in
+
+Also raise the auth rate limit in Supabase; the default assumes the throttled built-in mailer.
+
+### 1c. Redirect allowlist is too narrow — found 2026-09-20 ❌
+
+`generate_link` was asked to return to `/auth/callback?next=/admin/orders/<id>` and Supabase
+**stripped it to the bare origin**, which means the allowlist holds only
+`https://taptap.hornbilltech.co.ke`. No auth link can therefore carry a destination, silently
+defeating the `?next=` handling the app implements and explaining why "clicking a magic link
+lands you already signed in where you were going" has never worked.
+
+**Fix:** Supabase → Authentication → URL Configuration → Redirect URLs, add
+`https://taptap.hornbilltech.co.ke/**`. Retest 1b afterwards, since this is probably the cause
+of step 3 there.
 
 ---
 
@@ -151,7 +180,8 @@ The button is hidden until step 3, so it can never fail in front of a user.
 
 Lead-arrival email landed in **Sprint UI-13** (`e6d3f03`, 2026-08-19) with migration `0014`:
 a lead arrives, the business is emailed, and notification preferences live in Settings.
-Still unproven only because Resend deliverability itself is unproven — see §1.
+Resend deliverability is now proven (§1a), so this is unproven only in that it has not
+itself been fired in production.
 
 ## Recommended next
 

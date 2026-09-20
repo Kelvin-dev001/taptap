@@ -186,9 +186,18 @@ Deferred deliberately, and named so nobody assumes otherwise:
 - ~~**`0026_dispatch_notification.sql` is not applied.**~~ **Applied 2026-09-20** through the
   Supabase CLI, after reconciling a migration history table that was empty because `0001`–`0025`
   went in by hand. `anon` is refused at the database (`42501`), verified against the live API.
-- **The dispatch email has still never actually been sent.** The function it needs now exists,
-  but Resend has never been exercised in production (see `docs/launch-checklist.md`). The first
-  real dispatch is also the first test of that path.
+- ~~**The dispatch email has still never actually been sent.**~~ **Proven end to end 2026-09-20.**
+  A test order on the owner's own account was dispatched through the live ops console: the whole
+  chain ran and the email **landed in the inbox, not spam** (Resend id
+  `01a0bda3-16ed-724f-b1d5-65103778ef9c`). The delivery log recorded `sent` with a provider id,
+  the audit trail attributed the move to the staff member rather than the system, and a duplicate
+  delivery row was refused by `notification_deliveries_once_idx`. The test order, its payment and
+  its delivery row were deleted afterwards; no identity was provisioned and no stock card was
+  consumed.
+- **The account name reaches the customer.** The email greeted the recipient as
+  `kelvinoyugi101`, because `accounts.name` is auto-created from the email local part at signup.
+  Every self-signed-up customer will be addressed that way until onboarding captures a real
+  business name (CLAUDE.md §20). Cosmetic, but now customer-facing.
 - ~~The legacy adoption is unverified against reality.~~ **Settled 2026-09-20.** Four tokens were
   adopted as `S-000001`–`S-000004`, and Kelvin confirmed four real encoded cards exist for them.
   They carry no printed QR or serial, so the NFC tap path in the assign panel is the only way to
