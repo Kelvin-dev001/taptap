@@ -1,0 +1,28 @@
+# Files the Vercel CLI must not upload.
+#
+# The CLI does NOT read .gitignore: it uploads everything in the folder except
+# its own short default list (node_modules, .git, .next, .vercel, .env.local,
+# .env.*.local, …) and whatever is named here. Git-ignored folders were being
+# uploaded on every `vercel --prod` for that reason.
+#
+# Nothing below is read by `next build` or at runtime.
+
+# The Expo app (docs/mobile/PLAN.md §5). Its own package, built by EAS, never by Vercel.
+/mobile
+
+# Source media kept beside the repo (see .gitignore) — tens of megabytes of video and
+# brand originals that nothing in the app imports.
+/marketing
+/logo
+/docs/reference
+/Hornbill TapTap — Master Project Prompt.pdf
+
+# Machine-local state and caches.
+/.claude
+/supabase/.temp
+*.tsbuildinfo
+/coverage
+
+# Env files. Vercel injects the real values; .env.local is already excluded by
+# default, and nothing should ride along by accident.
+.env*

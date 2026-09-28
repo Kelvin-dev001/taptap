@@ -13,6 +13,9 @@ export default defineConfig({
     environmentMatchGlobs: [["**/*.test.tsx", "jsdom"]],
     setupFiles: ["./vitest.setup.ts"],
     include: ["**/*.test.{ts,tsx}"],
-    exclude: ["node_modules", ".next"],
+    // mobile/ is the Expo app with its own Jest suite (docs/mobile/PLAN.md §5).
+    // Without this, Vitest would run its React Native tests under jsdom and
+    // crawl mobile/node_modules for test files.
+    exclude: ["node_modules", ".next", "mobile/**"],
   },
 });

@@ -7,10 +7,20 @@ import nextTypescript from "eslint-config-next/typescript";
  * `next lint` was removed in Next 16, so linting runs through the ESLint CLI
  * directly (`npm run lint`). eslint-config-next 16 publishes native flat-config
  * arrays, so these are spread straight in — no FlatCompat shim needed.
+ *
+ * `mobile/` is the Expo app (docs/mobile/PLAN.md §5). It is its own package with
+ * its own lint config and React Native rules; linting it with the web's rules
+ * would be wrong in both directions.
  */
 const eslintConfig = [
   {
-    ignores: [".next/**", "node_modules/**", "next-env.d.ts", "tsconfig.tsbuildinfo"],
+    ignores: [
+      ".next/**",
+      "node_modules/**",
+      "next-env.d.ts",
+      "tsconfig.tsbuildinfo",
+      "mobile/**",
+    ],
   },
   ...nextCoreWebVitals,
   ...nextTypescript,

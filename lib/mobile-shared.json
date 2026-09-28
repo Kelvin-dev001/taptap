@@ -1,0 +1,20 @@
+{
+  "$comment": "lib/ modules the Expo app imports directly, as @taptap/core/<name> (docs/mobile/PLAN.md §5.2). They must stay pure: relative imports of other listed modules only, and no environment, DOM or server API — lib/mobile-shared.test.ts enforces it, and mobile/eslint.config.js refuses any @taptap/core import not listed here. tags.generateToken needs a global Web Crypto; the app never mints tokens, it only validates them. Add a module here only after reading it.",
+  "modules": [
+    "analytics",
+    "blocks",
+    "csv",
+    "entitlement",
+    "identity",
+    "insights",
+    "leads",
+    "metrics",
+    "pricing",
+    "profile",
+    "reserved-slugs",
+    "slug",
+    "tags",
+    "templates",
+    "url"
+  ]
+}
