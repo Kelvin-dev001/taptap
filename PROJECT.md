@@ -5,8 +5,11 @@
 > re-reading the original master-prompt PDF. Update this file whenever a major
 > decision changes.
 
-**Last updated:** 2026-09-20
-**Current phase:** **Sprint 8c — Premium proof and replacements (D-033), built and applied.**
+**Last updated:** 2026-09-28
+**In parallel: the native mobile app (D-034 … D-042).** An Expo app for card owners, on branch
+`mobile-app`. `docs/mobile/PLAN.md` was approved on 2026-09-28, and M0 (setup) is in progress —
+status in `docs/mobile/PROGRESS.md`. Store launch is targeted for mid-December 2026.
+**Current phase (web):** **Sprint 8c — Premium proof and replacements (D-033), built and applied.**
 The Premium front is generated from the customer's profile, approved by them, and frozen at
 approval; a lost card can be replaced by buying one. **No Premium card has ever been ordered**, so
 the flow is unexercised.
@@ -144,6 +147,15 @@ expand across East Africa, then the continent.
 | D-031 | **A card is stock only once its chip is written, verified and locked.** Write, read back, compare, lock, then record `in_stock`. Refused anywhere but the live site, because a locked chip carries that URL for the life of the card |
 | D-032 | **The first tap after dispatch closes the order** and emails the owner. Service-role only, from inside `after()`, idempotent by construction. Taps before dispatch are staff testing and never count |
 | D-030 | **Dispatch carries a reference, and is refused without one.** Not a stage move: a form that asks how the parcel is going and who has it. `advanceOrderAction` refuses a bare move to `dispatched`, and the customer is emailed the reference once, idempotently |
+| D-034 | **Mobile app is a standalone Expo package in `/mobile`**, not a workspace; it imports only the pure `lib/` modules listed in `lib/mobile-shared.json`, and the web build is fenced off from it |
+| D-035 | **The app reads through RLS and database functions, and writes rules through versioned `/api/app/v1` routes** (Bearer token). Schema changes stay compatible with the oldest supported app build |
+| D-036 | **No purchases and no purchase prompts in the app** or its store listings (Apple 3.1.3(f), Google Play Payments); card terms are neutral facts; payment steps travel by email |
+| D-037 | **App sign-in is code-first:** password or a 6-digit email code; links are a convenience; the app never creates accounts |
+| D-038 | **An NFC tap in the app links a card the account already owns** (D-027 unchanged); in-app reads never log analytics and never close orders |
+| D-039 | **Account deletion anonymises and keeps financial records;** cards stop working; a multi-member account loses only the member. Retention period to be confirmed |
+| D-040 | *Proposed:* **push through Expo, with no customer data in the notification text** |
+| D-041 | **The app follows the phone's light or dark theme;** the web stays light-only for its phase. Light tokens are the web's, and every text pair is held to AA by a test |
+| D-042 | **Saving a draft keeps each action's id,** and a click is recorded even when its action has gone — fixes click history resetting on every save (ships in M2) |
 
 ## MVP scope (one line)
 
@@ -188,6 +200,9 @@ else is out of v1.**
 - `docs/sprint-7-paywall.md` — purchase-gated activation (D-021 … D-024) — built, awaiting migration
 - `docs/sprint-7-paywall-prompt.md` — the brief Sprint 7 was built from
 - `docs/launch-checklist.md` — **the remaining pre-launch work, all of it manual**
+- `docs/mobile/BRIEF.md` — the brief for the native Android and iOS app
+- `docs/mobile/PLAN.md` — the approved mobile plan: architecture, screens, contracts, milestones M0–M8
+- `docs/mobile/PROGRESS.md` — mobile milestone status, what to test on the phones, findings
 - `docs/reference/` — supplied UI reference mockup (visual direction, not a pixel spec)
 - `docs/sprint-0-discovery.md` — full discovery: PRD, data model, security, pricing, GTM, risks
 - `docs/decision-log.md` — running ADR-lite record of decisions

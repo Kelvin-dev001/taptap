@@ -1014,5 +1014,150 @@ they lost.
 
 ---
 
+### D-034 — The mobile app is a standalone Expo package in `/mobile`
+**Date:** 2026-09-28 · **Status:** Accepted · **Plan:** `docs/mobile/PLAN.md` §5
+
+**Context:** card owners get a native Android and iOS app (`docs/mobile/BRIEF.md`). It needs the
+web's business rules without disturbing a web deploy that works.
+
+**Decision:** Expo SDK 57 in `/mobile`, as its own package with its own lockfile — not an npm
+workspace. It imports an allow-listed set of pure `lib/` modules directly, through the
+`@taptap/core` alias, and nothing else from the web.
+
+**Why not a workspace or monorepo:** a workspace would hoist React Native into the root install, so
+every Vercel build would download it. Moving the web into `apps/web` would change the Vercel root,
+every import path and the deploy, for no gain to a one-person team.
+
+**Consequences:** the web build is fenced off — `mobile` is excluded from `tsconfig.json`, ESLint
+and Vitest, and `.vercelignore` keeps it out of uploads. The allow-list is one file,
+`lib/mobile-shared.json`, read by both sides: `lib/mobile-shared.test.ts` fails if a listed module
+gains a package import or a browser/server API, and the app's lint refuses any `@taptap/core`
+import not on the list. Proven in M0: the web's typecheck, lint, tests and `next build` all pass
+with `/mobile` installed beside them.
+
+---
+
+### D-035 — The app reads through the database and writes rules through the server
+**Date:** 2026-09-28 · **Status:** Accepted · **Plan:** §4.1
+
+**Decision:** the app reads with the user's own session, through the RLS policies and
+`SECURITY DEFINER` functions the web already uses. Writes the database already polices — RPCs and
+column-granted fields — also go direct. Writes whose rules live only in TypeScript (the
+lead-capture gate in `savePageAction`, for one) go through versioned `/api/app/v1` routes that run
+the same code as the web, authenticated by the Supabase access token as a Bearer header.
+
+**Why:** a copy of a rule inside the app would drift, and an app version stays installed for months
+after its code is superseded. Server-side rules change for every user at once.
+
+**Consequences:** schema changes must stay compatible with the oldest supported app build — the
+"superseded, not dropped" habit of `0008` and `0011`, made a rule. A minimum-version switch
+(`app_config`, M7) can retire a build that must not keep running.
+
+---
+
+### D-036 — No purchases and no purchase prompts in the app
+**Date:** 2026-09-28 · **Status:** Accepted · **Plan:** §3
+
+**Context:** checked against the store rules as published on 27 September 2026 — Apple guidelines
+3.1.1(a) and 3.1.3(f), and Google Play's Payments policy.
+
+**Decision:** the app is a free companion to a paid web service. It shows card terms as neutral
+facts ("Active until 31 Dec 2026") and never offers to buy, renew, pay or order — not in screens,
+notifications or store listings. Payment instructions travel by email, which Apple's 3.1.3
+explicitly allows.
+
+**Consequences:** the web's identity-state wording ("renew to avoid interruption") cannot be reused;
+the app carries its own. Selling cards in the app under the physical-goods exemption was considered
+and parked: the card price bundles twelve months of a digital service.
+
+---
+
+### D-037 — App sign-in is code-first
+**Date:** 2026-09-28 · **Status:** Accepted · **Plan:** §4.4
+
+**Decision:** the app signs in with email and password, or with a 6-digit code sent by email.
+Emailed links may also open the app, but nothing depends on them. The app never creates accounts.
+
+**Why:** email apps open links in their own browsers and corporate scanners open them before a
+person does, so a link is the least reliable way into a native app. The session is stored
+encrypted: the key lives in the Keychain/Keystore, and the session, which is larger than
+SecureStore's 2 KB limit, in app storage.
+
+---
+
+### D-038 — Tapping a card in the app links a card the account already owns
+**Date:** 2026-09-28 · **Status:** Accepted · **Plan:** §4.6
+
+**Decision:** the app reads the chip's `/t/<token>` URL and uses `claim_tag`, `rebind_tag` and
+`set_tag_status` exactly as they are. D-027 is unchanged: an unowned card cannot be claimed from the
+app either. An in-app read never logs an analytics event and never closes an order — it is the
+owner, not a customer, and D-032's first real tap still does that.
+
+**Consequences:** phones without NFC set a card up by choosing it by the serial printed on its back.
+Card taps and profile links never open the app: the app claims neither `/t/*` nor slugs, and
+registers for no NFC intents.
+
+---
+
+### D-039 — Deleting an account anonymises it and keeps financial records
+**Date:** 2026-09-28 · **Status:** Accepted — retention period to be confirmed · **Plan:** §9 W7, `0033`
+
+**Context:** both stores require in-app account deletion, and nothing deletes an account today.
+`payments` and `orders` are `ON DELETE CASCADE` from `accounts` (`0004`, `0017`), so a plain delete
+would destroy records that tax law expects to be kept.
+
+**Decision:** deletion removes the member. If they were the account's last member, it also deletes
+profiles (links, events and leads cascade), switches the cards off, and empties the account row —
+but keeps payments, orders and payment links, anonymised. In an account with several members, only
+the member leaves. A recent sign-in is required, and an audit row records it.
+
+**Open:** the retention period for financial records (five years proposed; to confirm with
+Hornbill's accountant).
+
+---
+
+### D-040 — Push notifications go through Expo and carry no customer data
+**Date:** 2026-09-28 · **Status:** Proposed — awaiting PLAN.md questions 11 and 12 · **Plan:** §4.7
+
+**Proposal:** Expo's push service (FCM on Android, APNs on iPhone) for new leads, a card's first
+tap, and card terms ending. Preferences are per phone. The notification text never names a customer
+or quotes their number or message, because it passes through Apple and Google; the app fetches the
+details once opened.
+
+---
+
+### D-041 — The app follows the phone's light or dark theme
+**Date:** 2026-09-28 · **Status:** Accepted · **Plan:** §4.8
+
+**Decision:** the app has light and dark modes and follows the phone. The web stays light-only for
+its phase (CLAUDE.md §8); this is a deliberate difference, not drift.
+
+**Consequences:** the light tokens are the web's, and a test fails if they drift from
+`app/globals.css`. The dark palette is new, built from the web's own inverse surfaces. Every
+text/background pair in both themes is held to WCAG AA by a test. That test found that the web's
+orange text (`#C2560A`) is 4.54:1 on white but 4.38:1 on the web's own page background (`#FBFBFA`),
+so the app uses the next step of the ramp for orange text. It also found that the web's red and
+muted grey fall short on its badge and sunken surfaces, which gives the app a `dangerText` role and
+keeps muted text off the sunken grey.
+
+---
+
+### D-042 — Saving a draft keeps each action's id
+**Date:** 2026-09-28 · **Status:** Accepted — ships in M2 · **Plan:** §2.2 #1, §9 W4, `0030`
+
+**Context:** `savePageAction` deletes every `links` row of a page and inserts new ones. Because
+`events.link_id` is `ON DELETE SET NULL`, each save detaches every past click from its action, and
+Insights (D-016) restart from zero. Read from the code, it also breaks the live page until the next
+publish: the published snapshot still carries the old ids, `log_event`'s insert fails its foreign
+key, and `/api/track` ignores the error.
+
+**Decision:** one draft-save function, shared by the web and the app, upserts actions by id — ids
+generated by the client — and deletes only the ones removed. `log_event` records a click without a
+link, rather than losing it, when its action no longer exists.
+
+**Why now:** an autosaving app editor would trigger the bug every few seconds.
+
+---
+
 _Add new decisions above this line as `D-00N`, and mirror the one-liner into
 `PROJECT.md`._
