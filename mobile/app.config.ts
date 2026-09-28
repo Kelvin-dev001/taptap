@@ -10,7 +10,9 @@ import type { ConfigContext, ExpoConfig } from "expo/config";
  *   production   the store app.
  *
  * app.json stays nearly empty on purpose: `eas init` writes the project id and
- * owner there, and they arrive here as `config`.
+ * owner there, EAS Update its URL, and they arrive here as `config`. EAS
+ * commands also copy whatever this file resolves to (dev bundle IDs included)
+ * into app.json — trim it back to those three after any of them.
  */
 type Variant = "development" | "preview" | "production";
 

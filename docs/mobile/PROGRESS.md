@@ -5,7 +5,7 @@ Live status against `docs/mobile/PLAN.md`. Newest first within each milestone.
 | Milestone | Dates (brief) | Status |
 |---|---|---|
 | Step 1 — plan | by 27 Sep | ✅ Approved 28 Sep 2026 |
-| **M0 — setup** | by Sat 31 Oct | 🟡 **In progress** — code done; waiting on accounts and the first builds |
+| **M0 — setup** | by Sat 31 Oct | 🟡 **In progress** — code done; Expo linked; first dev build next |
 | M1 — sign-in and shell | 2–6 Nov | Not started |
 | M2 — profile, share, QR | 9–13 Nov | Not started |
 | M3 — leads and analytics | 16–20 Nov | Not started |
@@ -31,14 +31,15 @@ Live status against `docs/mobile/PLAN.md`. Newest first within each milestone.
       analytics were touched. 28 Sep.
 - [x] `mobile/` lint, typecheck and tests green (148 tests); the no-raw-strings and allowed-imports
       lint rules proven to fire. 28 Sep.
-- [ ] Dev build on the Camon, following the phone's theme — **needs your Expo login and OK to build**.
+- [ ] Dev build on the Camon, following the phone's theme — Expo linked 28 Sep; **the build is yours to
+      run** (step 5 under "What you need to do").
 - [x] Token parity and contrast tests pass (114). 28 Sep.
 - [ ] First cold-start measurement — needs a preview (release) build; a dev build is not representative.
 - [ ] **NFC spike on the Camon** — code ready (`app/dev/nfc.tsx`); needs the dev build.
 - [ ] NFC spike on the iPhone 14 — needs the Apple Developer account (needs the D-U-N-S number).
 - [ ] Sentry shows a test crash — DSN received 28 Sep (US region) and set for local development in
       the git-ignored `mobile/.env.local`; needs the dev build. Preview and production builds get it
-      as an EAS environment variable once Expo is linked.
+      from the EAS environment variable, set 28 Sep.
 - [ ] SDK 57 vs 58 decision — due 31 Oct (SDK 58 beta since 15 Sep).
 
 ### Built on 28 Sep
@@ -106,12 +107,54 @@ Live status against `docs/mobile/PLAN.md`. Newest first within each milestone.
    hang the app until closed. The fix needs a major-version override that breaks the router, so M6's
    incoming-link guard will refuse over-long or malformed links before the router parses them.
 8. **Sentry is on 7.11** (Expo's SDK 57 pin) while npm has 8.28 — staying on Expo's tested pin.
+9. **`expo-doctor` flags `react-native-nfc-manager` as "untested on New Architecture"** (React Native
+   Directory's metadata; 20 of 21 checks pass). That is the exact risk the Camon NFC spike settles
+   (PLAN.md §4.6, §16). The warning stays visible until the spike passes; only then is the package
+   excluded from that check, with a pointer to the result.
+10. **`eas init` copies resolved config into `app.json`.** Besides the project id and owner it wrote
+    `extra.variant: "development"` and `extra.router: {}` — harmless, because `app.config.ts` sets
+    both itself, but a stale "development" in the static file misleads, so both were removed and all
+    three variants re-checked. Other EAS commands that edit config (e.g. `eas update:configure`,
+    M7) probably do the same: check `app.json` after each. **Confirmed on the first build attempt**
+    (finding 11), with worse values.
+11. **The first `eas build` stopped to install `expo-updates`**, which the scaffold had left out
+    although `eas.json` gives every profile an update channel (PLAN.md §4.3 plans EAS Update). EAS
+    installed it at the SDK 57 pin (`~57.0.23`, `expo install --check` clean), then stopped with
+    "Command must be re-run". Configuring it copied the **development** variant's resolved config
+    into `app.json` — `.dev` bundle IDs, permissions, runtime version. `app.config.ts` overrides all
+    of them per build, so nothing was wrong yet, but a store build would inherit the dev IDs the day
+    that file stopped setting them. `app.json` is trimmed back to the project id, owner and
+    `updates.url` (the one new value that belongs there), and `app.config.ts` now says to trim it
+    after any EAS command. Re-checked: all three variants resolve to the right IDs with the update
+    URL and runtime version; the Android permissions are unchanged; `expo-updates` waits 0 ms at
+    launch (`LAUNCH_WAIT_MS=0`), so it never delays start-up; mobile typecheck, lint and 148 tests
+    green.
 
 ### Commits (28 Sep, approved)
 
 - `8550abf` Fence the web build off from the mobile app
 - `2de8589` Scaffold the Expo app for card owners (mobile M0)
 - the docs commit that carries this file
+
+### Expo — linked 28 Sep
+
+- **Login:** `kevdev001`, which owns the **`hornbill-taptap`** organisation.
+- **`eas init`:** project **`@hornbill-taptap/hornbill-taptap`**, id `7b93f8b1-d6f4-4509-a206-f67a2a78dbac`
+  (<https://expo.dev/accounts/hornbill-taptap/projects/hornbill-taptap>). It belongs to the
+  organisation rather than a personal account (your choice, 28 Sep), so builds, signing keys and
+  the paid plan from late November sit with the company, and another developer can be added
+  without your login. Moving a project later keeps its id, but Expo limits how often a project can
+  move. `mobile/app.json` holds only the id, the owner and the EAS Update URL (findings 10, 11).
+- **`EXPO_PUBLIC_SENTRY_DSN`** set on EAS for **preview** and **production**, as plain text — Expo's
+  own convention for `EXPO_PUBLIC_` values, which ship inside the app anyway. Checked identical to
+  `.env.local`. **development** holds nothing on purpose: a dev build loads its JavaScript from
+  `npx expo start` on the PC, which reads `.env.local`.
+- **Which EAS environment each build profile reads** (EAS's defaults, confirmed in eas-cli 24.8.0's
+  source): `development` → development (a dev client), `preview` → preview (internal
+  distribution), `production` → production (store distribution).
+- **Pre-flight for the first build:** the upload is about 5.1 MB (433 files — git-ignored files,
+  `node_modules`, `/marketing` and `/logo` stay behind; `../lib` goes up, which the app needs);
+  `expo-dev-client` is installed; `expo-doctor` passes 20 of 21 (finding 9).
 
 ### What you need to do
 
@@ -121,18 +164,31 @@ Live status against `docs/mobile/PLAN.md`. Newest first within each milestone.
    open a Google Play Console **Organization** account.
 2. ~~Create a Sentry account and send the DSN~~ — done 28 Sep.
 3. ~~On the Camon: NFC on, Chrome allowed to install apps~~ — done 28 Sep.
-4. **Sign in to Expo from a separate PowerShell window** — not from this chat. Open PowerShell and
-   run `cd C:\Projects\taptap\mobile`, then `npx eas-cli@latest login`, then answer the prompts. The
-   login is saved on this PC, so everything I run afterwards uses it. (A `!` command only runs when
-   it is the whole prompt, and Expo's login asks questions a chat shell can't always answer — the
-   same reason `supabase login` needs its own window.)
+4. ~~Sign in to Expo from a separate PowerShell window~~ — done 28 Sep.
+5. **Run the first dev build** — approved 28 Sep; builds run from your terminal. In PowerShell:
 
-### Approved, waiting on the Expo login
+   ```powershell
+   cd C:\Projects\taptap\mobile
+   npx eas-cli@latest build --profile development --platform android
+   ```
 
-- **`eas init`** — links this app to your Expo account (writes the project id into `app.json`).
-- **EAS environment variable** `EXPO_PUBLIC_SENTRY_DSN` for preview and production builds.
-- **`eas build --profile development --platform android`** — about 15 minutes in the cloud, free tier.
-- Note: the `preview` profile skips Sentry source-map upload (`SENTRY_DISABLE_AUTO_UPLOAD`) until a
+   - "Generate a new Android Keystore?" → **Y**. EAS creates and keeps the key that signs this build.
+     It is for the dev app (`ke.co.hornbilltech.taptap.dev`) only, not the store app.
+   - Anything about the app version → accept the default.
+   - "Install and run the Android build on an emulator?" at the end → **n** (it goes on the Camon).
+   - It uploads about 5 MB, waits in the free tier's queue (the wait varies), then builds for roughly
+     15 minutes, and ends with a link and a QR code.
+   - **Done means:** the build page says *Finished*; on the Camon, scanning the QR code (or opening
+     the link in Chrome) downloads the APK, which installs as **TapTap Dev**. Then follow "What
+     you'll test on the Camon" below.
+   - Tell me when it has finished or failed. I'll read the build log — it should install only
+     `mobile/`'s packages (PLAN.md §5.2) — and record the result here.
+   - *28 Sep, first attempt:* stopped before uploading, to install `expo-updates` (finding 11) —
+     fixed; re-run the same command.
+
+### Build notes
+
+- The `preview` profile skips Sentry source-map upload (`SENTRY_DISABLE_AUTO_UPLOAD`) until a
   Sentry auth token exists as an EAS secret. `production` has no such switch, on purpose: a store
   build must never ship without readable crash reports.
 
