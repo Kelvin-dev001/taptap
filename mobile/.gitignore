@@ -1,0 +1,48 @@
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native projects are generated at build time by EAS from app.config.ts
+# (Continuous Native Generation) and never committed. Hand edits there would be
+# silently lost on the next build — native changes go through config plugins.
+/android
+/ios
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# OS
+.DS_Store
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# Signing material and store credentials. EAS holds all of these; the repo is
+# public, so none of them may ever be committed.
+*.pem
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.mobileprovision
+credentials.json
+google-services.json
+GoogleService-Info.plist
+*service-account*.json
+
+# test output
+coverage/
