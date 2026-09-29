@@ -73,6 +73,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       "expo-splash-screen",
       {
+        // Android's splash theme always points at a logo drawable, and the
+        // plugin only generates one from `image`: without it the build fails
+        // at processDebugResources. A fully transparent placeholder until the
+        // hornbill mark is prepared for light and dark splashes in M8.
+        image: "./assets/splash-placeholder.png",
+        imageWidth: 200,
         backgroundColor: "#FBFBFA",
         dark: { backgroundColor: "#141414" },
       },

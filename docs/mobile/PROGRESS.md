@@ -129,6 +129,20 @@ Live status against `docs/mobile/PLAN.md`. Newest first within each milestone.
     URL and runtime version; the Android permissions are unchanged; `expo-updates` waits 0 ms at
     launch (`LAUNCH_WAIT_MS=0`), so it never delays start-up; mobile typecheck, lint and 148 tests
     green.
+12. **The first two dev builds failed in Gradle** (`5e141a2a` from your terminal, `9e9ab89e` from
+    mine, 28–29 Sep): `resource drawable/splashscreen_logo … not found` at
+    `:app:processDebugResources`. Expo's Android splash theme always points at that drawable, but
+    the splash plugin only generates it from an `image`, and ours set background colours only.
+    Fixed with `mobile/assets/splash-placeholder.png` — a fully transparent 512 px PNG (1 KB), so the
+    splash shows just the theme colour. The hornbill mark replaces it in M8: as it stands its dark
+    body would vanish on the dark splash and its edges carry a yellow halo, and `/logo` is
+    git-ignored, so putting it in the public repo is your call. Verified with a local
+    `expo prebuild`: the drawable now exists at all five densities and the theme references it (no
+    Android SDK on this PC, so the cloud build is the full test). **Also confirmed from the build
+    log:** EAS ran `npm ci` in `build/mobile` only — the web's packages are never installed (PLAN.md
+    §5.2 ✅). Harmless: prebuild warns it "cannot set minimum buildscript.ext.compileSdkVersion";
+    peer-dependency warnings are for optional and test-only packages. The two failed builds used
+    2 of this month's 15 free Android builds.
 
 ### Commits (28 Sep, approved)
 
@@ -185,6 +199,8 @@ Live status against `docs/mobile/PLAN.md`. Newest first within each milestone.
      `mobile/`'s packages (PLAN.md §5.2) — and record the result here.
    - *28 Sep, first attempt:* stopped before uploading, to install `expo-updates` (finding 11) —
      fixed; re-run the same command.
+   - *28–29 Sep, two builds:* failed in Gradle on a missing splash image (finding 12) — fixed; third
+     build started 29 Sep.
 
 ### Build notes
 
