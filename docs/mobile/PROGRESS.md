@@ -5,7 +5,7 @@ Live status against `docs/mobile/PLAN.md`. Newest first within each milestone.
 | Milestone | Dates (brief) | Status |
 |---|---|---|
 | Step 1 — plan | by 27 Sep | ✅ Approved 28 Sep 2026 |
-| **M0 — setup** | by Sat 31 Oct | 🟡 **In progress** — code done; Expo linked; first dev build next |
+| **M0 — setup** | by Sat 31 Oct | 🟡 **In progress** — code done; Expo linked; dev build ready to install |
 | M1 — sign-in and shell | 2–6 Nov | Not started |
 | M2 — profile, share, QR | 9–13 Nov | Not started |
 | M3 — leads and analytics | 16–20 Nov | Not started |
@@ -31,8 +31,8 @@ Live status against `docs/mobile/PLAN.md`. Newest first within each milestone.
       analytics were touched. 28 Sep.
 - [x] `mobile/` lint, typecheck and tests green (148 tests); the no-raw-strings and allowed-imports
       lint rules proven to fire. 28 Sep.
-- [ ] Dev build on the Camon, following the phone's theme — Expo linked 28 Sep; **the build is yours to
-      run** (step 5 under "What you need to do").
+- [ ] Dev build on the Camon, following the phone's theme — **built 29 Sep** (`a8b753f9`); next,
+      install it on the Camon and run the checks under "What you'll test on the Camon".
 - [x] Token parity and contrast tests pass (114). 28 Sep.
 - [ ] First cold-start measurement — needs a preview (release) build; a dev build is not representative.
 - [ ] **NFC spike on the Camon** — code ready (`app/dev/nfc.tsx`); needs the dev build.
@@ -199,8 +199,14 @@ Live status against `docs/mobile/PLAN.md`. Newest first within each milestone.
      `mobile/`'s packages (PLAN.md §5.2) — and record the result here.
    - *28 Sep, first attempt:* stopped before uploading, to install `expo-updates` (finding 11) —
      fixed; re-run the same command.
-   - *28–29 Sep, two builds:* failed in Gradle on a missing splash image (finding 12) — fixed; third
-     build started 29 Sep.
+   - *28–29 Sep, two builds:* failed in Gradle on a missing splash image (finding 12) — fixed.
+   - ✅ *29 Sep, third build `a8b753f9`:* **finished** in about 18 minutes, queue included.
+     Install page:
+     <https://expo.dev/accounts/hornbill-taptap/projects/hornbill-taptap/builds/a8b753f9-65d3-4c43-a410-24bb152b95bb>.
+     The NFC library (v4 beta), Sentry and `expo-updates` all compiled on the New Architecture; the
+     only compiler warnings are in third-party code. The APK is **256 MB** — normal for a debug
+     development build (unoptimised, native code for all four processor types), so download it on
+     Wi-Fi. It says nothing about the ≤ 25 MB budget, which applies to the release build (M7).
 
 ### Build notes
 
