@@ -77,7 +77,16 @@ built-in mailer), and `max_frequency` is `1m`.
    `/login?next=/admin` and using the emailed link does **not** land on `/admin`. Reproduced
    through the app's own flow, not just a hand-rolled request.
 
-**Root cause NOT yet found.** What has been ruled out:
+**Root cause found and fixed, 2026-10-10 (D-043) — awaiting one inbox test.** The Magic Link
+template built its link as `{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=magiclink`
+and never used `{{ .RedirectTo }}`, so the `next` the app asked for never reached the email; the
+Confirm signup template did the same. The templates now link to `/auth/confirm` and pass
+`redirect_to={{ .RedirectTo }}`, which the page reads `next` out of (`lib/email-link.ts`); the
+page also waits for a press of Continue, so mail scanners cannot spend the token. Deployed to
+production 10 Oct. **To close:** sign out, open `/admin`, request a link, open it, press
+Continue — it should land on `/admin`. Kept below for the record, the earlier investigation:
+
+**Root cause NOT yet found (20 Sep).** What has been ruled out:
 
 - The allowlist (§1c): `generate_link` preserves `/auth/callback?next=/admin` verbatim and
   refuses off-site URLs, so Supabase accepts the query string happily.
