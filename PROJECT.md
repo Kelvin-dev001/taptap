@@ -5,10 +5,12 @@
 > re-reading the original master-prompt PDF. Update this file whenever a major
 > decision changes.
 
-**Last updated:** 2026-09-28
-**In parallel: the native mobile app (D-034 … D-042).** An Expo app for card owners, on branch
-`mobile-app`. `docs/mobile/PLAN.md` was approved on 2026-09-28, and M0 (setup) is in progress —
-status in `docs/mobile/PROGRESS.md`. Store launch is targeted for mid-December 2026.
+**Last updated:** 2026-10-09
+**In parallel: the native mobile app (D-034 … D-045).** An Expo app for card owners, on branch
+`mobile-app`. `docs/mobile/PLAN.md` was approved on 2026-09-28. M0 (setup) is code-complete with
+its phone checks outstanding; M1 (sign-in and shell) was started early on 2026-10-09 with
+approval, alongside them — status in `docs/mobile/PROGRESS.md`. Store launch is targeted for
+mid-December 2026.
 **Current phase (web):** **Sprint 8c — Premium proof and replacements (D-033), built and applied.**
 The Premium front is generated from the customer's profile, approved by them, and frozen at
 approval; a lost card can be replaced by buying one. **No Premium card has ever been ordered**, so
@@ -156,6 +158,9 @@ expand across East Africa, then the continent.
 | D-040 | *Proposed:* **push through Expo, with no customer data in the notification text** |
 | D-041 | **The app follows the phone's light or dark theme;** the web stays light-only for its phase. Light tokens are the web's, and every text pair is held to AA by a test |
 | D-042 | **Saving a draft keeps each action's id,** and a click is recorded even when its action has gone — fixes click history resetting on every save (ships in M2) |
+| D-043 | **Emailed sign-in links land on `/auth/confirm` and wait for a press of Continue**, so mail scanners cannot spend the token (or the code beside it). Templates link from the Site URL and pass the redirect as `redirect_to`. `safeNext` now refuses backslashes and control characters, which closed an open redirect |
+| D-044 | **On the phone, a stored session means signed in** — supabase-js reports no session offline once the token has expired; only a server refusal or a sign-out ends it. Sign-out is local and works offline |
+| D-045 | **Dependencies are measured in the bundle, not assumed:** Metro does not tree-shake, so icons are imported one file each, zod is replaced by a small local checker, and transitive native libraries are pinned to the SDK's versions. JavaScript tabs, not native tabs |
 
 ## MVP scope (one line)
 

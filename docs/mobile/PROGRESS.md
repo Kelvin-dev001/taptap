@@ -5,8 +5,8 @@ Live status against `docs/mobile/PLAN.md`. Newest first within each milestone.
 | Milestone | Dates (brief) | Status |
 |---|---|---|
 | Step 1 — plan | by 27 Sep | ✅ Approved 28 Sep 2026 |
-| **M0 — setup** | by Sat 31 Oct | 🟡 **In progress** — code done; Expo linked; dev build ready to install |
-| M1 — sign-in and shell | 2–6 Nov | Not started |
+| **M0 — setup** | by Sat 31 Oct | 🟡 **In progress** — code done; phone checks now run on the M1 dev build |
+| **M1 — sign-in and shell** | 2–6 Nov | 🟡 **Started early, 9 Oct (approved)** — code done and verified (209 app tests, 833 web tests); next: commit, web deploy, Supabase changes, dev build, phone tests |
 | M2 — profile, share, QR | 9–13 Nov | Not started |
 | M3 — leads and analytics | 16–20 Nov | Not started |
 | M4 — cards and NFC | 23–27 Nov | Not started |
@@ -14,6 +14,246 @@ Live status against `docs/mobile/PLAN.md`. Newest first within each milestone.
 | M6 — web ↔ app | 30 Nov–4 Dec ⚠ | Not started |
 | M7 — hardening and betas | 30 Nov–4 Dec | Not started |
 | M8 — store submission | 7–11 Dec | Not started |
+
+---
+
+## M1 — sign-in and shell
+
+**Started 9 Oct, about three weeks early**, with your approval, in parallel with M0's phone checks.
+You also approved W8 (emailed links land on `/auth/confirm`) the same day. Decisions D-043 – D-045.
+
+### Done-means checklist (PLAN.md §15)
+
+- [x] Sign in with a password, with an emailed code, and reset a password by code; sign out —
+      built; proven by the navigation tests (below); **phone test pending.** The code path also
+      needs the Supabase changes (step 3).
+- [ ] The session survives killing the app and restarting the phone — built (encrypted session,
+      D-044); phone test pending.
+- [x] An expired session returns to sign-in with a message ("You were signed out…") — built and
+      tested; phone test pending.
+- [x] Welcome once (three pages, skippable); five tabs (placeholders until M2–M4); Account with sign
+      out — built and tested.
+- [ ] Offline: after one sign-in, launching in airplane mode shows the app from cache with the
+      offline banner; sign-in explains when it is offline — built and tested; phone test pending.
+- [x] Every string from `en.json`, enforced by lint — 0 problems.
+- [ ] TalkBack reads every control; the largest font size does not clip sign-in — labels, roles and
+      states are in place; needs the phone. VoiceOver waits for the Apple account.
+- [ ] Template change made and the web magic link still works; W8 live — built; **needs your web
+      deploy and the dashboard changes** (steps 2–3).
+
+### Built on 9 Oct
+
+**Web — W8 and a security fix (deploy only with your OK):**
+
+- `app/auth/confirm/` (new page, server action, button): opening the page only shows "Continue";
+  the token is used when the person presses it. Unknown links go to sign-in; OAuth codes and
+  provider errors are handed to `/auth/callback`, which stays for Google and for emails already in
+  inboxes. Not indexed by search engines.
+- `lib/email-link.ts` (new): the OTP type check (moved from the callback) and how `next` is read
+  out of a link — from `next`, or from inside `redirect_to`.
+- `app/login/login-form.tsx`: magic-link, sign-up and reset emails now point at `/auth/confirm`;
+  Google still returns to `/auth/callback`. New passwords need 8 characters; signing in sets no
+  minimum, so accounts made under the old minimum of 6 still get in.
+- `lib/safe-next.ts`: **security fix** — finding 14.
+
+**Mobile:**
+
+- Sign-in (`app/sign-in.tsx`): email and password as the one primary action; "Email me a code";
+  "Forgot password?"; offline and "you were signed out" notices; plain-English errors.
+- Code (`app/sign-in-code.tsx`): six boxes over one real input, so typing, pasting, iOS's "From Mail"
+  suggestion and screen readers all work; signs in on the sixth digit; "Send a new code" waits out
+  Supabase's one-email-a-minute limit.
+- Reset (`app/forgot-password.tsx`): email → code → new password twice. If the new password is
+  refused, it can be fixed without a new code.
+- Welcome (`app/welcome.tsx`): three pages, swipe or Next, Skip; once per install.
+- Shell: `app/(app)/(tabs)/` — Home (business name from cache), Leads, Analytics, Cards
+  (placeholders), Account (business, email, sign out with a confirmation sheet, developer checks in
+  dev/preview builds). The M0 check screens moved to `app/dev/`, reachable from sign-in too.
+- Routing (`app/_layout.tsx`): `Stack.Protected` guards. Welcome, sign-in and the app each exist only
+  while their guard holds, so signing in, out, or finishing a reset moves screens by itself. The
+  splash holds until the session, the welcome flag and the cache are known.
+- Session (`src/auth/`): AES key in SecureStore, encrypted session in AsyncStorage, a new key per
+  write; the signed-in state as a tested pure reducer (D-044); local sign-out that works offline;
+  Sentry gets the user id only.
+- Data (`src/api/`): TanStack Query persisted to the phone for 7 days (dropped on upgrade and
+  sign-out), online/offline from `expo-network`, refetch on return to the app; the `me` query
+  (business name); response shapes checked by `shape.ts` (D-045).
+- UI: TextField (label, error, show/hide password), CodeField, Notice, OfflineBanner, Toast,
+  ConfirmSheet, ListRow, EmptyState, Skeleton, icons (`src/ui/icons.ts`); reduced-motion hook;
+  Screen now handles the keyboard.
+- Packages: Supabase, AsyncStorage, SecureStore, expo-crypto, expo-network, react-native-svg,
+  lucide-react-native (per-icon), aes-js, TanStack Query (+ persister); NFC library → `4.0.0`;
+  Reanimated `4.5.1`, Gesture Handler `2.32.0` and Worklets `0.10.1` pinned (finding 16); SDK 57
+  patch releases. Android: `ACCESS_WIFI_STATE` blocked (expo-network adds it; unused).
+- `mobile/.env.local` (git-ignored): `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_KEY` (the
+  publishable key, checked to start `sb_publishable_`), `EXPO_PUBLIC_SITE_URL` (production — emailed
+  links must point at the live site). Copied from the web's `.env.local` without printing them.
+
+### Verification (9 Oct)
+
+| Check | Result |
+|---|---|
+| Mobile lint / typecheck | 0 problems / clean |
+| Mobile tests | 12 suites, **209 passed** (148 at M0) |
+| Navigation tests (`src/navigation.test.tsx`, the real `app/` routes) | 8 passed: welcome once → sign-in; password → app; wrong password → message, stays; code → code screen (`shouldCreateUser: false`, link to `/auth/confirm`); stored session → app with no network; server sign-out → sign-in with message; reset keeps the person on the screen until the password saves, and a refused password is retried without a second code |
+| Icon lint rule | a probe importing `lucide-react-native` is refused |
+| `expo-doctor` / `expo install --check` | 21/21 / up to date |
+| `expo config --type introspect` | dev IDs; plugins include `expo-secure-store`; Android permissions INTERNET, VIBRATE, NFC (+ ACCESS_NETWORK_STATE from expo-network at build); storage, overlay and Wi-Fi state blocked; iOS NFC entitlement `["TAG"]` |
+| Android bundle (`expo export`) | **5.24 MB** Hermes bytecode (budget 7 MB; 4.4 MB at M0) |
+| Web typecheck / lint | clean / 0 problems |
+| Web tests | 56 files, **833 passed** (820 at M0) |
+| Web `next build` | success; `/auth/confirm` added as a dynamic route |
+| `/auth/confirm` on a local production server | valid link → 200, "Continue", `noindex`, `next` read from an encoded `redirect_to`; reset link → "Reset your password"; bad type → sign-in with "not valid"; bare → sign-in; `?code=` → `/auth/callback`; `next=/\evil.example` → `/dashboard`. Opening the page never used a token (none was valid; the page makes no Supabase call until Continue) |
+
+### Findings
+
+14. **Open redirect after sign-in (web, live in production).** `safeNext` accepted any path starting
+    with one `/`. Browsers treat `\` as `/` and delete tabs and line breaks, so
+    `next=/%5Cevil.example` and `next=/%09/evil.example` both resolve to `https://evil.example/`.
+    Proven with Node's URL parser. A crafted `/login?next=…` link would send someone to another site
+    the moment they signed in. **Fixed** (backslashes and control characters refused anywhere in
+    `next`) with tests that resolve every hostile value against the real origin. It sits on this
+    branch until you deploy; it is worth shipping on its own, soon (step 2).
+15. **Metro bundles whole packages.** Icons from `lucide-react-native`'s root pulled in all ~1,600,
+    and `zod/mini` pulled in every zod language (889 KB of source). The bundle hit 7.9 MB, over
+    budget. Icons now come one file each (lint-enforced) and zod is replaced by `shape.ts`:
+    5.24 MB (D-045).
+16. **Expo Router compiles Reanimated, Gesture Handler and Worklets into the app.** Its drawer's
+    required peers pull them in; npm had chosen their newest releases — Gesture Handler 3.3.0, a
+    major version past SDK 57's 2.32 — and autolinking builds them in whether or not the app uses
+    them. Worklets 0.13 was also outside `expo-modules-core`'s supported range, which made npm
+    nest `expo-modules-core` and broke the test runner. All three are now pinned to SDK 57's
+    versions. M0's 29 Sep build very likely carried the newer ones; it compiled, but on an untested
+    combination. They add native size to the APK, which M7 measures.
+17. **Live Supabase auth settings differ from the plan** (read-only dry-run pull, 9 Oct): the email
+    code is **8** digits (the app uses 6) and the minimum password is **6**. Both change in step 3.
+    Also seen, not used by the web or the app: **SMS sign-in (Twilio) is switched on**, and an
+    **Apple sign-in provider has a secret set**. Worth confirming both are intended; if not, switch
+    them off.
+18. **supabase-js reports no session offline once the token has expired** (`getSession()` refreshes
+    first, and a failed refresh returns null), though the refresh token is kept. The app trusts the
+    stored session instead (D-044). Separately, `signOut()` defaults to signing out everywhere,
+    website included; the app signs out this phone only. Offline, supabase-js refuses to sign out
+    a session it cannot load, so the app removes it from storage itself.
+19. **Local testing of `/auth/confirm`:** Supabase's redirect allow-list has
+    `http://localhost:3000/auth/callback` only, so emailed links requested from `localhost` fall
+    back to the live site. Optional fix in step 3.
+20. **Not in M1, moved:** Kenyan phone parsing (W6) goes to M2, which has the first phone fields.
+    EAS environment variables for preview and production builds (the three `EXPO_PUBLIC_` values
+    above) are needed before the first preview build (M0's cold-start timing), not before.
+
+### What you need to do
+
+**1. Review and commit** (you commit; I ran no git command that changed anything). Before
+committing, run your secret check from the repo root: `git status` must show no `.env` file, and
+`mobile/.env.local` must not appear (it is git-ignored). Suggested commits, in order:
+
+```powershell
+cd C:\Projects\taptap
+git add lib/safe-next.ts app/auth/callback/callback.test.ts
+git commit -m "Refuse backslashes and control characters in sign-in redirects"
+git add lib/email-link.ts app/auth/confirm app/auth/callback/route.ts app/login/login-form.tsx app/login/login-form.test.tsx
+git commit -m "Make emailed sign-in links wait for a press of Continue (W8)"
+git add mobile
+git commit -m "Add sign-in, session and the app shell to the mobile app (M1)"
+git add docs PROJECT.md
+git commit -m "Record M1 and decisions D-043 to D-045"
+```
+
+**2. Deploy the web — preview first, then production.** The redirect fix (finding 14) is live
+risk, so this is worth doing soon. Deploying from `mobile-app` also ships M0's build fences (W1,
+W2), which the 28 Sep preview already proved harmless.
+
+```powershell
+cd C:\Projects\taptap
+$env:NO_UPDATE_NOTIFIER=1; vercel
+```
+
+On the preview URL: `/auth/confirm?token_hash=x&type=email` shows "Sign in to TapTap" and a
+Continue button (pressing it with this fake token goes to sign-in with an error — expected);
+`/login` works; sign in with your password. Then `$env:NO_UPDATE_NOTIFIER=1; vercel --prod`.
+
+**3. Supabase dashboard — only after step 2 is live in production** (the new links point at a page
+that must already exist):
+
+- *Authentication → Sign In / Providers → Email:* **Email OTP Length 8 → 6**; **minimum password
+  length → 8** (people with shorter passwords can still sign in; only new passwords need 8). Leave
+  the expiry at 3600.
+- *Authentication → Emails → Templates.* Keep each subject and your styling; replace the link and add
+  the code block:
+
+  **Magic Link**
+
+  ```html
+  <h2>Sign in to TapTap</h2>
+  <p><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&redirect_to={{ .RedirectTo }}">Sign in to TapTap</a></p>
+  <p>Using the TapTap app? Enter this code instead:</p>
+  <p style="font-size:28px;font-weight:700;letter-spacing:6px;margin:8px 0">{{ .Token }}</p>
+  <p>The link and the code work once and expire in 60 minutes. If you didn't ask to sign in, you can ignore this email.</p>
+  ```
+
+  **Reset Password**
+
+  ```html
+  <h2>Reset your password</h2>
+  <p><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&redirect_to={{ .RedirectTo }}">Choose a new password</a></p>
+  <p>Using the TapTap app? Enter this code instead:</p>
+  <p style="font-size:28px;font-weight:700;letter-spacing:6px;margin:8px 0">{{ .Token }}</p>
+  <p>The link and the code work once and expire in 60 minutes. If you didn't ask for this, ignore this email: your password stays the same.</p>
+  ```
+
+  **Confirm signup** (the app never signs anyone up, so no code here)
+
+  ```html
+  <h2>Confirm your email</h2>
+  <p><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&redirect_to={{ .RedirectTo }}">Confirm your email and sign in</a></p>
+  <p>If you didn't create a TapTap account, you can ignore this email.</p>
+  ```
+
+  Leave *Change Email Address* and *Invite* as they are; their links still work.
+- *Optional — Authentication → URL Configuration → Redirect URLs:* add `http://localhost:3000/**` so
+  links requested while testing locally come back to your PC (finding 19).
+- **Then test on the web:** sign out; open `/admin` (you land on `/login?next=/admin`); request a
+  sign-in link; open it → "Sign in to TapTap" → Continue → you should land on **`/admin`**. If you
+  do, the `next` bug from the launch checklist (§1b) is fixed. Then test "Forgot password?" →
+  link → Continue → the new-password page.
+
+**4. Build the new dev app** — needed because M1 adds native modules; the 29 Sep build cannot run
+this code. It uses 1 of October's 15 free Android builds.
+
+```powershell
+cd C:\Projects\taptap\mobile
+npx eas-cli@latest build --profile development --platform android
+```
+
+Accept the defaults (the keystore exists now); answer **n** to the emulator question. **Done
+means** the build page says *Finished*. Tell me either way; I'll read the log.
+
+**5. One session on the Camon** (about 30 minutes; covers M0 and M1). Install the APK over Wi-Fi
+(it replaces nothing — "TapTap Dev" was never installed), then on the PC
+`cd C:\Projects\taptap\mobile; npx expo start --dev-client` and scan the QR code from the app.
+
+1. **Welcome:** three pages; swipe and Next both work; Skip goes to sign-in. Close and reopen the
+   app — no welcome again.
+2. **Sign in with your password.** Wrong password first: the message names the problem. Then the
+   right one: Home shows your business name.
+3. **Kill the app** (swipe it away) and reopen: still signed in, no sign-in screen. Restart the
+   phone and reopen: still signed in.
+4. **Airplane mode on**, reopen the app: Home shows with "You're offline…" and the business name.
+   Airplane mode off.
+5. **Sign out** (Account → Sign out → Sign out): sign-in screen, "Signed out." toast. Your website
+   session is still signed in.
+6. **Email me a code** (after step 3's dashboard change): the email has a 6-digit code and a link;
+   type the code — signed in. Try a wrong code once: the message says so.
+7. **Forgot password?** → email → code + new password twice → signed in with "Password changed."
+8. **Developer checks** (Account, or the link at the bottom of sign-in): the M0 checks — theme
+   follows light/dark; largest font size (also on sign-in: nothing clipped or overlapping);
+   **NFC check → Scan a card** with a TapTap card, a bank card, NFC switched off, and the browser
+   must not open; **Send a test error to Sentry** → it appears within a minute.
+9. **TalkBack on**, on sign-in: every field and button is read with a name; the code boxes read as
+   one "6-digit code" field.
+10. Note anything that looks or feels wrong, especially the keyboard covering a button (the
+    Android keyboard handling is the part I could not check here).
 
 ---
 
@@ -31,8 +271,10 @@ Live status against `docs/mobile/PLAN.md`. Newest first within each milestone.
       analytics were touched. 28 Sep.
 - [x] `mobile/` lint, typecheck and tests green (148 tests); the no-raw-strings and allowed-imports
       lint rules proven to fire. 28 Sep.
-- [ ] Dev build on the Camon, following the phone's theme — **built 29 Sep** (`a8b753f9`); next,
-      install it on the Camon and run the checks under "What you'll test on the Camon".
+- [ ] Dev build on the Camon, following the phone's theme — **built 29 Sep** (`a8b753f9`), never
+      installed. **Superseded 9 Oct:** M1 adds native modules (secure storage, crypto, network,
+      SVG) and moves NFC to 4.0.0, so that build cannot run today's code. The M1 dev build replaces
+      it, and M0's phone checks run on it (M1 section, "One session on the Camon").
 - [x] Token parity and contrast tests pass (114). 28 Sep.
 - [ ] First cold-start measurement — needs a preview (release) build; a dev build is not representative.
 - [ ] **NFC spike on the Camon** — code ready (`app/dev/nfc.tsx`); needs the dev build.
@@ -40,7 +282,10 @@ Live status against `docs/mobile/PLAN.md`. Newest first within each milestone.
 - [ ] Sentry shows a test crash — DSN received 28 Sep (US region) and set for local development in
       the git-ignored `mobile/.env.local`; needs the dev build. Preview and production builds get it
       from the EAS environment variable, set 28 Sep.
-- [ ] SDK 57 vs 58 decision — due 31 Oct (SDK 58 beta since 15 Sep).
+- [x] SDK 57 vs 58 decision — **SDK 57, decided 9 Oct.** SDK 58 is still pre-release (npm
+      `next` = 58.0.6; `latest` = 57.0.27) because React Native 0.88 is still a release candidate
+      (`0.88.0-rc.4`). Starting M1 early (approved 9 Oct) puts the navigation code on 57, and the
+      plan allows no SDK upgrades from M1 to launch. SDK 57 patch releases are applied (57.0.27).
 
 ### Built on 28 Sep
 
@@ -143,6 +388,16 @@ Live status against `docs/mobile/PLAN.md`. Newest first within each milestone.
     §5.2 ✅). Harmless: prebuild warns it "cannot set minimum buildscript.ext.compileSdkVersion";
     peer-dependency warnings are for optional and test-only packages. The two failed builds used
     2 of this month's 15 free Android builds.
+13. **The NFC library went stable on 9 Oct** (`react-native-nfc-manager` 4.0.0, now npm `latest`;
+    `4.0.0-beta.10` on 3 Oct and `beta.11` that morning came first). The dev build `a8b753f9`
+    carries `beta.9`. What changed since then, against our code: `TagEvent.ndefMessage` is now
+    optional in the types — `readCardRecords` already accepts `undefined`; an Android fix makes
+    `getNdefMessage()` read the chip live — we read through `getTag()`, which is unchanged; the
+    config plugin is safe to run twice and honours permission opt-outs; no runtime API breaks.
+    **Done (9 Oct):** pinned to exactly `4.0.0`. Because M1 started the same day and needs a new
+    native build anyway, the spike runs on that build, which tests the version we ship. No build
+    credit is spent on the upgrade alone. With 4.0.0, `expo-doctor` passes 21 of 21, so finding 9's
+    "untested on New Architecture" warning is gone; the hardware spike still decides.
 
 ### Commits (28 Sep, approved)
 
@@ -207,6 +462,7 @@ Live status against `docs/mobile/PLAN.md`. Newest first within each milestone.
      only compiler warnings are in third-party code. The APK is **256 MB** — normal for a debug
      development build (unoptimised, native code for all four processor types), so download it on
      Wi-Fi. It says nothing about the ≤ 25 MB budget, which applies to the release build (M7).
+   - *9 Oct: superseded before it was installed — M1 needs a new native build (M1, step 4).*
 
 ### Build notes
 
@@ -215,6 +471,9 @@ Live status against `docs/mobile/PLAN.md`. Newest first within each milestone.
   build must never ship without readable crash reports.
 
 ### What you'll test on the Camon, once the dev build is installed
+
+*Superseded 9 Oct: these checks now run on the M1 dev build, from "Developer checks" — see M1,
+"One session on the Camon", item 8. Kept for the record.*
 
 1. On the PC: `cd mobile` then `npx expo start --dev-client`. Keep the phone on the same Wi-Fi,
    open **TapTap Dev**, and scan the QR code the terminal shows.

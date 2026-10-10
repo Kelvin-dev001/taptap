@@ -1159,5 +1159,68 @@ link, rather than losing it, when its action no longer exists.
 
 ---
 
+### D-043 — Emailed sign-in links wait for a press of Continue
+**Date:** 2026-10-09 · **Status:** Accepted (PLAN.md question 6) — live once deployed and the
+templates are changed · **Plan:** §9 W8, §11
+
+**Context:** `/auth/callback` used an email link's one-time token the moment the page was opened.
+Corporate mail scanners open every link in an email to check it, so they could spend the token —
+and, with it, the 6-digit code printed in the same email — before the person clicked. Separately,
+the magic link has lost `next` since at least 20 Sep (launch checklist §1b).
+
+**Decision:** the email templates point at a new page, `/auth/confirm`, that only renders on
+opening. The token is used when the person presses Continue, which posts a server action. A scanner
+fetches pages; it does not submit forms. The templates build the link from `{{ .SiteURL }}` and pass
+the request's redirect along as `redirect_to`; the page reads `next` back out of it. Appending to
+`{{ .RedirectTo }}` was rejected: the link would break the day Supabase handed the template a
+redirect without a query string. `/auth/callback` stays for Google sign-in and for emails already
+in inboxes, and `/auth/confirm` hands OAuth codes and provider errors to it.
+
+**Consequences:** one more tap for people signing in by link. `next` is now read through
+`safeNext`, which was tightened in the same change: it let `/\evil.example` and
+`/<tab>/evil.example` through, and a browser resolves both to another site — an open redirect after
+sign-in. The app's link handling (M6) will open this same page.
+
+---
+
+### D-044 — On the phone, a stored session means signed in
+**Date:** 2026-10-09 · **Status:** Accepted · **Plan:** §4.4, §4.5
+
+**Context:** once the one-hour access token has expired, supabase-js's `getSession()` reports "no
+session" whenever it cannot refresh — offline, for example — although it keeps the refresh token
+and refreshes as soon as it can.
+
+**Decision:** the app decides who is signed in from the encrypted session on the phone, read
+straight from storage at launch, and lets supabase-js's events refine that. Only a session the
+server refuses (supabase-js deletes it and says SIGNED_OUT) or a sign-out ends it; the first shows
+"You were signed out". Sign-out is local to the phone and works offline.
+
+**Consequences:** an owner who opens the app offline sees it from cache instead of a sign-in screen
+they cannot use. The first screen paints with no network round trip. A revoked session can show the
+app for the moment it takes the refresh to be refused.
+
+---
+
+### D-045 — Dependencies are measured in the bundle, not assumed
+**Date:** 2026-10-09 · **Status:** Accepted · **Plan:** §4.3, §4.10
+
+**Context:** Metro, React Native's bundler, does not tree-shake. In M1, importing icons from
+`lucide-react-native` bundled all ~1,600 of them, and `zod/mini` bundled every zod language: the
+Android bundle went from 4.4 MB to 7.9 MB, past the 7 MB budget. Separately, Expo Router's drawer
+dependency pulls in Reanimated, Gesture Handler and Worklets as required peers; npm resolved them to
+their newest releases, not the ones SDK 57 is tested with (Gesture Handler a major version ahead),
+and autolinking compiles all three into the app.
+
+**Decision:** icons are imported one file each through `src/ui/icons.ts`, and lint refuses the
+package root. Server responses are checked by a small local module (`src/api/shape.ts`) instead of
+zod. Native libraries that arrive transitively are pinned to the SDK's versions with
+`npx expo install`. The app uses Expo Router's JavaScript tabs, not native tabs, which keeps its own
+icons and font on both platforms and lets M7 strip the Material Symbols font native tabs need.
+
+**Consequences:** the bundle is 5.24 MB after M1. Every new dependency is measured with
+`expo export` before it stays.
+
+---
+
 _Add new decisions above this line as `D-00N`, and mirror the one-liner into
 `PROJECT.md`._

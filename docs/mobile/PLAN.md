@@ -1,7 +1,8 @@
 # Hornbill TapTap mobile app — plan
 
-**Status:** **Approved by Kelvin, 28 September 2026** (questions 1–5 answered, §18). M0 in
-progress — see `docs/mobile/PROGRESS.md`.
+**Status:** **Approved by Kelvin, 28 September 2026** (questions 1–5 answered, §18). M0
+code-complete, phone checks outstanding; **M1 started early, 9 October 2026, with approval** — see
+`docs/mobile/PROGRESS.md`.
 **Date:** 27 September 2026 · **Branch:** `mobile-app` (from `main` at `8e9b989`)
 **Read with:** `docs/mobile/BRIEF.md`, `PROJECT.md`, `docs/decision-log.md` (D-001 … D-033)
 
@@ -332,11 +333,13 @@ the line. Not in v1; revisit after launch with evidence.
 | `expo-file-system`, `expo-sharing` | Share the QR code as an image. |
 | `expo-haptics`, `expo-network`, `expo-web-browser`, `expo-device` | Haptics; online/offline state; privacy policy in an in-app browser; phone maker for Tecno/Infinix notification help. |
 | `lucide-react-native` + `react-native-svg` | The web's icon set, so both products look like one; SVG also draws the sparklines. |
-| `zod` (mini build) | Validates every server response, so a schema change shows an error state instead of crashing an old app version. |
+| ~~`zod` (mini build)~~ → `src/api/shape.ts` | Validates every server response, so a schema change shows an error state instead of crashing an old app version. **Changed in M1 (D-045):** in Metro even `zod/mini` bundles all of zod's languages (889 KB of source), so a ~60-line local checker does the job. |
 | Dev: `jest-expo`, `@testing-library/react-native`, `eslint-config-expo`, `eslint-plugin-i18next`, `prettier` | Tests, lint (including "no raw strings"), formatting. |
 
 **Deliberately not added:** Reanimated and Gesture Handler (no drag or gesture-driven sheets in
-v1; the built-in `Animated` API covers fades and slides) unless a required library pulls them in;
+v1; the built-in `Animated` API covers fades and slides) unless a required library pulls them in —
+*M1 found that Expo Router does (its drawer's required peers), so they, and Worklets, are compiled
+in regardless; they are pinned to SDK 57's versions and the app's code does not use them (D-045)*;
 any UI kit (we own our components, as the web does under D-011); a bottom-sheet library;
 `react-native-share` (a plain `wa.me` link reaches WhatsApp); MMKV (only if M7 measurements show
 the cache restore hurting start-up); a charting library (bars are plain views).
@@ -498,7 +501,7 @@ money through `Intl` with `en-KE` ("31 Dec 2026", "KES 1,000"). Adding Kiswahili
 |---|---|---|
 | Cold start to a usable Home (cached) | ≤ 3.0 s on the low-end emulator profile; ≤ 1.5 s on the Camon | `adb shell am start -W`, median of 5, plus Sentry's app-start timing |
 | Android download size | ≤ 25 MB | Play Console |
-| JavaScript bundle (Hermes bytecode) | ≤ 7 MB at launch — M0 baseline is 4.4 MB for an almost empty app (Expo Router, Sentry, i18n, NFC) | `npx expo export --platform android` |
+| JavaScript bundle (Hermes bytecode) | ≤ 7 MB at launch — M0 baseline 4.4 MB (Expo Router, Sentry, i18n, NFC); **M1 5.24 MB** (+ Supabase, TanStack Query, SVG icons, sign-in and shell). M1 briefly measured 7.9 MB before the fixes in D-045 | `npx expo export --platform android` |
 | Leads list | no blank rows scrolling 500 leads on the low-end profile | manual + performance monitor |
 | Profile photo upload | ≤ 300 KB after compression | unit test on the resize step |
 
@@ -794,14 +797,19 @@ Apply with `supabase db push --dry-run` first, then `supabase db push` — never
    Resend (§12).
 4. **Authentication → Sign In / Providers → Email:** confirm the email code length is **6** and the
    expiry is **3600 s**; set the minimum password length to **8** (the reset form already requires 8);
-   turn on leaked-password protection if your plan includes it.
+   turn on leaked-password protection if your plan includes it. *Read from the live config on
+   9 Oct (dry-run pull): the code length is **8** and the minimum password **6** — both need
+   changing; the expiry is already 3600.*
 5. **Authentication → URL Configuration:** no change. `https://taptap.hornbilltech.co.ke/**`
    already covers `/auth/confirm`.
 6. **Authentication → Emails → SMTP:** confirm it is still Resend (verified 20 Sep).
-7. **Only if W8 is approved:** change both templates' link to
-   `{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=magiclink` (and `type=recovery` for reset),
-   and test the web's magic link before and after. If my `{{ .SiteURL }}` hypothesis (§2.2 #5) is
-   right, this also fixes the lost `next`.
+7. **W8 approved (9 Oct):** change the templates' link to
+   `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&redirect_to={{ .RedirectTo }}`
+   (`type=recovery` for reset). *Revised from the first draft*, which appended to
+   `{{ .RedirectTo }}`: that breaks the day Supabase hands the template a redirect without a query
+   string (D-043). Exact steps and full template text: PROGRESS.md, M1. Test the web's magic link
+   before and after; if the `{{ .SiteURL }}` hypothesis (§2.2 #5) is right, this also fixes the
+   lost `next`.
 8. **Database:** apply `0030`–`0034` as each milestone needs them.
 
 Code block for both templates:
@@ -1054,9 +1062,8 @@ In `docs/decision-log.md`'s format, mirrored in `PROJECT.md`:
 
 **By M1 / M2**
 
-6. Emailed links: move them to a new `/auth/confirm` page with a "Continue" button (W8 — safe from
-   mail scanners, keeps `next`, and the app can open it)? Or keep `/auth/callback` and rely on codes
-   in the app?
+6. ~~Emailed links: move them to a new `/auth/confirm` page with a "Continue" button (W8)?~~
+   **Yes — approved 9 Oct 2026, built in M1 (D-043).**
 7. The link-id fix changes the web's Save as well (W4 + `0030`). Approve it for both?
 8. Store name "Hornbill TapTap", with "TapTap" as the home-screen label?
 9. Dark mode in the app while the web stays light-only — confirm?
