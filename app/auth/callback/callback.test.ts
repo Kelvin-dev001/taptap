@@ -40,20 +40,37 @@ describe("safeNext", () => {
     expect(safeNext("mailto:someone@example.com")).toBe("/dashboard");
   });
 
+  /** The URL parser treats `\` as `/` and deletes tabs and line breaks, so each
+   *  of these resolves to https://evil.example/ despite its single leading slash. */
+  it("rejects paths the URL parser turns into protocol-relative ones", () => {
+    for (const input of ["/\\evil.example", "/\t/evil.example", "/\n/evil.example", "/\r/evil.example"]) {
+      expect(safeNext(input)).toBe("/dashboard");
+    }
+    expect(safeNext("/dashboard\u0000")).toBe("/dashboard");
+    expect(safeNext("/dashboard\u007F")).toBe("/dashboard");
+  });
+
   it("never returns a value that could leave the site", () => {
     const hostile = [
       "https://evil.example",
       "//evil.example",
+      "/\\evil.example",
+      "/\\/evil.example",
+      "/\t/evil.example",
+      "/ \n/evil.example",
       "http:/evil.example",
       "javascript:alert(1)",
       "dashboard",
       "",
       null,
     ];
+    const origin = "https://taptap.hornbilltech.co.ke";
     for (const input of hostile) {
       const out = safeNext(input);
       expect(out.startsWith("/")).toBe(true);
       expect(out.startsWith("//")).toBe(false);
+      // What actually matters: wherever it resolves, it is still this site.
+      expect(new URL(out, origin).origin).toBe(origin);
     }
   });
 });

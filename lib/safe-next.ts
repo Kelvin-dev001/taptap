@@ -11,6 +11,11 @@
  * and protocol-relative ones (`//evil.example`), which browsers treat as
  * absolute.
  *
+ * That alone is not enough, because the URL parser rewrites a path before
+ * resolving it: a backslash counts as a slash (`/\evil.example`), and tabs and
+ * line breaks are deleted (`/<tab>/evil.example`). Both become `//evil.example`
+ * and leave the site, so neither may appear anywhere in `next`.
+ *
  * Lives in lib/ rather than beside the auth callback because the login form
  * needs the same guard, and a client component cannot import from a route
  * handler. One implementation, one set of tests, no second version to drift.
@@ -18,5 +23,7 @@
 export function safeNext(raw: string | null | undefined): string {
   if (!raw) return "/dashboard";
   if (!raw.startsWith("/") || raw.startsWith("//")) return "/dashboard";
+  // Backslashes and control characters (tab, CR, LF, the rest of C0, and DEL).
+  if (/[\\\u0000-\u001F\u007F]/.test(raw)) return "/dashboard";
   return raw;
 }
