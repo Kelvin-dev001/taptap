@@ -76,7 +76,9 @@ describe("LoginForm", () => {
     expect(signInWithOtp.mock.calls[0][0].options.shouldCreateUser).toBe(true);
   });
 
-  it("routes every email link back through /auth/callback", async () => {
+  /** /auth/confirm waits for a press of Continue, so a mail scanner opening
+      the link cannot use up its one-time token (W8). */
+  it("routes every email link through /auth/confirm", async () => {
     const user = userEvent.setup();
     render(<LoginForm />);
 
@@ -84,7 +86,7 @@ describe("LoginForm", () => {
     await user.click(screen.getByRole("button", { name: /email me a sign-in link/i }));
 
     await waitFor(() => expect(signInWithOtp).toHaveBeenCalled());
-    expect(signInWithOtp.mock.calls[0][0].options.emailRedirectTo).toContain("/auth/callback");
+    expect(signInWithOtp.mock.calls[0][0].options.emailRedirectTo).toContain("/auth/confirm");
   });
 
   /**
@@ -173,7 +175,7 @@ describe("LoginForm", () => {
 
     /** The recovery link must land on the page that actually sets the password,
      *  not the dashboard — otherwise the user is signed in but never prompted. */
-    it("routes the link through the callback to /reset-password", async () => {
+    it("routes the link through /auth/confirm to /reset-password", async () => {
       const user = userEvent.setup();
       render(<LoginForm />);
 
@@ -184,8 +186,8 @@ describe("LoginForm", () => {
 
       await waitFor(() => expect(resetPasswordForEmail).toHaveBeenCalled());
       const opts = resetPasswordForEmail.mock.calls[0][1];
-      expect(opts.redirectTo).toContain("/auth/callback");
-      expect(opts.redirectTo).toContain("next=/reset-password");
+      expect(opts.redirectTo).toContain("/auth/confirm");
+      expect(opts.redirectTo).toContain(`next=${encodeURIComponent("/reset-password")}`);
     });
 
     it("never asks for a password while resetting", async () => {
@@ -248,7 +250,7 @@ describe("LoginForm — where it sends you", () => {
 
     await waitFor(() => expect(signInWithOtp).toHaveBeenCalled());
     const redirect = signInWithOtp.mock.calls[0][0].options.emailRedirectTo as string;
-    expect(redirect).toContain("/auth/callback");
+    expect(redirect).toContain("/auth/confirm");
     expect(redirect).toContain(`next=${encodeURIComponent("/admin/orders")}`);
   });
 });

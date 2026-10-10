@@ -75,8 +75,16 @@ export function LoginForm({
    * person was actually going — without it, staff following the /admin gate
    * sign in successfully and are dropped on the dashboard, which reads as the
    * link having failed.
+   *
+   * Emailed links go to /auth/confirm, which waits for a press of Continue so a
+   * mail scanner opening the link cannot use it up (W8). Google returns to
+   * /auth/callback: its code is exchanged in the browser that started it.
    */
-  const redirectTo = () =>
+  const emailRedirectTo = (target: string = next) =>
+    typeof window === "undefined"
+      ? undefined
+      : `${window.location.origin}/auth/confirm?next=${encodeURIComponent(target)}`;
+  const oauthRedirectTo = () =>
     typeof window === "undefined"
       ? undefined
       : `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
@@ -98,7 +106,7 @@ export function LoginForm({
       const supabase = createBrowserSupabase();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: redirectTo() },
+        options: { redirectTo: oauthRedirectTo() },
       });
       // On success the browser navigates to Google, so nothing after this runs.
       if (error) {
@@ -122,10 +130,10 @@ export function LoginForm({
       // --- Password reset -----------------------------------------------------
       if (mode === "reset") {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          // Lands on /auth/callback, which verifies the recovery token and
+          // Lands on /auth/confirm, which uses the recovery token on Continue and
           // establishes a session, then forwards to the page where the new
           // password is actually set. `next` is validated there.
-          redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+          redirectTo: emailRedirectTo("/reset-password"),
         });
         if (error) {
           setError(error.message);
@@ -140,7 +148,7 @@ export function LoginForm({
         const { error } = await supabase.auth.signInWithOtp({
           email,
           options: {
-            emailRedirectTo: redirectTo(),
+            emailRedirectTo: emailRedirectTo(),
             // Sign-in and sign-up are the same action here, so the toggle at the
             // bottom changes the wording rather than the mechanics. Guarding on
             // `signin` avoids silently creating an account for a mistyped
@@ -176,7 +184,7 @@ export function LoginForm({
           // was still localhost, so every confirmation email sent a real user to
           // a machine that was not theirs. Deriving it from the current origin
           // keeps local, preview and production each pointing at themselves.
-          emailRedirectTo: redirectTo(),
+          emailRedirectTo: emailRedirectTo(),
         },
       });
       if (error) {
@@ -375,7 +383,10 @@ export function LoginForm({
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  minLength={6}
+                  // New passwords need 8 characters, matching the reset form and
+                  // Supabase's minimum. Sign-in sets no floor: accounts created
+                  // when the minimum was 6 must still get in.
+                  minLength={mode === "signup" ? 8 : undefined}
                 />
               </Field>
               {mode === "signin" && (

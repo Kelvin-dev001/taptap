@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { safeNext } from "@/lib/safe-next";
-import type { EmailOtpType } from "@supabase/supabase-js";
+import { asOtpType } from "@/lib/email-link";
 import { createServerSupabase } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -24,27 +24,14 @@ export const dynamic = "force-dynamic";
  * of those have it, and the exchange fails with "PKCE code verifier not found
  * in storage". The cruel part is that it succeeds when testing in the same tab,
  * so it looks fine until real people use it.
+ *
+ * Since W8 the email templates point at /auth/confirm instead, which waits for
+ * a press of Continue before using the token, so mail scanners that open links
+ * cannot use it up. Email links still arriving here are ones sent before that
+ * change, and they keep working.
  */
 
-/** The only OTP types this route will act on. */
-const EMAIL_OTP_TYPES = new Set<EmailOtpType>([
-  "signup",
-  "invite",
-  "magiclink",
-  "recovery",
-  "email_change",
-  "email",
-]);
-
-/**
- * `type` comes from a URL in an email, so it is attacker-controllable. Checking
- * it against the known set keeps an arbitrary string out of the auth SDK.
- */
-export function asOtpType(raw: string | null): EmailOtpType | null {
-  return raw && EMAIL_OTP_TYPES.has(raw as EmailOtpType) ? (raw as EmailOtpType) : null;
-}
-
-export { safeNext };
+export { safeNext, asOtpType };
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
