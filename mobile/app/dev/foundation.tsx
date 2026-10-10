@@ -1,4 +1,4 @@
-import { Stack, useRouter } from "expo-router";
+import { Redirect, Stack, useRouter } from "expo-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
@@ -26,15 +26,17 @@ const SWATCHES: (keyof ColorTokens)[] = [
 ];
 
 /**
- * M0's only real screen: proof that the design system, i18n, crash reporting
- * and NFC work on a real phone before any product screen is built. Replaced by
- * sign-in and the tabs in M1.
+ * M0's check screen: proof that the design system, i18n, crash reporting and
+ * NFC work on a real phone. Since M1 it sits behind "Developer checks" on the
+ * sign-in screen and in Account, in development and preview builds only.
  */
 export default function Foundation() {
   const { t } = useTranslation();
   const router = useRouter();
   const { scheme, colors } = useTheme();
   const [sentryStatus, setSentryStatus] = useState<string | null>(null);
+
+  if (!devToolsEnabled) return <Redirect href="/" />;
 
   function sendTestError() {
     if (!sentryEnabled) {
@@ -46,8 +48,8 @@ export default function Foundation() {
   }
 
   return (
-    <Screen edges={["top", "bottom", "left", "right"]}>
-      <Stack.Screen options={{ headerShown: false }} />
+    <Screen>
+      <Stack.Screen options={{ title: t("dev.foundationTitle") }} />
 
       <View style={styles.header}>
         <Text variant="display" accessibilityRole="header">

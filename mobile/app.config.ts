@@ -66,6 +66,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       "android.permission.READ_EXTERNAL_STORAGE",
       "android.permission.WRITE_EXTERNAL_STORAGE",
       "android.permission.SYSTEM_ALERT_WINDOW",
+      // expo-network asks for Wi-Fi state for getIpAddressAsync, which the app
+      // never calls. Online/offline needs only ACCESS_NETWORK_STATE, kept.
+      "android.permission.ACCESS_WIFI_STATE",
     ],
   },
   plugins: [
@@ -85,6 +88,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     ["expo-font", { ios: { fonts: INTER }, android: { fonts: INTER } }],
     "expo-localization",
+    // Holds the key that encrypts the saved session (src/auth/encrypted-storage.ts).
+    // Its Android backup rules keep that key out of backups, matching allowBackup: false.
+    "expo-secure-store",
     [
       "react-native-nfc-manager",
       {

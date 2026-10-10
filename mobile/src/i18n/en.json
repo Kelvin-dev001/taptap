@@ -1,4 +1,135 @@
 {
+  "app": {
+    "name": "Hornbill TapTap"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "or": "or"
+  },
+  "field": {
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "labelWithError": "{{label}}. {{error}}"
+  },
+  "offline": {
+    "app": "You're offline. Showing what's saved on this phone.",
+    "signIn": "You're offline. Connect to the internet to sign in."
+  },
+  "welcome": {
+    "skip": "Skip",
+    "next": "Next",
+    "start": "Get started",
+    "page1Title": "Your business, in your pocket",
+    "page1Body": "See your profile, your leads and how customers find you, wherever you are.",
+    "page2Title": "Share in a tap",
+    "page2Body": "Send your profile on WhatsApp, or show your QR code to anyone nearby.",
+    "page3Title": "Set up cards by tapping them",
+    "page3Body": "Hold a TapTap card to your phone to point it at your profile.",
+    "pageOf": "Page {{current}} of {{total}}"
+  },
+  "signIn": {
+    "title": "Sign in",
+    "subtitle": "Sign in with the email you use for TapTap.",
+    "email": "Email",
+    "emailPlaceholder": "you@business.co.ke",
+    "password": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "forgot": "Forgot password?",
+    "emailCode": "Email me a code",
+    "sendingCode": "Sending code…",
+    "expired": "You were signed out. Sign in again to carry on.",
+    "emailInvalid": "Enter your email address, like name@business.co.ke.",
+    "passwordMissing": "Enter your password.",
+    "devTools": "Developer checks",
+    "notConfigured": "This build is missing its server settings, so it can't sign in."
+  },
+  "code": {
+    "title": "Enter code",
+    "heading": "Check your email",
+    "sentTo": "We sent a {{length}}-digit code to {{email}}.",
+    "label": "{{length}}-digit code",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "incomplete": "Enter all {{length}} digits.",
+    "resend": "Send a new code",
+    "resendIn": "Send a new code in {{seconds}} s",
+    "resent": "New code sent. Use the latest one.",
+    "differentEmail": "Use a different email",
+    "spam": "It can take a minute to arrive. Check spam if you don't see it."
+  },
+  "forgot": {
+    "title": "Reset password",
+    "heading": "Reset your password",
+    "intro": "We'll email you a code, then you choose a new password.",
+    "send": "Email me a code",
+    "sending": "Sending code…",
+    "sentTo": "If {{email}} has a TapTap account, we've sent it a {{length}}-digit code.",
+    "codeAccepted": "Code accepted. Now choose your new password.",
+    "newPassword": "New password",
+    "confirmPassword": "New password again",
+    "passwordHint": "At least {{min}} characters.",
+    "tooShort": "Use at least {{min}} characters.",
+    "mismatch": "The two passwords don't match.",
+    "save": "Save new password",
+    "saving": "Saving…",
+    "done": "Password changed. You're signed in."
+  },
+  "auth": {
+    "errors": {
+      "offline": "You're offline. Check your connection and try again.",
+      "wrongPassword": "That email and password don't match. Try again, or reset your password.",
+      "noAccount": "We couldn't find a TapTap account for that email.",
+      "wrongCode": "That code is wrong or has expired. Check your latest email, or send a new code.",
+      "emailWait": "We've just emailed you. Wait a minute before asking for another code.",
+      "tooMany": "Too many tries. Wait a few minutes, then try again.",
+      "notConfirmed": "Confirm your email first, using the link we sent when you signed up.",
+      "weakPassword": "Choose a stronger password: longer, and harder to guess.",
+      "samePassword": "That's your current password. Choose a new one.",
+      "blocked": "This account can't sign in. Contact Hornbill support.",
+      "invalidEmail": "That email address doesn't look right.",
+      "unknown": "Something went wrong. Try again."
+    }
+  },
+  "tabs": {
+    "home": "Home",
+    "leads": "Leads",
+    "analytics": "Analytics",
+    "cards": "Cards",
+    "account": "Account"
+  },
+  "home": {
+    "welcome": "Welcome back",
+    "placeholderTitle": "Your profile lives here",
+    "placeholderBody": "Coming next: your live profile, sharing on WhatsApp and your QR code."
+  },
+  "leads": {
+    "placeholderTitle": "Your leads will appear here",
+    "placeholderBody": "Coming next: everyone who leaves their details on your profile."
+  },
+  "analytics": {
+    "placeholderTitle": "Your numbers will appear here",
+    "placeholderBody": "Coming next: taps, visits and clicks, day by day."
+  },
+  "cards": {
+    "placeholderTitle": "Your cards will appear here",
+    "placeholderBody": "Coming next: your TapTap cards, and setting one up by tapping it."
+  },
+  "account": {
+    "businessHeading": "Business",
+    "businessUnknown": "Your business",
+    "signedInAs": "Signed in as {{email}}",
+    "devTools": "Developer checks",
+    "signOut": "Sign out",
+    "signOutTitle": "Sign out on this phone?",
+    "signOutBody": "You'll need your email to sign back in. Nothing is deleted, and you stay signed in on the website.",
+    "signedOut": "Signed out.",
+    "version": "Version {{version}} · {{variant}}"
+  },
+  "dev": {
+    "foundationTitle": "Developer checks",
+    "nfcTitle": "NFC check"
+  },
   "foundation": {
     "title": "TapTap",
     "subtitle": "Development build. This screen checks the design system, crash reporting and NFC before any real screens exist.",

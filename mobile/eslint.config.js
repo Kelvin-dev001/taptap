@@ -43,6 +43,14 @@ module.exports = defineConfig([
       "no-restricted-imports": [
         "error",
         {
+          // Metro does not tree-shake, so the package root bundles every icon
+          // (+3.5 MB of bytecode). src/ui/icons.ts imports them one by one.
+          paths: [
+            {
+              name: "lucide-react-native",
+              message: "Import icons from @/ui/icons (add new ones there, one file each).",
+            },
+          ],
           patterns: [
             {
               group: ["@taptap/core/*", ...shared.modules.map((m) => `!@taptap/core/${m}`)],
@@ -56,5 +64,10 @@ module.exports = defineConfig([
         },
       ],
     },
+  },
+  {
+    // The one place allowed to name lucide-react-native, for its type only.
+    files: ["src/ui/icons.ts"],
+    rules: { "no-restricted-imports": "off" },
   },
 ]);
