@@ -1,7 +1,8 @@
 # Hornbill TapTap mobile app — plan
 
 **Status:** **Approved by Kelvin, 28 September 2026** (questions 1–5 answered, §18). M0
-code-complete, phone checks outstanding; **M1 started early, 9 October 2026, with approval** — see
+code-complete, phone checks outstanding; **M1 started early, 9 October 2026, with approval**;
+**M2 started 11 October 2026, with approval** (its link-id fix is D-046) — see
 `docs/mobile/PROGRESS.md`.
 **Date:** 27 September 2026 · **Branch:** `mobile-app` (from `main` at `8e9b989`)
 **Read with:** `docs/mobile/BRIEF.md`, `PROJECT.md`, `docs/decision-log.md` (D-001 … D-033)
@@ -501,7 +502,7 @@ money through `Intl` with `en-KE` ("31 Dec 2026", "KES 1,000"). Adding Kiswahili
 |---|---|---|
 | Cold start to a usable Home (cached) | ≤ 3.0 s on the low-end emulator profile; ≤ 1.5 s on the Camon | `adb shell am start -W`, median of 5, plus Sentry's app-start timing |
 | Android download size | ≤ 25 MB | Play Console |
-| JavaScript bundle (Hermes bytecode) | ≤ 7 MB at launch — M0 baseline 4.4 MB (Expo Router, Sentry, i18n, NFC); **M1 5.24 MB** (+ Supabase, TanStack Query, SVG icons, sign-in and shell). M1 briefly measured 7.9 MB before the fixes in D-045 | `npx expo export --platform android` |
+| JavaScript bundle (Hermes bytecode) | ≤ 7 MB at launch — M0 baseline 4.4 MB (Expo Router, Sentry, i18n, NFC); **M1 5.24 MB** (+ Supabase, TanStack Query, SVG icons, sign-in and shell); **M2 5.72 MB** (+ Home, editor, share, QR encoder, photo picker and clipboard modules). M1 briefly measured 7.9 MB before the fixes in D-045 | `npx expo export --platform android` |
 | Leads list | no blank rows scrolling 500 leads on the low-end profile | manual + performance monitor |
 | Profile photo upload | ≤ 300 KB after compression | unit test on the resize step |
 
@@ -776,7 +777,7 @@ API surface, which the brief reserves for your approval.
 
 | # | File | When | What it does |
 |---|---|---|---|
-| 0030 | `0030_click_attribution.sql` | M2 | `log_event` keeps an event whose link no longer exists — or belongs to another page — by recording it without a link, instead of failing. Never lose a click. |
+| 0030 | `0030_page_draft_and_click_attribution.sql` | M2 | `save_page_draft()`: one transaction, `SECURITY INVOKER`, actions upserted by id, a stale `updated_at` refused (409). `updated_at` moves only with the draft. `log_event` keeps an event whose link no longer exists — or belongs to another page — by recording it without a link, instead of failing. Never lose a click (D-046). |
 | 0031 | `0031_leads_cursor.sql` | M3 | `get_leads` gains a `(created_at, id)` cursor and caps each page at 200; dropped and re-created in one transaction so PostgREST sees a single signature. The web's calls keep working unchanged. |
 | 0032 | `0032_push_devices.sql` | M3 | `push_devices` (one row per phone; per-type preferences), readable by its owner only; written through `register_push_device`, `unregister_push_device` and `set_push_prefs`, which take the user from the session and the account from `profiles`; `push_targets()` for the server only. |
 | 0033 | `0033_account_deletion.sql` | M4 | `account_deletions` audit table and a service-role-only `delete_account(p_user_id)`. If other members remain, it removes just this member. Otherwise it deletes profiles (links, events and leads cascade), dismissals, push devices and quote requests; switches the cards off and detaches them; renames and empties the account; **keeps payments, orders and payment links**. |
@@ -1064,7 +1065,8 @@ In `docs/decision-log.md`'s format, mirrored in `PROJECT.md`:
 
 6. ~~Emailed links: move them to a new `/auth/confirm` page with a "Continue" button (W8)?~~
    **Yes — approved 9 Oct 2026, built in M1 (D-043).**
-7. The link-id fix changes the web's Save as well (W4 + `0030`). Approve it for both?
+7. ~~The link-id fix changes the web's Save as well (W4 + `0030`). Approve it for both?~~
+   **Yes — approved with M2, 11 Oct 2026 (D-046).** The web editor also gains the conflict prompt.
 8. Store name "Hornbill TapTap", with "TapTap" as the home-screen label?
 9. Dark mode in the app while the web stays light-only — confirm?
 

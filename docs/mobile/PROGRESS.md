@@ -6,14 +6,199 @@ Live status against `docs/mobile/PLAN.md`. Newest first within each milestone.
 |---|---|---|
 | Step 1 — plan | by 27 Sep | ✅ Approved 28 Sep 2026 |
 | **M0 — setup** | by Sat 31 Oct | 🟡 **In progress** — code done; phone checks now run on the M1 dev build |
-| **M1 — sign-in and shell** | 2–6 Nov | 🟡 **Started early, 9 Oct (approved)** — code done and verified (209 app tests, 833 web tests); next: commit, web deploy, Supabase changes, dev build, phone tests |
-| M2 — profile, share, QR | 9–13 Nov | Not started |
+| **M1 — sign-in and shell** | 2–6 Nov | 🟡 **Started early, 9 Oct (approved)** — deployed, Supabase changed, dev build `b0c3324a` runs on the Camon; next: your inbox test and the phone session |
+| **M2 — profile, share, QR** | 9–13 Nov | 🟡 **Started 11 Oct (approved)** — code done and verified (289 app tests, 945 web tests, `0030` run against Postgres); next: commit, apply `0030`, web deploy, dev build, phone session |
 | M3 — leads and analytics | 16–20 Nov | Not started |
 | M4 — cards and NFC | 23–27 Nov | Not started |
 | M5 — push | 23–27 Nov ⚠ | Not started |
 | M6 — web ↔ app | 30 Nov–4 Dec ⚠ | Not started |
 | M7 — hardening and betas | 30 Nov–4 Dec | Not started |
 | M8 — store submission | 7–11 Dec | Not started |
+
+---
+
+## M2 — profile, share and QR
+
+**Started 11 Oct** with your approval ("proceed m2"), about four weeks early, while M1's phone
+session is still to do. That approval is also taken as yes to question 7 (the link-id fix changes
+the web's Save too). Decision D-046.
+
+### Done-means checklist (PLAN.md §15)
+
+- [ ] Home shows the live profile and its status within a second from cache — built: Home reads
+      the cached profiles first and draws the published snapshot natively; **phone test pending.**
+- [x] Edit photo, name, tagline, bio, contact card, actions and look; "Saving… → Saved ✓" is shown —
+      built and tested (navigation tests drive an edit through autosave); phone test pending.
+- [x] Edits made offline save on reconnect — built: every edit is written to the phone first and
+      sent when online (18 tests cover offline, retry, restart and sign-out); phone test pending.
+- [x] An edit made meanwhile on the web is detected, not overwritten — built in both editors
+      (`409` → "Keep my version" / "Load the latest"); tested; phone test pending.
+- [ ] Publish → the public page shows the change immediately (checked on a second phone) — built
+      (`publish_page`, after saving anything unsent); **needs `0030`, the web deploy and a phone.**
+- [ ] Photo uploads stay under 300 KB and appear on the public page — the size rule is tested;
+      **the upload itself only runs on a phone** (new dev build needed).
+- [x] Share opens WhatsApp with the link filled in; "More" opens the system share sheet; "Copy link"
+      shows a toast — built; phone test pending.
+- [ ] The full-screen QR scans from another phone at 1 m in normal light — built (drawn on the
+      phone with the web's encoder and settings, tested against it); **needs a second phone.**
+- [ ] **Link-id fix live** (W4, `0030`): saving keeps action ids — **tested** (web and Postgres);
+      clicks on the live page still recorded after a draft save — reproduced and fixed against
+      Postgres; **live check after `0030` and the deploy.** Web tests green; deploy with your OK.
+
+### Built on 11 Oct
+
+**Database — `0030_page_draft_and_click_attribution.sql` (you apply it):**
+
+- `save_page_draft()`: the whole draft in one transaction, as the signed-in person (`SECURITY
+  INVOKER`, so RLS and the column grants still decide). Actions are upserted by id; only removed
+  ones are deleted; an id that belongs to another page is refused and everything rolls back. The
+  version check sits in the same statement as the write.
+- `updated_at` now moves only when the draft changes (title, type, destination, config, theme, or
+  the actions through a save). Publishing, unpublishing and switching off leave it alone, so they
+  never look like someone else's edit.
+- `log_event`: a click on an action that no longer exists, or belongs to another page, is recorded
+  without the action instead of failing. Same signature; every caller unchanged.
+
+**Web (deploy only with your OK, after `0030`):**
+
+- `lib/draft.ts` (new, shared with the app): the draft's shape and rules — which values make a dead
+  button, the lead-form rule — so the app accepts exactly what the server will.
+- `lib/page-draft.ts` (new, W4): the one save behind the editor's Save and the app's autosave.
+- `lib/api/request-user.ts` (new, W3): the Bearer-token check for app routes (`auth.getUser`, then
+  queries run as that user).
+- `app/api/app/v1/pages/[id]/draft/route.ts` (new, W5): `PUT`, the app's autosave. **New public API
+  route** (approved as part of M2).
+- `lib/page-diff.ts` and `lib/phone.ts` (new, W6, shared with the app): "does the draft differ from
+  what customers see?" and Kenyan phone numbers.
+- Web editor: new actions get their id when added; every save sends ids and the version it was
+  based on; a change saved elsewhere shows "This profile was changed somewhere else" with Reload /
+  Keep my version; "Unpublished changes" now stays until the changes are published.
+
+**Mobile:**
+
+- Home: the profile as customers see it (or the draft, if it isn't live), its status in one word
+  — Live, Unpublished changes, Draft, Not active, Switched off — and Share, QR code, Edit profile.
+  A profile switcher for accounts with more than one; pull to refresh.
+- Editor: photo or logo, name, tagline, about, actions (add, edit, show/hide, move up/down,
+  delete), contact card, look (light/dark and ten button colours), lead form where the account has
+  a live card, Preview, Publish / Unpublish. Saves itself; works offline; never queues Publish or a
+  photo upload.
+- Add/edit action: the value is checked as the server will, and phone numbers to Kenyan length,
+  before the action joins the draft.
+- Share sheet (WhatsApp, More, Copy link) and a full-screen QR code drawn on the phone, encoding the
+  same `…/<slug>?src=qr` as the web's QR codes, so scans count as scans.
+- New native modules: `expo-image-picker` (camera and microphone permissions blocked; Android's
+  photo picker needs none), `expo-image-manipulator`, `expo-clipboard`; plus `qrcode`'s encoder
+  (the web's library and version). **They need a new dev build.**
+
+### Verification, 11 Oct
+
+- **Migration run against real Postgres** (PGlite, with the production tables, RLS and grants, as
+  the `authenticated` role): 16 checks pass — the bug reproduced before `0030` (a click on a removed
+  action fails its foreign key); after it, ids kept, order applied, removed actions deleted,
+  conflicts refused with the current version, the version round-trips exactly, publish/unpublish/
+  switch-off leave it alone, another account's page and ids refused with a full rollback,
+  malformed input refused, clicks on removed or foreign actions kept, `anon` denied.
+- **Web:** 945 tests (833 before; +112, including the migration text, the route, the save, the
+  Bearer check and 4 editor UI tests), `tsc` clean, `eslint` clean, `next build` succeeds with the
+  new route.
+- **Mobile:** 289 tests (213 before), `tsc` clean, `eslint` clean. Navigation tests now drive Home,
+  an autosaved edit, adding an action (a short number refused first), a conflict and a publish.
+- **Bundle:** 5.72 MB (M1 5.24 MB; budget 7 MB).
+- **Permissions** (resolved config): Android asks for INTERNET, NFC and VIBRATE; CAMERA and
+  RECORD_AUDIO are actively removed. iOS asks only for photo-library access.
+- `npm audit` lists 70 advisories in the app's tree, all in Expo CLI and Jest tooling, none in the
+  new packages or the shipped bundle. Left for M7.
+
+### Findings
+
+22. **The link-id bug is real.** Reproduced against Postgres: before `0030`, a click on an action
+    the draft has replaced fails `log_event`'s foreign key, and `/api/track` swallows the error.
+    Every live profile edited since its last publish has been dropping clicks on those buttons.
+    The optional query in step 2 below shows how many buttons that is today.
+23. **Publishing changed `updated_at`** (the 0001 trigger bumps it on any update), which would have
+    made every publish look like a conflicting edit to the other device. Now it tracks the draft only.
+24. **A subtle RLS case, found by the Postgres run:** an action id that belongs to *another
+    account* is invisible under RLS, so the upsert silently skipped it and the action vanished from
+    the save without an error. Nothing leaked, but it now fails loudly and rolls back.
+25. The 8-argument `log_event` overload from 0002 can no longer be reached: every caller passes
+    `p_source`, and a call without it matches both overloads and is refused as ambiguous. Left as
+    is rather than rewritten.
+26. Reanimated's Babel plugin reads `.value` inside a style as one of its shared values and
+    injects a warning; the colour list uses `hex`.
+27. After a save, the editor's badge flashed the old status for a frame (a prop from the parent
+    lagged the unsent-edits store by one render). Fixed and covered by a test.
+28. The server trims text on save. Copying that back into the editor would delete a space someone
+    paused after ("Mama " → "Mama", then "MamaNjeri"). The phone keeps what was typed.
+29. A save sent to a website without the new route (deployed before it) gets the site's own 404
+    page. Reading that as "profile deleted" would have discarded the edits; only the route's own
+    `not_found` answer counts now, anything else is retried.
+30. Home's "this week's numbers" (PLAN.md §6) moves to M3, where the analytics screen is built on
+    the same function. Not in M2's done-means.
+31. **Worth a separate decision:** Vercel runs the web's functions in the US by default, and the
+    database is in Ireland. Each app save makes about six round trips (the token check, the page,
+    three billing reads, the save), so roughly half a second. Fine for autosave; pinning functions
+    to Dublin (`dub1`) would speed up every server-rendered page too. A web-wide change, so not
+    made here.
+
+### What you need to do
+
+**1. Review, then let me commit** — I'll stage the files explicitly and run the secret scan.
+
+**2. Apply `0030`** (before the web deploy; it is safe for the current website):
+
+```powershell
+cd C:\Projects\taptap
+supabase db push --dry-run
+supabase db push
+```
+
+The dry run should list only `0030_page_draft_and_click_attribution.sql`. *Optional, before
+applying:* how many buttons on live profiles are dropping clicks right now (SQL editor, read-only):
+
+```sql
+select count(*) filter (where l.id is null) as dropping_clicks, count(*) as live_buttons
+from smart_pages sp
+cross join lateral jsonb_array_elements(sp.published_content->'links') x
+left join links l on l.id = (x->>'id')::uuid
+where sp.status = 'published';
+```
+
+*After applying:* `select proname from pg_proc where proname in ('save_page_draft', 'smart_pages_touch_draft');`
+should return both.
+
+**3. Deploy the web** — preview, then production, as for M1. Until this is done, the new app's
+autosave keeps edits on the phone and retries.
+
+**4. Build the new dev app** — the photo picker, image resizing and clipboard are native modules.
+It uses the third of October's 15 free Android builds:
+
+```powershell
+cd C:\Projects\taptap\mobile
+npx eas-cli@latest build --profile development --platform android
+```
+
+**5. One session on the Camon** (after 2–4; about 40 minutes with M1's checks, which can run in the
+same sitting):
+
+1. **Home:** your profile as customers see it, its status, and your link. With two profiles, the
+   name at the top switches between them.
+2. **Edit profile → change the business name.** "Saving…", then "Saved". Home says "Unpublished
+   changes"; your public page in a browser still shows the old name.
+3. **Publish changes.** The public page (refresh it) shows the new name. Home says "Live".
+4. **Add an action:** Add action → WhatsApp → type `0722 000` → Add action: it says the number is
+   too short. Fix it, add it, move it up and down, switch it off and on, then delete it.
+5. **Photo:** Add a photo → pick one → crop. It appears in the editor; publish; it appears on the
+   public page. (Tell me how long the upload took.)
+6. **Offline:** airplane mode on, change the tagline: "Saved on this phone…". Close the app
+   completely, reopen it, airplane mode off: it saves by itself. Publish is disabled while offline.
+7. **Conflict:** with the editor open on the phone, change the name on the website and save there.
+   Then change something on the phone: "Changed somewhere else" — try both buttons.
+8. **Share:** Share on WhatsApp (pick yourself; the link is filled in), More options, Copy link.
+9. **QR code:** scan it from another phone at about a metre. It should open your profile.
+10. **Look:** switch Dark, pick a button colour, open Preview: it matches what you chose.
+11. With the largest font size and TalkBack on, the editor's switches, arrows and colour swatches
+    each read with a name.
 
 ---
 
@@ -154,7 +339,15 @@ You also approved W8 (emailed links land on `/auth/confirm`) the same day. Decis
     allowed inbound on Public. **Fix:** `plugins/with-expo-core-preload.js` loads the library in
     `MainApplication.onCreate`, right after React Native, so the call is always safe — verified by
     prebuild, with 4 tests. It matters for store builds too (expo-updates reloads after a startup
-    error). Needs a new native build. Remove when Expo fixes `@expo/ui`.
+    error). Needs a new native build. Remove when Expo fixes `@expo/ui`. **Rebuilt 11 Oct:**
+    commit `646b9ca` (pushed with the branch), build `b0c3324a` finished 13:58 UTC — the plugin
+    ran in prebuild (it fails the build if its anchor is missing), `:app:compileDebugKotlin`
+    passed, `BUILD SUCCESSFUL in 14m 7s`, debug APK 261 MB. 2 of October's 15 free Android builds
+    used. Install page:
+    <https://expo.dev/accounts/hornbill-taptap/projects/hornbill-taptap/builds/b0c3324a-44af-4a5b-9115-6413726c57c0>.
+    **On the Camon, 11 Oct:** installed, loaded the bundle from Metro and reached sign-in. The
+    exact path that crashed (a reload before the JavaScript runs) is checked by reloading from the
+    red screen with Metro stopped; until then the fix is proven by build only.
 
 ### What you need to do
 

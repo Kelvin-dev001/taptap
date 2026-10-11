@@ -1222,5 +1222,36 @@ icons and font on both platforms and lets M7 strip the Material Symbols font nat
 
 ---
 
+### D-046 — A draft save keeps every action's id, and says when someone else saved first
+**Date:** 2026-10-11 · **Status:** Accepted · **Plan:** §2.2 #1, §9 W4–W5, §10 `0030`
+
+**Context:** the web's Save deleted all of a profile's actions and inserted new ones. Each save cut
+every past click loose from its action (`events.link_id` is `ON DELETE SET NULL`), so "top actions"
+and Insights restarted from zero. Worse, the live page is a snapshot holding the old ids: after a
+draft save, `log_event`'s insert failed its foreign key and `/api/track` ignored the error, so
+clicks on the live page went unrecorded until the next publish (reproduced against Postgres before
+the fix). The app autosaves every few seconds and would have made both constant. Nothing stopped
+two devices overwriting each other either.
+
+**Decision:** one save for both editors (`lib/page-draft.ts`). It checks the draft
+(`lib/draft.ts`, shared with the app so both apply the same rules), applies the lead-form rule, and
+writes through `save_page_draft()`: one transaction, `SECURITY INVOKER` so RLS and the column
+grants still decide, actions upserted by an id the editor generated, only removed actions deleted,
+and an id belonging to another page refused. Each save carries the `updated_at` it was based on; a
+different one gets `409` and the current version, and the editor asks whose version wins.
+`updated_at` now moves only when the draft changes, so publishing, unpublishing and switching a
+profile off never look like a conflicting edit. `log_event` records a click on an action that no
+longer exists — or belongs to another page — without the action, instead of failing.
+
+**Consequences:** saves survive autosave, retries and offline replay (repeating one is harmless).
+Click history stays attached to its action across edits. The web editor gained the same conflict
+prompt, and its "Unpublished changes" now compares the draft with the live snapshot
+(`lib/page-diff.ts`) instead of vanishing after Save. The app reaches the save through
+`PUT /api/app/v1/pages/{id}/draft` with a Bearer token (W3, W5). Deploy order matters: `0030`
+first, then the web; a web deploy that runs ahead shows "a database update is being applied" on
+Save rather than breaking.
+
+---
+
 _Add new decisions above this line as `D-00N`, and mirror the one-liner into
 `PROJECT.md`._

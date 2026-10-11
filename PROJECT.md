@@ -5,11 +5,12 @@
 > re-reading the original master-prompt PDF. Update this file whenever a major
 > decision changes.
 
-**Last updated:** 2026-10-09
-**In parallel: the native mobile app (D-034 … D-045).** An Expo app for card owners, on branch
+**Last updated:** 2026-10-11
+**In parallel: the native mobile app (D-034 … D-046).** An Expo app for card owners, on branch
 `mobile-app`. `docs/mobile/PLAN.md` was approved on 2026-09-28. M0 (setup) is code-complete with
-its phone checks outstanding; M1 (sign-in and shell) was started early on 2026-10-09 with
-approval, alongside them — status in `docs/mobile/PROGRESS.md`. Store launch is targeted for
+its phone checks outstanding; M1 (sign-in and shell) is built and running on the Camon, its phone
+session outstanding; M2 (profile, share and QR, with the link-id fix for the web too, D-046) was
+started on 2026-10-11 with approval — status in `docs/mobile/PROGRESS.md`. Store launch is targeted for
 mid-December 2026.
 **Current phase (web):** **Sprint 8c — Premium proof and replacements (D-033), built and applied.**
 The Premium front is generated from the customer's profile, approved by them, and frozen at
@@ -161,6 +162,7 @@ expand across East Africa, then the continent.
 | D-043 | **Emailed sign-in links land on `/auth/confirm` and wait for a press of Continue**, so mail scanners cannot spend the token (or the code beside it). Templates link from the Site URL and pass the redirect as `redirect_to`. `safeNext` now refuses backslashes and control characters, which closed an open redirect |
 | D-044 | **On the phone, a stored session means signed in** — supabase-js reports no session offline once the token has expired; only a server refusal or a sign-out ends it. Sign-out is local and works offline |
 | D-045 | **Dependencies are measured in the bundle, not assumed:** Metro does not tree-shake, so icons are imported one file each, zod is replaced by a small local checker, and transitive native libraries are pinned to the SDK's versions. JavaScript tabs, not native tabs |
+| D-046 | **A draft save keeps every action's id:** one transactional `save_page_draft()` for the web's Save and the app's autosave; ids come from the editor, a stale `updated_at` gets a 409 instead of overwriting, `updated_at` moves only with the draft, and `log_event` keeps clicks on removed actions |
 
 ## MVP scope (one line)
 
