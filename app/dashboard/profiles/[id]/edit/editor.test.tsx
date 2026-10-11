@@ -26,7 +26,11 @@ const live: ComparableContent = {
   links: [{ type: "call", label: "Call", value: "0722000000", sort_order: 0 }],
 };
 
-function renderEditor() {
+function renderEditor(
+  blocks: Parameters<typeof Editor>[0]["initialBlocks"] = [
+    { id: ACTION, type: "call", label: "Call", value: "0722000000", sort_order: 0, is_active: true },
+  ],
+) {
   return render(
     <ToastProvider>
       <Editor
@@ -39,9 +43,7 @@ function renderEditor() {
         initialRedirectUrl=""
         initialConfig={{}}
         initialTheme={{}}
-        initialBlocks={[
-          { id: ACTION, type: "call", label: "Call", value: "0722000000", sort_order: 0, is_active: true },
-        ]}
+        initialBlocks={blocks}
         initialStatus="published"
         initialPublishedAt="2026-10-01T09:00:00Z"
         initialUpdatedAt="v1"
@@ -59,7 +61,9 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe("Editor saving", () => {
+// Typing through a full editor takes a few seconds in jsdom, and longer when the
+// whole suite runs in parallel; the default 5 s limit made these flaky.
+describe("Editor saving", { timeout: 20_000 }, () => {
   it("sends each action with its id and the version it was based on", async () => {
     savePageAction.mockResolvedValue({ success: "Saved.", updatedAt: "v2" });
     const user = userEvent.setup();
@@ -139,5 +143,29 @@ describe("Editor saving", () => {
     expect(blocks[1].type).toBe("whatsapp");
     expect(blocks[1].id).toMatch(/^[0-9a-f-]{36}$/);
     expect(blocks[1].id).not.toBe(ACTION);
+  });
+
+  /**
+   * The bug that shipped on 11 Oct: a "Save contact" action has no value, and
+   * an action saved without a label has none either. The database stores both
+   * as null, the editor sent null back, and every save was refused.
+   */
+  it("saves a profile whose actions have no label or value in the database", async () => {
+    savePageAction.mockResolvedValue({ success: "Saved.", updatedAt: "v2" });
+    const user = userEvent.setup();
+    renderEditor([
+      // Straight from the database: nulls, as Supabase returns them.
+      { id: ACTION, type: "contact", label: null, value: null, sort_order: 0, is_active: true } as never,
+    ]);
+
+    await user.type(screen.getByLabelText("Business name"), "!");
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
+
+    await waitFor(() => expect(savePageAction).toHaveBeenCalled());
+    const payload = savePageAction.mock.calls[0][1];
+    expect(payload.blocks).toEqual([{ id: ACTION, type: "contact", label: "", value: "", isActive: true }]);
+    // ...and the server-side check accepts exactly that.
+    const { parseDraftInput } = await import("@/lib/draft");
+    expect(parseDraftInput(payload).ok).toBe(true);
   });
 });

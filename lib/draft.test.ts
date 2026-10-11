@@ -56,7 +56,7 @@ describe("parseDraftInput", () => {
     ["blocks[0].id", body({ blocks: [{ id: "1", type: "call", label: "", value: "", isActive: true }] })],
     ["blocks[0].type", body({ blocks: [{ id: ID, type: "script", label: "", value: "", isActive: true }] })],
     ["blocks[0].label", body({ blocks: [{ id: ID, type: "call", label: 3, value: "", isActive: true }] })],
-    ["blocks[0].value", body({ blocks: [{ id: ID, type: "call", label: "", value: null, isActive: true }] })],
+    ["blocks[0].value", body({ blocks: [{ id: ID, type: "call", label: "", value: 722000000, isActive: true }] })],
     ["blocks[0].isActive", body({ blocks: [{ id: ID, type: "call", label: "", value: "", isActive: "yes" }] })],
   ])("names %s when it is wrong", (field, input) => {
     expect(parseDraftInput(input)).toEqual({ ok: false, field });
@@ -68,6 +68,14 @@ describe("parseDraftInput", () => {
       { id: ID.toUpperCase(), type: "email", label: "", value: "", isActive: true },
     ];
     expect(parseDraftInput(body({ blocks }))).toEqual({ ok: false, field: "blocks[1].id" });
+  });
+
+  it("reads a null label or value as empty, as the database stores them", () => {
+    const blocks = [{ id: ID, type: "contact", label: null, value: null, isActive: true }];
+    const parsed = parseDraftInput(body({ blocks }));
+    expect(parsed.ok && parsed.input.blocks).toEqual([
+      { id: ID, type: "contact", label: "", value: "", isActive: true },
+    ]);
   });
 
   it("accepts an empty draft", () => {

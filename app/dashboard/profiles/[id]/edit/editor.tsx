@@ -107,7 +107,15 @@ export default function Editor(props: Props) {
   // get theirs here — so a save updates rows instead of re-creating them and
   // their click history survives (D-046).
   const [blocks, setBlocks] = React.useState<EditorBlock[]>(
-    (props.initialBlocks ?? []).map((b) => ({ ...b, id: b.id ?? crypto.randomUUID(), key: nextKey() })),
+    // Empty labels and values arrive from the database as null; the inputs and
+    // the save both want text.
+    (props.initialBlocks ?? []).map((b) => ({
+      ...b,
+      id: b.id ?? crypto.randomUUID(),
+      label: b.label ?? "",
+      value: b.value ?? "",
+      key: nextKey(),
+    })),
   );
   const [expanded, setExpanded] = React.useState<string | null>(null);
 

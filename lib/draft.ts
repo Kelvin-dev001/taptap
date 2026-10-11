@@ -94,10 +94,14 @@ export function parseDraftInput(body: unknown): ParsedDraft {
     if (!isUuid(b.id) || seen.has(b.id.toLowerCase())) return fail(`blocks[${i}].id`);
     seen.add(b.id.toLowerCase());
     if (!isBlockType(b.type)) return fail(`blocks[${i}].type`);
-    if (typeof b.label !== "string" || b.label.length > DRAFT_LIMITS.label) return fail(`blocks[${i}].label`);
-    if (typeof b.value !== "string" || b.value.length > DRAFT_LIMITS.value) return fail(`blocks[${i}].value`);
+    // The database stores an empty label or value as null (0030's nullif), and
+    // an editor that loaded it may send it back that way: null means empty.
+    const label = b.label ?? "";
+    const value = b.value ?? "";
+    if (typeof label !== "string" || label.length > DRAFT_LIMITS.label) return fail(`blocks[${i}].label`);
+    if (typeof value !== "string" || value.length > DRAFT_LIMITS.value) return fail(`blocks[${i}].value`);
     if (typeof b.isActive !== "boolean") return fail(`blocks[${i}].isActive`);
-    parsed.push({ id: b.id, type: b.type, label: b.label, value: b.value, isActive: b.isActive });
+    parsed.push({ id: b.id, type: b.type, label, value, isActive: b.isActive });
   }
 
   return {
