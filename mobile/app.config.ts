@@ -91,6 +91,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // Holds the key that encrypts the saved session (src/auth/encrypted-storage.ts).
     // Its Android backup rules keep that key out of backups, matching allowBackup: false.
     "expo-secure-store",
+    // Works around an @expo/ui crash on reload (PROGRESS.md, M1 finding 21).
+    "./plugins/with-expo-core-preload",
     [
       "react-native-nfc-manager",
       {

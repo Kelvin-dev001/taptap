@@ -141,6 +141,20 @@ You also approved W8 (emailed links land on `/auth/confirm`) the same day. Decis
 20. **Not in M1, moved:** Kenyan phone parsing (W6) goes to M2, which has the first phone fields.
     EAS environment variables for preview and production builds (the three `EXPO_PUBLIC_` values
     above) are needed before the first preview build (M0's cold-start timing), not before.
+21. **The dev build crashed on launch (11 Oct) — `UnsatisfiedLinkError … NativeStatePropsGetter
+    .clearAllContentOriginsImpl`.** An Expo bug, not ours. Since SDK 57's 6 Oct patches
+    (`@expo/ui` 57.0.22, `expo-modules-core` 57.0.21, still the newest), `@expo/ui` — pulled in by
+    Expo Router — calls a native method of `expo-modules-core` whenever a React instance is torn
+    down. That library loads only once the app's JavaScript starts. So any teardown before the
+    JavaScript ran (here: a reload, per the trace) crashes, and hides the real first failure,
+    usually a bundle that never downloaded. Checked: the method is compiled in
+    (`RN_FABRIC_ENABLED=1`), and leaving `@expo/ui` out is unsafe (its views are looked up at
+    import, 58 places). PC side verified: Metro is running and serves the 11 MB dev bundle over
+    `192.168.0.107:8081` with no bundling error; Windows calls the Wi-Fi Public, but Node.js is
+    allowed inbound on Public. **Fix:** `plugins/with-expo-core-preload.js` loads the library in
+    `MainApplication.onCreate`, right after React Native, so the call is always safe — verified by
+    prebuild, with 4 tests. It matters for store builds too (expo-updates reloads after a startup
+    error). Needs a new native build. Remove when Expo fixes `@expo/ui`.
 
 ### What you need to do
 
