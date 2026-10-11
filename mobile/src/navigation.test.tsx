@@ -60,6 +60,9 @@ const mockPage = {
 const mockCallAppApi = jest.fn();
 const mockRpc = jest.fn();
 
+/** Cards the account has in a test; empty unless a test fills it. */
+let mockCards: Record<string, unknown>[] = [];
+
 /** Leads the account has in a test; empty unless a test fills it. */
 let mockLeadRows: Record<string, unknown>[] = [];
 const mockLeadUpdate = jest.fn();
@@ -74,6 +77,8 @@ function mockRpcAnswer(fn: string): unknown {
     }
     case "get_leads":
       return mockLeadRows;
+    case "get_devices_overview":
+      return mockCards.map((c) => ({ id: c.id, taps: 4, last_tap: null }));
     case "get_analytics":
       return {
         days: 7, scope: "account", pages: 1, totals: {}, previous: {}, leads: 0, previous_leads: 0,
@@ -123,7 +128,9 @@ jest.mock("@/api/supabase", () => ({
           }),
         };
       }
-      if (table === "nfc_tags") return { select: async () => ({ data: [], error: null }) };
+      if (table === "nfc_tags") {
+        return { select: () => ({ order: async () => ({ data: mockCards, error: null }) }) };
+      }
       if (table === "leads") {
         return {
           update: (patch: unknown) => ({
@@ -157,6 +164,7 @@ jest.mock("@/api/query", () => {
   });
   // As the real src/api/query.tsx does at start: queued lead edits need it.
   jest.requireActual("@/api/lead-edits").registerLeadEdits(client);
+  jest.requireActual("@/api/card-edits").registerCardEdits(client);
   return {
     queryClient: client,
     QueryProvider: ({ children }: { children: unknown }) =>
@@ -246,6 +254,7 @@ beforeEach(async () => {
   mockCallAppApi.mockReset();
   mockRpc.mockReset();
   mockLeadRows = [];
+  mockCards = [];
   mockLeadUpdate.mockReset();
   mockRpc.mockImplementation(async (fn: string) => ({ data: mockRpcAnswer(fn), error: null }));
   mockCallAppApi.mockResolvedValue({ status: 200, body: { updatedAt: "2026-10-11T10:00:00.000001+00:00" } });
@@ -571,5 +580,114 @@ describe("leads and analytics (M3)", () => {
       ),
     ).toBeTruthy();
     expect(screen.queryByText(/buy|upgrade|renew|KES/i)).toBeNull();
+  });
+});
+
+describe("cards (M4)", () => {
+  const card = {
+    id: "c-1",
+    token: "0123456789abcdef0123456789abcdef",
+    kind: "card",
+    label: null,
+    status: "unassigned",
+    account_id: "acc-1",
+    smart_page_id: null,
+    term_start: "2026-01-01T00:00:00Z",
+    term_end: "2099-01-01T00:00:00Z",
+    claimed_at: "2026-01-02T00:00:00Z",
+    serial: "TT-000123",
+    variant: "standard",
+    is_placeholder: false,
+  };
+
+  it("lists a card in neutral words and sets it up by its serial", async () => {
+    mockCards = [card];
+    mockStore.set(SESSION_KEY, JSON.stringify(session));
+    const router = await start();
+    await screen.findByText("Live");
+    await act(async () => appRouter.push("/cards"));
+
+    expect(await screen.findByText("Card TT-000123")).toBeTruthy();
+    expect(screen.getByText("Not linked to a profile yet")).toBeTruthy();
+    expect(screen.queryByText(/renew|buy|KES/i)).toBeNull();
+
+    await fireEvent.press(screen.getByText("Set up a card"));
+    expect(router.getPathname()).toBe("/card/set-up");
+    // This test phone has no NFC: the serial does the same job.
+    expect(await screen.findByText("This phone can't read cards by NFC. Use the serial printed on the card instead.")).toBeTruthy();
+    await fireEvent.press(screen.getByText("Use the serial instead"));
+
+    await fireEvent.changeText(await screen.findByLabelText(/Serial on the card/), "tt 000123");
+    await fireEvent.press(screen.getByText("Find card"));
+    expect(await screen.findByText("Found: Card TT-000123")).toBeTruthy();
+
+    await fireEvent.press(screen.getByText("Mama Njeri's"));
+    expect(await screen.findByText("Card set up")).toBeTruthy();
+    expect(mockRpc).toHaveBeenCalledWith("rebind_tag", { p_tag_id: "c-1", p_page_id: "p-1" });
+  });
+
+  it("says when a serial is not on the account, without linking anything", async () => {
+    mockCards = [card];
+    mockStore.set(SESSION_KEY, JSON.stringify(session));
+    await start();
+    await screen.findByText("Live");
+    await act(async () => appRouter.push("/card/set-up"));
+    await fireEvent.press(await screen.findByText("Use the serial instead"));
+    await fireEvent.changeText(await screen.findByLabelText(/Serial on the card/), "TT-999999");
+    await fireEvent.press(screen.getByText("Find card"));
+    expect(await screen.findByText("No card with that serial is on your account. Check it, or try scanning.")).toBeTruthy();
+    expect(mockRpc).not.toHaveBeenCalledWith("rebind_tag", expect.anything());
+  });
+});
+
+describe("deleting the account (M4)", () => {
+  it("confirms it's you, deletes through the server, and signs out", async () => {
+    mockAuth.signInWithPassword.mockResolvedValue({ data: { session }, error: null });
+    mockAuth.signOut.mockImplementation(async () => {
+      mockStore.delete(SESSION_KEY);
+      notify("SIGNED_OUT", null);
+      return { error: null };
+    });
+    mockCallAppApi.mockResolvedValue({ status: 202, body: { scope: "account" } });
+    mockStore.set(SESSION_KEY, JSON.stringify(session));
+    const router = await start();
+    await screen.findByText("Live");
+    await act(async () => appRouter.push("/account"));
+
+    await fireEvent.press(await screen.findByText("Delete account"));
+    expect(router.getPathname()).toBe("/settings/delete-account");
+    expect(screen.getByText(/Payment and order records, with your name, phone number and delivery details removed/)).toBeTruthy();
+
+    // Nothing can be deleted until the person has proved who they are.
+    expect(screen.getByLabelText("Delete my account").props.accessibilityState).toMatchObject({ disabled: true });
+    await fireEvent.changeText(screen.getByLabelText("Password"), "correct horse");
+    await fireEvent.press(screen.getByText("Delete my account"));
+    await fireEvent.press(await screen.findByText("Delete for good"));
+
+    expect(await screen.findByText("Sign in with the email you use for TapTap.")).toBeTruthy();
+    expect(mockAuth.signInWithPassword).toHaveBeenCalledWith({ email: "owner@business.co.ke", password: "correct horse" });
+    expect(mockCallAppApi).toHaveBeenCalledWith("POST", "/api/app/v1/account/delete", {});
+    // The fresh sign-in comes first: the server needs one from the last ten minutes.
+    expect(mockAuth.signInWithPassword.mock.invocationCallOrder[0]).toBeLessThan(
+      mockCallAppApi.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("stops at a wrong password, deleting nothing", async () => {
+    const { AuthApiError } = jest.requireActual("@supabase/supabase-js");
+    mockAuth.signInWithPassword.mockResolvedValue({
+      data: { session: null },
+      error: new AuthApiError("Invalid login credentials", 400, "invalid_credentials"),
+    });
+    mockStore.set(SESSION_KEY, JSON.stringify(session));
+    await start();
+    await screen.findByText("Live");
+    await act(async () => appRouter.push("/settings/delete-account"));
+    await fireEvent.changeText(await screen.findByLabelText("Password"), "wrong");
+    await fireEvent.press(screen.getByText("Delete my account"));
+    await fireEvent.press(await screen.findByText("Delete for good"));
+
+    expect(await screen.findByText("That email and password don't match. Try again, or reset your password.")).toBeTruthy();
+    expect(mockCallAppApi).not.toHaveBeenCalled();
   });
 });

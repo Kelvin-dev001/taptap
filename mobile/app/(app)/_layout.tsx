@@ -28,6 +28,9 @@ export default function SignedInLayout() {
       <Stack.Screen name="profile/[id]/preview" options={{ presentation: "modal" }} />
       <Stack.Screen name="qr/[id]" options={{ presentation: "modal" }} />
       <Stack.Screen name="lead/[id]" />
+      <Stack.Screen name="card/[id]" />
+      <Stack.Screen name="card/set-up" options={{ presentation: "modal" }} />
+      <Stack.Screen name="settings/delete-account" />
     </Stack>
   );
 }

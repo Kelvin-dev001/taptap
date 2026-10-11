@@ -11,7 +11,7 @@ import { space } from "@/theme/tokens";
 import { Button } from "@/ui/button";
 import { Card } from "@/ui/card";
 import { ConfirmSheet } from "@/ui/confirm-sheet";
-import { Wrench } from "@/ui/icons";
+import { Trash, Wrench } from "@/ui/icons";
 import { ListRow } from "@/ui/list-row";
 import { OfflineBanner } from "@/ui/offline-banner";
 import { Screen } from "@/ui/screen";
@@ -77,6 +77,15 @@ export default function Account() {
         variant="secondary"
         onPress={() => setConfirming(true)}
       />
+
+      <Card>
+        <ListRow
+          icon={Trash}
+          title={t("account.deleteAccount")}
+          subtitle={t("account.deleteAccountHint")}
+          onPress={() => router.push("/settings/delete-account")}
+        />
+      </Card>
 
       <Text variant="caption" tone="muted">
         {t("account.version", { variant, version: appVersion })}

@@ -6,6 +6,7 @@ import * as Network from "expo-network";
 import type { PropsWithChildren } from "react";
 import { AppState } from "react-native";
 import { appVersion } from "@/lib/build";
+import { registerCardEdits } from "./card-edits";
 import { registerLeadEdits } from "./lead-edits";
 
 /**
@@ -31,6 +32,7 @@ export const queryClient = new QueryClient({
 // How queued edits are sent must be known before the cache is restored, so a
 // change paused in an earlier run can be resumed (src/api/lead-edits.ts).
 registerLeadEdits(queryClient);
+registerCardEdits(queryClient);
 
 export const persister = createAsyncStoragePersister({
   storage: AsyncStorage,
