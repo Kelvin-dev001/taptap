@@ -9,8 +9,9 @@
 **In parallel: the native mobile app (D-034 … D-046).** An Expo app for card owners, on branch
 `mobile-app`. `docs/mobile/PLAN.md` was approved on 2026-09-28. M0 (setup) is code-complete with
 its phone checks outstanding; M1 (sign-in and shell) is built and running on the Camon, its phone
-session outstanding; M2 (profile, share and QR, with the link-id fix for the web too, D-046) was
-started on 2026-10-11 with approval — status in `docs/mobile/PROGRESS.md`. Store launch is targeted for
+session outstanding; M2 (profile, share and QR, with the link-id fix for the web too, D-046) is
+deployed and live on the web, its phone session outstanding; M3 (leads and analytics) was started
+on 2026-10-11 with approval — status in `docs/mobile/PROGRESS.md`. Store launch is targeted for
 mid-December 2026.
 **Current phase (web):** **Sprint 8c — Premium proof and replacements (D-033), built and applied.**
 The Premium front is generated from the customer's profile, approved by them, and frozen at

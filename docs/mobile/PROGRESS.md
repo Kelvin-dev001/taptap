@@ -8,12 +8,132 @@ Live status against `docs/mobile/PLAN.md`. Newest first within each milestone.
 | **M0 — setup** | by Sat 31 Oct | 🟡 **In progress** — code done; phone checks now run on the M1 dev build |
 | **M1 — sign-in and shell** | 2–6 Nov | 🟡 **Started early, 9 Oct (approved)** — deployed, Supabase changed, dev build `b0c3324a` runs on the Camon; next: your inbox test and the phone session |
 | **M2 — profile, share, QR** | 9–13 Nov | 🟡 **Started 11 Oct (approved)** — committed and pushed; `0030` applied and the web deployed to production 11 Oct; next: dev build, phone session |
-| M3 — leads and analytics | 16–20 Nov | Not started |
+| **M3 — leads and analytics** | 16–20 Nov | 🟡 **Started 11 Oct (approved)** — code done and verified (320 app tests, 952 web tests, `0031` run against Postgres); push registration deferred until Firebase exists; next: commit, apply `0031`, phone session |
 | M4 — cards and NFC | 23–27 Nov | Not started |
 | M5 — push | 23–27 Nov ⚠ | Not started |
 | M6 — web ↔ app | 30 Nov–4 Dec ⚠ | Not started |
 | M7 — hardening and betas | 30 Nov–4 Dec | Not started |
 | M8 — store submission | 7–11 Dec | Not started |
+
+---
+
+## M3 — leads and analytics
+
+**Started 11 Oct** with your approval ("then proceed", after M2 was committed and pushed), about
+five weeks early, while M1's and M2's phone sessions are still to do.
+
+**Changed from the plan, flagged rather than done quietly:** push device registration (`0032`
+and the app side), which the plan pulled forward from M5 into M3, **is not built yet**. A phone
+can only get a push token once a Firebase project exists and its Android config is in the app
+— your Google account — and code that cannot run on a phone would ship untested. It is next as
+soon as Firebase exists (see "What you need to do", step 4).
+
+### Done-means checklist (PLAN.md §15)
+
+- [ ] Leads: 500 sample leads scroll without blank rows on the low-end profile — built as a
+      virtualised list (only rows on screen are drawn, pages of 30 fetched as you scroll);
+      **needs a phone and sample data.**
+- [x] Filters with counts, pull-to-refresh, paging, detail with call, WhatsApp and email — built
+      and tested (navigation tests open a lead from the list; WhatsApp is offered first).
+- [x] Status and note change instantly and survive offline → online — built: shown at once,
+      queued while offline, kept on the phone if the app is closed, sent in order on reconnect.
+      Tested, including a change surviving a simulated restart. Phone test pending.
+- [x] Delete with confirmation; badge for new leads — built and tested; delete needs the network.
+- [x] Analytics: 7 / 30 / 90 days and per-profile scope — built. Numbers come from the web's own
+      `get_analytics` with the web's own arithmetic (lib/analytics.ts), so they match by
+      construction; **a side-by-side check with the web is pending.**
+- [x] Charts respect reduce-motion — the charts have no animation at all.
+- [ ] `0031` and `0032` applied after a dry run — **`0031` written and run against Postgres;
+      yours to approve.** `0032` deferred (above).
+- [ ] Push device registration works — deferred (above).
+
+### Built on 11 Oct
+
+**Database — `0031_leads_cursor.sql`:** `get_leads` takes a cursor (the created_at and id of the
+last lead shown) and returns everything strictly older, ordered by created_at then id — so leads
+that share a timestamp are never repeated or skipped. The old signature is dropped and the new one
+created in the same migration. **The page cap is 5,000, not the 200 the plan said:** the web's CSV
+export asks for 5,000 in one call, and a 200 cap would have cut exports short without a word.
+Every existing web call keeps working unchanged.
+
+**Web:** no code change — only the migration and its tests.
+
+**Mobile (no new native modules, so the `f0500f92` dev build runs it):**
+
+- Leads tab: newest first, a page at a time; status chips with counts (All, New, Contacted, Won,
+  Lost); search within what is loaded; pull to refresh (back to the first page only); skeletons,
+  empty and error states; a badge on the tab with the number of New leads.
+- Lead screen: what they sent, WhatsApp / Call / Email (WhatsApp first), status and a private note
+  that saves as you type, earlier enquiries from the same number or email, delete.
+- Analytics tab: 7 / 30 / 90 days, all profiles or one; the six counts with their change against
+  the period before (no "0%" when there was nothing before); clicks and confirmed actions with the
+  web's honest wording; page opens by day; most-clicked actions; and — for accounts with a live
+  card — how visitors arrived, which card, busiest hours and where. Without a card, one plain line
+  says what those need; no word about buying (PLAN.md §3).
+- Home: the last 7 days' page opens, clicks and leads, each against the 7 days before.
+
+### Verification, 11 Oct
+
+- **`0031` against real Postgres** (PGlite, with 0012's version first): 13 checks pass — the web's
+  existing call returns the same leads and fields after the upgrade; exactly one `get_leads`
+  remains; paging two at a time visits every lead once across a three-way timestamp tie; the
+  returned timestamp round-trips exactly; cursor plus status filter; profile filter with repeat
+  counts kept within the account; another account's profile returns nothing; the 5,000 cap and a
+  floor of 1; `anon` denied.
+- **Web:** 952 tests (+5 on the migration text), `tsc` and `eslint` clean.
+- **Mobile:** 320 tests (+31: paging and cursors, cache updates, the offline queue across a
+  restart, ordered sends, analytics shapes, dates, and navigation flows for the inbox, a lead and
+  analytics), `tsc` and `eslint` clean.
+- **Bundle:** 5.79 MB (M2 5.72 MB; budget 7 MB).
+
+### Findings
+
+33. The plan's `0031` cap of 200 per page would have truncated the web's CSV export (5,000 per
+    call) silently. Capped at 5,000 instead.
+34. The web's busiest-hours label calls midnight "12 PM" when the busiest window ends at 24:00
+    (`hourLabel(24)`). The app wraps to "12 AM". Cosmetic; noted for the web's next analytics pass.
+35. Lead status and note use last-write-wins, not M2's conflict prompt: they are the owner's own
+    annotations (0012), and two devices disagreeing about one is not worth stopping for.
+36. **No events recorded since 2 Oct.** Traffic has always been sparse — 22 of the 36 days from
+    28 Aug to 2 Oct had any events, never more than 61 in a day, and the longest quiet spell was 4
+    days — but 9 days with nothing is the longest yet. A real tap on a live profile is the cheapest
+    check that tracking still works; your own account has no live profile.
+
+### What you need to do
+
+**1. Let me commit** (and push, if you want it on GitHub).
+
+**2. Apply `0031`** — needed before the Leads tab works on the phone (the app sends the new
+cursor arguments, which the old function does not have). Safe for the website.
+
+```powershell
+cd C:\Projects\taptap
+supabase db push --dry-run
+supabase db push
+```
+
+The dry run should list only `0031_leads_cursor.sql`. Or say "apply 0031" and I'll do it as I did
+`0030`.
+
+**3. On the Camon** (with M1 and M2's sessions, same build `f0500f92`; restart
+`npx expo start --dev-client`):
+
+1. **Leads tab:** your leads, newest first; the chips show counts; the tab shows a badge with the
+   number of New ones. Pull down to refresh.
+2. Open one: WhatsApp opens a chat with their number; Call and Email work.
+3. Set it to **Contacted**: the badge drops by one at once. Type a note, go back, reopen: the note
+   is there.
+4. **Airplane mode on**, set another lead to Won, close the app completely, airplane mode off,
+   reopen: it is Won on the website too.
+5. Delete a test lead (the confirmation explains it is permanent).
+6. **Analytics tab:** compare 30 days, all profiles, with the website's Analytics page — the six
+   counts must match. Switch to 7 and 90 days and to one profile.
+7. **Home:** "Last 7 days" shows three numbers; tapping them opens Analytics.
+
+**4. For push (next):** create a Firebase project for TapTap (free), add an Android app with the
+package `ke.co.hornbilltech.taptap` (and `ke.co.hornbilltech.taptap.dev` for the dev build), and
+tell me when it exists — I'll walk you through the FCM key for EAS. Then I build `0032`, the
+registration and the permission explainer, which needs one more dev build.
 
 ---
 
