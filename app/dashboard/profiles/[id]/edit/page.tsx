@@ -7,6 +7,7 @@ import { isMissingSchemaError } from "@/lib/schema-guard";
 import { canPublishPage, publishBlockedReason } from "@/lib/entitlement";
 import Editor from "./editor";
 import type { Block, PageConfig, PublishStatus, Theme } from "@/lib/profile";
+import type { ComparableContent } from "@/lib/page-diff";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,9 @@ export default async function EditPage({
   const [{ data: page, error: pageError }, { data: links }, billing] = await Promise.all([
     supabase
       .from("smart_pages")
-      .select("id, slug, title, mode, redirect_url, config, theme, status, published_at")
+      .select(
+        "id, slug, title, mode, redirect_url, config, theme, status, published_at, published_content, updated_at",
+      )
       .eq("id", id)
       .single(),
     supabase
@@ -99,6 +102,8 @@ export default async function EditPage({
         initialBlocks={(links ?? []) as Block[]}
         initialStatus={((page.status as PublishStatus) ?? "draft")}
         initialPublishedAt={page.published_at ?? null}
+        initialUpdatedAt={page.updated_at as string}
+        publishedSnapshot={(page.published_content ?? null) as ComparableContent | null}
         leadCaptureAllowed={billing.entitlements.leadCapture}
         planLapsed={planLapsed}
         canPublish={canPublish}

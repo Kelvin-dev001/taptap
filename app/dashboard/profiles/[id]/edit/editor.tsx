@@ -46,6 +46,7 @@ import { UnsavedChangesGuard } from "@/components/builder/unsaved-changes-guard"
 import { BlockPicker } from "@/components/builder/block-picker";
 import { SortableAction, type EditorBlock } from "@/components/builder/sortable-action";
 import { defaultLabel } from "@/lib/blocks";
+import { differsFromLive, type ComparableContent } from "@/lib/page-diff";
 import {
   templateOf,
   templateDef,
@@ -78,6 +79,10 @@ type Props = {
   initialBlocks: Block[];
   initialStatus: PublishStatus;
   initialPublishedAt: string | null;
+  /** The draft's version (smart_pages.updated_at), sent back with each save. */
+  initialUpdatedAt: string;
+  /** What customers see now: the published snapshot, or null if never published. */
+  publishedSnapshot: ComparableContent | null;
   leadCaptureAllowed: boolean;
   /** True when the account HAD a paid plan that has since ended (B13). */
   planLapsed: boolean;
@@ -98,8 +103,11 @@ export default function Editor(props: Props) {
   const [redirectUrl, setRedirectUrl] = React.useState(props.initialRedirectUrl);
   const [config, setConfig] = React.useState<PageConfig>(props.initialConfig);
   const [theme, setTheme] = React.useState<Theme>(props.initialTheme);
+  // Every action carries its database id from the moment it exists — new ones
+  // get theirs here — so a save updates rows instead of re-creating them and
+  // their click history survives (D-046).
   const [blocks, setBlocks] = React.useState<EditorBlock[]>(
-    (props.initialBlocks ?? []).map((b) => ({ ...b, key: nextKey() })),
+    (props.initialBlocks ?? []).map((b) => ({ ...b, id: b.id ?? crypto.randomUUID(), key: nextKey() })),
   );
   const [expanded, setExpanded] = React.useState<string | null>(null);
 
@@ -113,6 +121,10 @@ export default function Editor(props: Props) {
   const [error, setError] = React.useState<string | null>(null);
   const [uploading, setUploading] = React.useState<"avatar" | "cover" | null>(null);
   const [activateOpen, setActivateOpen] = React.useState(false);
+  const [updatedAt, setUpdatedAt] = React.useState(props.initialUpdatedAt);
+  /** Set when someone else saved this profile since it was loaded here. */
+  const [conflict, setConflict] = React.useState<{ updatedAt: string } | null>(null);
+  const [liveSnapshot, setLiveSnapshot] = React.useState(props.publishedSnapshot);
 
   // Any edit marks the draft ahead of what is saved.
   function touch() {
@@ -154,7 +166,15 @@ export default function Editor(props: Props) {
     const key = nextKey();
     setBlocks((prev) => [
       ...prev,
-      { key, type, label: defaultLabel(type), value: "", sort_order: prev.length, is_active: true },
+      {
+        key,
+        id: crypto.randomUUID(),
+        type,
+        label: defaultLabel(type),
+        value: "",
+        sort_order: prev.length,
+        is_active: true,
+      },
     ]);
     setExpanded(key);
     touch();
@@ -196,28 +216,40 @@ export default function Editor(props: Props) {
     [props.pageId, title, mode, redirectUrl, config, theme, blocks],
   );
 
-  async function save(): Promise<boolean> {
+  /**
+   * `expectedVersion` is the draft version this save replaces. Normally the one
+   * this editor last saw; after a conflict, "Keep my version" passes theirs.
+   */
+  async function save(expectedVersion: string = updatedAt): Promise<boolean> {
     setSaveStatus("saving");
     setError(null);
     const res = await savePageAction(props.pageId, {
+      expectedUpdatedAt: expectedVersion,
       title,
       mode,
       redirectUrl,
       config,
       theme,
-      blocks: blocks.map((b, i) => ({
+      blocks: blocks.map((b) => ({
+        id: b.id as string,
         type: b.type,
         label: b.label,
         value: b.value,
-        sort_order: i,
-        is_active: b.is_active !== false,
+        isActive: b.is_active !== false,
       })),
     });
-    if (res.error) {
+    if (res.conflict) {
       setSaveStatus("error");
-      setError(res.error);
+      setConflict(res.conflict);
       return false;
     }
+    if (res.error || !res.updatedAt) {
+      setSaveStatus("error");
+      setError(res.error ?? "Could not save. Try again.");
+      return false;
+    }
+    setUpdatedAt(res.updatedAt);
+    setConflict(null);
     setSaveStatus("saved");
     setDirty(false);
     window.setTimeout(() => setSaveStatus("idle"), 2000);
@@ -251,6 +283,8 @@ export default function Editor(props: Props) {
     }
     setStatus("published");
     setPublishedAt(res.publishedAt ?? new Date().toISOString());
+    // The snapshot was just taken from the saved draft, which is this screen.
+    setLiveSnapshot(previewPage);
     toast({
       title: "Page published",
       description: "Anyone tapping your card now sees these changes.",
@@ -303,14 +337,14 @@ export default function Editor(props: Props) {
               Published {new Date(publishedAt).toLocaleDateString()}
             </span>
           )}
-          {dirty && status === "published" && (
+          {status === "published" && differsFromLive(liveSnapshot, previewPage) && (
             <span className="text-caption text-warning">Unpublished changes</span>
           )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <SaveState status={saveStatus} />
-          <Button variant="secondary" size="sm" onClick={save} disabled={!dirty}>
+          <Button variant="secondary" size="sm" onClick={() => save()} disabled={!dirty}>
             Save draft
           </Button>
           <Button size="sm" onClick={publish}>
@@ -339,6 +373,25 @@ export default function Editor(props: Props) {
       </Card>
 
       {error && <Alert tone="danger">{error}</Alert>}
+
+      {/* Someone saved this profile elsewhere — the app, or another tab. Never
+          overwritten silently: the owner chooses whose version wins. */}
+      {conflict && (
+        <Alert tone="warning" title="This profile was changed somewhere else">
+          <p>
+            It was saved from another device or tab after you opened it here. Reload to see
+            that version, or keep yours and replace it.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" onClick={() => window.location.reload()}>
+              Reload
+            </Button>
+            <Button size="sm" onClick={() => save(conflict.updatedAt)}>
+              Keep my version
+            </Button>
+          </div>
+        </Alert>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         {/* Editing surface */}

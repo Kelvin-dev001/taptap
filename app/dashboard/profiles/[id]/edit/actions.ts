@@ -2,27 +2,32 @@
 
 import { revalidatePath } from "next/cache";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { isSafeDestination } from "@/lib/url";
-import { buildHref } from "@/lib/blocks";
 import { loadBillingContext } from "@/lib/billing-context";
 import { publishBlockedReason } from "@/lib/entitlement";
-import type { Block, PageConfig, Theme } from "@/lib/profile";
+import { defaultLabel } from "@/lib/blocks";
+import { parseDraftInput, type DraftInput } from "@/lib/draft";
+import { saveDraft } from "@/lib/page-draft";
 
-export type SavePayload = {
-  title: string;
-  mode: "page" | "redirect";
-  redirectUrl: string;
-  config: PageConfig;
-  theme: Theme;
-  blocks: Block[];
+export type SavePayload = DraftInput;
+
+export type SaveResult = {
+  error?: string;
+  success?: string;
+  /** The draft's new version; the next save sends it as `expectedUpdatedAt`. */
+  updatedAt?: string;
+  /** Saved elsewhere since this editor loaded — the app, or another tab. */
+  conflict?: { updatedAt: string };
 };
 
-export type SaveResult = { error?: string; success?: string };
+const UNSAVEABLE = "Something in this draft could not be saved. Reload the page and try again.";
 
 /**
  * Persists the draft. Saving does NOT make changes public — that is what
  * publishPageAction does (migration 0009). An owner can now edit a live page
  * without the edits going out mid-sentence, which UI-0 flagged as dangerous.
+ *
+ * The write is lib/page-draft.ts, shared with the app's autosave: actions keep
+ * their ids across saves, so their click history survives (D-046).
  */
 export async function savePageAction(
   pageId: string,
@@ -34,75 +39,38 @@ export async function savePageAction(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in." };
 
-  const { data: existing } = await supabase
-    .from("smart_pages")
-    .select("id, slug, account_id")
-    .eq("id", pageId)
-    .single();
-  if (!existing) return { error: "Page not found." };
+  // A server action is a public endpoint like any other, so its argument is
+  // checked as untrusted input.
+  const parsed = parseDraftInput(payload);
+  if (!parsed.ok) return { error: UNSAVEABLE };
 
-  if (payload.mode === "redirect" && !isSafeDestination(payload.redirectUrl)) {
-    return { error: "Enter a valid redirect URL (http, https, tel, or mailto)." };
+  const result = await saveDraft(supabase, pageId, parsed.input);
+  if (result.ok) {
+    revalidatePath(`/dashboard/profiles/${pageId}/edit`);
+    return { success: "Saved.", updatedAt: result.updatedAt };
   }
 
-  // Entitlement gating for lead capture stays server-side; a client cannot
-  // grant itself a paid feature by posting config. Lead capture now follows the
-  // account's active identities rather than a plan code (D-018).
-  const { entitlements } = await loadBillingContext(supabase, existing.account_id);
-  const config: PageConfig = {
-    ...payload.config,
-    leadForm: entitlements.leadCapture
-      ? payload.config.leadForm
-      : { ...payload.config.leadForm, enabled: false },
-  };
-
-  const { error: pageError } = await supabase
-    .from("smart_pages")
-    .update({
-      title: payload.title || null,
-      mode: payload.mode,
-      redirect_url: payload.mode === "redirect" ? payload.redirectUrl : null,
-      config,
-      theme: payload.theme,
-    })
-    .eq("id", pageId);
-  if (pageError) return { error: pageError.message };
-
-  if (payload.mode === "page") {
-    // Validate destinations before writing: a block with an unusable value is a
-    // dead button on a customer's phone.
-    for (const block of payload.blocks) {
-      const def = buildHref(block.type, block.value);
-      if (block.type !== "contact" && block.type !== "mpesa" && block.value && !def) {
-        return { error: `“${block.label || block.type}” has an invalid destination.` };
-      }
+  switch (result.code) {
+    case "conflict":
+      return { conflict: { updatedAt: result.updatedAt } };
+    case "not_found":
+      return { error: "Page not found." };
+    case "invalid_redirect":
+      return { error: "Enter a valid redirect URL (http, https, tel, or mailto)." };
+    case "invalid_destination": {
+      const block = parsed.input.blocks[result.index];
+      return { error: `“${block.label || defaultLabel(block.type)}” has an invalid destination.` };
     }
-
-    // Replace the set: simpler and safer than diffing, and the table is small.
-    // Analytics keep working because events.link_id is ON DELETE SET NULL.
-    const { error: delError } = await supabase
-      .from("links")
-      .delete()
-      .eq("smart_page_id", pageId);
-    if (delError) return { error: delError.message };
-
-    if (payload.blocks.length > 0) {
-      const { error: insError } = await supabase.from("links").insert(
-        payload.blocks.map((b, i) => ({
-          smart_page_id: pageId,
-          type: b.type,
-          label: b.label || null,
-          value: b.value || null,
-          sort_order: i,
-          is_active: b.is_active !== false,
-        })),
-      );
-      if (insError) return { error: insError.message };
-    }
+    case "invalid_block":
+      return { error: UNSAVEABLE };
+    case "schema_pending":
+      return {
+        error:
+          "Saving is paused while a database update (0030_page_draft_and_click_attribution.sql) is applied. Your changes are still on this screen.",
+      };
+    case "error":
+      return { error: result.message };
   }
-
-  revalidatePath(`/dashboard/profiles/${pageId}/edit`);
-  return { success: "Saved." };
 }
 
 export type PublishResult = { error?: string; publishedAt?: string };
