@@ -116,15 +116,81 @@
     "notLiveYet": "Sharing and the QR code work once this profile is live.",
     "livePreview": "What customers see",
     "draftPreview": "Your draft",
-    "redirectsTo": "Every tap opens {{url}}"
+    "redirectsTo": "Every tap opens {{url}}",
+    "weekTitle": "Last 7 days",
+    "weekHint": "See all analytics"
   },
   "leads": {
-    "placeholderTitle": "Your leads will appear here",
-    "placeholderBody": "Coming next: everyone who leaves their details on your profile."
+    "all": "All",
+    "filterLabel": "{{status}}, {{count}} leads",
+    "searchLabel": "Search leads",
+    "searchPlaceholder": "Name, phone, email or message",
+    "searchHint": "Searches the leads loaded on this phone.",
+    "emptyTitle": "No leads yet",
+    "emptyBody": "When someone fills in the lead form on your profile, they appear here.",
+    "filteredEmpty": "No leads with this status.",
+    "noMatches": "No loaded leads match “{{query}}”.",
+    "loadError": "Couldn't load your leads.",
+    "loadingMore": "Loading more…",
+    "end": "That's all of them.",
+    "unnamed": "Unnamed enquiry",
+    "repeat_one": "{{count}} earlier enquiry",
+    "repeat_other": "{{count}} earlier enquiries",
+    "badge": "{{count}} new leads"
   },
   "analytics": {
-    "placeholderTitle": "Your numbers will appear here",
-    "placeholderBody": "Coming next: taps, visits and clicks, day by day."
+    "title": "Analytics",
+    "rangeLabel": "Period",
+    "range7": "7 days",
+    "range30": "30 days",
+    "range90": "90 days",
+    "comparison": "Compared with the {{days}} days before",
+    "scopeLabel": "Profile",
+    "allProfiles": "All profiles",
+    "chooseProfile": "Choose a profile",
+    "proofTitle": "Clicks and confirmed actions",
+    "proofBody": "A click means a button was pressed and the visitor left for another app. We can't see what happened next — a review click isn't a review. Only saved contacts and leads complete inside TapTap, so only they count as confirmed.",
+    "opens": "Page opens",
+    "opensNote": "Views and QR scans. NFC taps also record a view, so they aren't counted twice.",
+    "clicked": "Clicked something",
+    "confirmed": "Confirmed actions",
+    "ofOpens": "{{percent}} of opens",
+    "noOpens": "No page opens yet",
+    "dailyTitle": "Page opens by day",
+    "dailySummary": "{{total}} page opens over {{days}} days. Busiest day {{day}}, with {{count}}.",
+    "dailySummaryNone": "No page opens over {{days}} days.",
+    "arrivedTitle": "How visitors arrived",
+    "arrivedBody": "What actually opened the profile: a card, a QR code or a link.",
+    "notRecorded": "From before TapTap recorded how visitors arrived. Left unattributed rather than guessed.",
+    "cardsTitle": "Which card",
+    "cardsBody": "Taps from each of your cards.",
+    "noCardTaps": "No card taps in this period.",
+    "card": "Card ···{{last}}",
+    "actionsTitle": "Most-clicked actions",
+    "actionsBody": "Counts clicks, not whether the action was completed.",
+    "noClicks": "No clicks in this period.",
+    "whereTitle": "Where visitors are",
+    "whereBody": "Approximate, from the network. Never precise, and nothing personal is stored.",
+    "noPlaces": "No locations in this period.",
+    "hoursTitle": "When visitors tap",
+    "hoursNote": "Hour of day, East Africa Time",
+    "hoursSummary": "Busiest between {{start}} and {{end}}: {{share}} of activity.",
+    "hoursSummaryNone": "No activity by hour in this period.",
+    "byProfileTitle": "By profile",
+    "untitled": "Untitled profile",
+    "basicNote": "How visitors arrived, which card, where and when show on accounts with an active TapTap card.",
+    "noActivityTitle": "Nothing in this period",
+    "noActivityBody": "Share your link or tap a card, and the numbers appear here. A longer period may show more.",
+    "emptyTitle": "Nothing to measure yet",
+    "emptyBody": "Once you have a profile on the TapTap website, its taps, scans and clicks appear here.",
+    "loadError": "Couldn't load your numbers.",
+    "sources": {
+      "nfc": "NFC card",
+      "qr": "QR code",
+      "direct": "Direct link",
+      "web": "Web",
+      "unknown": "Not recorded"
+    }
   },
   "cards": {
     "placeholderTitle": "Your cards will appear here",
@@ -451,5 +517,83 @@
   "preview": {
     "title": "Preview",
     "banner": "Your draft, as customers will see it after you publish."
+  },
+  "time": {
+    "justNow": "Just now",
+    "minutesAgo_one": "{{count}} min ago",
+    "minutesAgo_other": "{{count}} min ago",
+    "hoursAgo_one": "{{count}} hour ago",
+    "hoursAgo_other": "{{count}} hours ago",
+    "daysAgo_one": "{{count}} day ago",
+    "daysAgo_other": "{{count}} days ago"
+  },
+  "metrics": {
+    "new": "New this period",
+    "same": "No change",
+    "up": "Up {{percent}}",
+    "down": "Down {{percent}}",
+    "tap": {
+      "label": "Taps",
+      "hint": "An NFC card or link opened a profile"
+    },
+    "scan": {
+      "label": "QR scans",
+      "hint": "A QR code opened a profile"
+    },
+    "view": {
+      "label": "Profile views",
+      "hint": "A profile page was displayed"
+    },
+    "click": {
+      "label": "Button clicks",
+      "hint": "A button was pressed — not necessarily completed"
+    },
+    "download": {
+      "label": "Contacts saved",
+      "hint": "A contact card was saved to a phone"
+    },
+    "lead": {
+      "label": "Leads",
+      "hint": "A lead form was submitted"
+    }
+  },
+  "leadStatus": {
+    "new": "New",
+    "contacted": "Contacted",
+    "won": "Won",
+    "lost": "Lost",
+    "newHint": "Not contacted yet",
+    "contactedHint": "You have reached out",
+    "wonHint": "Became a customer",
+    "lostHint": "Did not go ahead"
+  },
+  "lead": {
+    "title": "Lead",
+    "call": "Call",
+    "whatsapp": "WhatsApp",
+    "email": "Email",
+    "phone": "Phone",
+    "emailAddress": "Email",
+    "company": "Company",
+    "message": "Message",
+    "received": "Received",
+    "profile": "Profile",
+    "status": "Status",
+    "note": "Your note",
+    "noteHint": "Only you see this. Saved as you type.",
+    "notePlaceholder": "Called back, wants a quote…",
+    "earlier": "Earlier enquiries",
+    "earlierMore_one": "{{count}} more earlier enquiry, not loaded on this phone.",
+    "earlierMore_other": "{{count}} more earlier enquiries, not loaded on this phone.",
+    "delete": "Delete lead",
+    "deleteTitle": "Delete this lead?",
+    "deleteBody": "Their details are removed for good. This can't be undone.",
+    "deleted": "Lead deleted.",
+    "deleteOffline": "Connect to the internet to delete a lead.",
+    "deleteFailed": "Couldn't delete the lead. Try again.",
+    "notFound": "This lead no longer exists.",
+    "loadError": "Couldn't load this lead.",
+    "noContact": "They left no phone number or email.",
+    "saveFailed": "Couldn't save that change. Showing what's saved."
   }
 }

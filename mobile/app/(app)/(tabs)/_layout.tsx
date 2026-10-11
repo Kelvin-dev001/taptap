@@ -1,4 +1,6 @@
 import { Tabs } from "expo-router";
+import { useLeadCounts } from "@/api/leads";
+import { useSignedInUser } from "@/auth/session";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, type ColorValue } from "react-native";
 import { fontFamily } from "@/theme/typography";
@@ -17,6 +19,9 @@ import { Text } from "@/ui/text";
 export default function TabsLayout() {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  const user = useSignedInUser();
+  // Leads still to follow up: the "New" count, the same number the filter shows.
+  const newLeads = useLeadCounts(user?.id ?? null).data?.by_status.new ?? 0;
 
   const icon = (Icon: LucideIcon) =>
     function TabIcon({ color }: { color: ColorValue }) {
@@ -47,7 +52,17 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: t("tabs.home"), tabBarIcon: icon(House) }} />
-      <Tabs.Screen name="leads" options={{ title: t("tabs.leads"), tabBarIcon: icon(Inbox) }} />
+      <Tabs.Screen
+        name="leads"
+        options={{
+          title: t("tabs.leads"),
+          tabBarIcon: icon(Inbox),
+          tabBarBadge: newLeads > 0 ? (newLeads > 99 ? "99+" : newLeads) : undefined,
+          tabBarBadgeStyle: { backgroundColor: colors.accentFill, color: colors.onAccentFill },
+          tabBarAccessibilityLabel:
+            newLeads > 0 ? `${t("tabs.leads")}, ${t("leads.badge", { count: newLeads })}` : undefined,
+        }}
+      />
       <Tabs.Screen
         name="analytics"
         options={{ title: t("tabs.analytics"), tabBarIcon: icon(ChartColumn) }}

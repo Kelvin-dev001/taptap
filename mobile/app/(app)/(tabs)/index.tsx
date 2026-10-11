@@ -2,6 +2,9 @@ import { router } from "expo-router";
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, View } from "react-native";
+import { useAnalytics } from "@/api/analytics";
+import { pageOpens } from "@taptap/core/analytics";
+import { isNewActivity, percentChange } from "@taptap/core/metrics";
 import { BusinessName } from "@/features/account/business-name";
 import {
   livePage,
@@ -29,6 +32,7 @@ import { OfflineBanner } from "@/ui/offline-banner";
 import { Screen } from "@/ui/screen";
 import { Sheet } from "@/ui/sheet";
 import { Skeleton } from "@/ui/skeleton";
+import { MetricTile } from "@/ui/metric-tile";
 import { Text } from "@/ui/text";
 
 /**
@@ -39,7 +43,16 @@ import { Text } from "@/ui/text";
 export default function Home() {
   const { t } = useTranslation();
   const { colors } = useTheme();
-  const { pages, cards, identities } = useProfiles();
+  const { userId, pages, cards, identities } = useProfiles();
+  const week = useAnalytics(userId, 7);
+  // The three numbers an owner checks most, against the 7 days before.
+  const weekTiles = week.data
+    ? [
+        { key: "opens", label: t("analytics.opens"), value: pageOpens(week.data.totals), previous: pageOpens(week.data.previous) },
+        { key: "clicks", label: t("metrics.click.label"), value: week.data.totals.click ?? 0, previous: week.data.previous.click ?? 0 },
+        { key: "leads", label: t("metrics.lead.label"), value: week.data.leads, previous: week.data.previous_leads },
+      ]
+    : [];
   const rememberedId = useSelectedProfileId();
   const all = pages.data ?? [];
   const current = useProfileState(pickProfile(all, rememberedId), all, identities);
@@ -50,6 +63,7 @@ export default function Home() {
   const refresh = () => {
     void pages.refetch();
     void cards.refetch();
+    void week.refetch();
   };
 
   let body: ReactNode;
@@ -131,6 +145,31 @@ export default function Home() {
           {!reachable ? <Notice tone="info" message={t("home.notLiveYet")} /> : null}
         </Card>
 
+        {week.data && week.data.pages > 0 ? (
+          <Pressable
+            onPress={() => router.push("/analytics")}
+            accessibilityRole="button"
+            accessibilityHint={t("home.weekHint")}
+            style={styles.week}
+          >
+            <Text variant="sectionTitle" accessibilityRole="header">
+              {t("home.weekTitle")}
+            </Text>
+            <View style={styles.row}>
+              {weekTiles.map((tile) => (
+                <MetricTile
+                  key={tile.key}
+                  label={tile.label}
+                  value={tile.value}
+                  change={percentChange(tile.value, tile.previous)}
+                  isNew={isNewActivity(tile.value, tile.previous)}
+                  style={styles.third}
+                />
+              ))}
+            </View>
+          </Pressable>
+        ) : null}
+
         <Text variant="sectionTitle" accessibilityRole="header">
           {live ? t("home.livePreview") : t("home.draftPreview")}
         </Text>
@@ -188,4 +227,6 @@ const styles = StyleSheet.create({
   buttons: { gap: space.sm },
   row: { flexDirection: "row", gap: space.sm },
   half: { flex: 1 },
+  week: { gap: space.sm },
+  third: { flexBasis: 0 },
 });

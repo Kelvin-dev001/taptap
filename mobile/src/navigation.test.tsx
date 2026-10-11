@@ -1,4 +1,5 @@
 import { act, fireEvent, screen } from "@testing-library/react-native";
+import { router as appRouter } from "expo-router";
 import { renderRouter } from "expo-router/testing-library";
 
 /**
@@ -59,6 +60,30 @@ const mockPage = {
 const mockCallAppApi = jest.fn();
 const mockRpc = jest.fn();
 
+/** Leads the account has in a test; empty unless a test fills it. */
+let mockLeadRows: Record<string, unknown>[] = [];
+const mockLeadUpdate = jest.fn();
+
+/** What each database function answers in these tests: an account with no activity yet. */
+function mockRpcAnswer(fn: string): unknown {
+  switch (fn) {
+    case "get_lead_counts": {
+      const by: Record<string, number> = {};
+      for (const l of mockLeadRows) by[l.status as string] = (by[l.status as string] ?? 0) + 1;
+      return { all: mockLeadRows.length, by_status: by };
+    }
+    case "get_leads":
+      return mockLeadRows;
+    case "get_analytics":
+      return {
+        days: 7, scope: "account", pages: 1, totals: {}, previous: {}, leads: 0, previous_leads: 0,
+        daily: [], by_source: [], by_device: [], by_country: [], by_hour: [], top_blocks: [], top_pages: [],
+      };
+    default:
+      return { ok: true };
+  }
+}
+
 const SESSION_KEY = "taptap.session";
 const owner = { id: "u-1", email: "owner@business.co.ke" };
 const session = { access_token: "a", refresh_token: "r", user: owner };
@@ -99,6 +124,16 @@ jest.mock("@/api/supabase", () => ({
         };
       }
       if (table === "nfc_tags") return { select: async () => ({ data: [], error: null }) };
+      if (table === "leads") {
+        return {
+          update: (patch: unknown) => ({
+            eq: async (_col: string, id: string) => {
+              mockLeadUpdate(id, patch);
+              return { error: null };
+            },
+          }),
+        };
+      }
       return {
         select: () => ({
           eq: () => ({
@@ -120,6 +155,8 @@ jest.mock("@/api/query", () => {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Infinity } },
   });
+  // As the real src/api/query.tsx does at start: queued lead edits need it.
+  jest.requireActual("@/api/lead-edits").registerLeadEdits(client);
   return {
     queryClient: client,
     QueryProvider: ({ children }: { children: unknown }) =>
@@ -168,6 +205,7 @@ jest.mock("@/features/nfc/reader", () => ({
 }));
 jest.mock("expo-haptics", () => ({
   notificationAsync: async () => undefined,
+  selectionAsync: async () => undefined,
   NotificationFeedbackType: { Success: "success", Warning: "warning" },
 }));
 jest.mock("expo-splash-screen", () => ({
@@ -207,7 +245,9 @@ beforeEach(async () => {
   for (const fn of Object.values(mockAuth)) fn.mockReset();
   mockCallAppApi.mockReset();
   mockRpc.mockReset();
-  mockRpc.mockResolvedValue({ data: { ok: true }, error: null });
+  mockLeadRows = [];
+  mockLeadUpdate.mockReset();
+  mockRpc.mockImplementation(async (fn: string) => ({ data: mockRpcAnswer(fn), error: null }));
   mockCallAppApi.mockResolvedValue({ status: 200, body: { updatedAt: "2026-10-11T10:00:00.000001+00:00" } });
 });
 
@@ -465,6 +505,71 @@ describe("home and the editor (M2)", () => {
     expect(await screen.findByText("Published. Customers see your changes now.", undefined, { timeout: 4000 })).toBeTruthy();
     expect(mockCallAppApi).toHaveBeenCalledTimes(1);
     expect(mockRpc).toHaveBeenCalledWith("publish_page", { p_page_id: "p-1" });
-    expect(mockCallAppApi.mock.invocationCallOrder[0]).toBeLessThan(mockRpc.mock.invocationCallOrder[0]);
+    const publishCall = mockRpc.mock.calls.findIndex(([fn]) => fn === "publish_page");
+    expect(mockCallAppApi.mock.invocationCallOrder[0]).toBeLessThan(mockRpc.mock.invocationCallOrder[publishCall]);
+  });
+});
+
+describe("leads and analytics (M3)", () => {
+  const lead = (n: number, overrides: Record<string, unknown> = {}) => ({
+    id: `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`,
+    smart_page_id: "p-1",
+    page_title: "Mama Njeri's",
+    page_slug: "mama-njeri",
+    name: `Customer ${n}`,
+    phone: "0722000000",
+    email: null,
+    company: null,
+    message: `Message ${n}`,
+    status: "new",
+    note: null,
+    created_at: "2026-10-11T08:00:00.000001+00:00",
+    updated_at: null,
+    repeat_count: 0,
+    ...overrides,
+  });
+
+  it("lists leads with counts, opens one, and marks it won at once", async () => {
+    mockLeadRows = [lead(1, { repeat_count: 1 }), lead(2, { status: "contacted", phone: "0722000000" })];
+    mockStore.set(SESSION_KEY, JSON.stringify(session));
+    const router = await start();
+    await screen.findByText("Live");
+    await act(async () => appRouter.push("/leads"));
+
+    expect(await screen.findByText("Customer 1")).toBeTruthy();
+    expect(screen.getByLabelText("New, 1 leads")).toBeTruthy();
+    expect(screen.getByLabelText("Contacted, 1 leads")).toBeTruthy();
+
+    await fireEvent.press(screen.getByText("Customer 1"));
+    expect(router.getPathname()).toBe("/lead/00000000-0000-4000-8000-000000000001");
+    // WhatsApp first, then a call.
+    expect(await screen.findByText("WhatsApp")).toBeTruthy();
+    expect(screen.getByText("Message 1")).toBeTruthy();
+    // The other submission from the same number is listed as an earlier enquiry.
+    expect(screen.getByText("Earlier enquiries")).toBeTruthy();
+
+    await fireEvent.press(screen.getByLabelText("Won"));
+    expect(mockLeadUpdate).toHaveBeenCalledWith(
+      "00000000-0000-4000-8000-000000000001",
+      expect.objectContaining({ status: "won" }),
+    );
+    expect(await screen.findByText("Became a customer")).toBeTruthy();
+  });
+
+  it("shows the account's numbers, and says plainly what needs a card", async () => {
+    mockStore.set(SESSION_KEY, JSON.stringify(session));
+    await start();
+    await screen.findByText("Live");
+    await act(async () => appRouter.push("/analytics"));
+
+    expect(await screen.findByText("Profile views")).toBeTruthy();
+    expect(screen.getByText("Clicks and confirmed actions")).toBeTruthy();
+    // No card on this account: the detail is described, never sold.
+    expect(
+      screen.getByText(
+        "How visitors arrived, which card, where and when show on accounts with an active TapTap card.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText(/buy|upgrade|renew|KES/i)).toBeNull();
   });
 });

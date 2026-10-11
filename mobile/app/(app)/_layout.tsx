@@ -27,6 +27,7 @@ export default function SignedInLayout() {
       <Stack.Screen name="profile/[id]/action" options={{ presentation: "modal" }} />
       <Stack.Screen name="profile/[id]/preview" options={{ presentation: "modal" }} />
       <Stack.Screen name="qr/[id]" options={{ presentation: "modal" }} />
+      <Stack.Screen name="lead/[id]" />
     </Stack>
   );
 }

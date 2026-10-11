@@ -6,6 +6,7 @@ import * as Network from "expo-network";
 import type { PropsWithChildren } from "react";
 import { AppState } from "react-native";
 import { appVersion } from "@/lib/build";
+import { registerLeadEdits } from "./lead-edits";
 
 /**
  * The data cache (PLAN.md §4.5): every screen paints what this phone already
@@ -26,6 +27,10 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+// How queued edits are sent must be known before the cache is restored, so a
+// change paused in an earlier run can be resumed (src/api/lead-edits.ts).
+registerLeadEdits(queryClient);
 
 export const persister = createAsyncStoragePersister({
   storage: AsyncStorage,
@@ -64,6 +69,8 @@ export function QueryProvider({ children }: PropsWithChildren) {
         // data never reaches new code.
         buster: appVersion,
       }}
+      // Edits made offline in an earlier run go out once the cache is back.
+      onSuccess={() => void queryClient.resumePausedMutations()}
     >
       {children}
     </PersistQueryClientProvider>
