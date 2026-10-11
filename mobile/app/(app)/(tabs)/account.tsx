@@ -1,10 +1,11 @@
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
 import { useSession, useSignedInUser } from "@/auth/session";
 import { BusinessName } from "@/features/account/business-name";
+import { draftSync } from "@/features/profile/draft-sync-instance";
 import { appVersion, devToolsEnabled, variant } from "@/lib/build";
 import { space } from "@/theme/tokens";
 import { Button } from "@/ui/button";
@@ -18,7 +19,7 @@ import { Text } from "@/ui/text";
 import { useToast } from "@/ui/toast";
 
 /**
- * Account. M1: who is signed in, and signing out. Card terms, notifications,
+ * Account. Who is signed in, and signing out. Card terms, notifications,
  * help, privacy and deleting the account follow in M3–M6.
  */
 export default function Account() {
@@ -29,6 +30,11 @@ export default function Account() {
   const toast = useToast();
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Signing out forgets edits not yet on the server; say so before, not after.
+  const unsent = useSyncExternalStore(
+    draftSync.subscribe,
+    () => Object.keys(draftSync.getSnapshot().drafts).length > 0,
+  );
 
   async function confirmSignOut() {
     setBusy(true);
@@ -79,7 +85,7 @@ export default function Account() {
       <ConfirmSheet
         visible={confirming}
         title={t("account.signOutTitle")}
-        body={t("account.signOutBody")}
+        body={unsent ? `${t("account.signOutBody")} ${t("account.signOutUnsaved")}` : t("account.signOutBody")}
         confirmLabel={t("account.signOut")}
         cancelLabel={t("common.cancel")}
         onConfirm={() => void confirmSignOut()}

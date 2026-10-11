@@ -1,5 +1,12 @@
 import type { PropsWithChildren } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 import { SafeAreaView, type Edge } from "react-native-safe-area-context";
 import { space } from "@/theme/tokens";
 import { useTheme } from "@/theme/use-theme";
@@ -7,6 +14,9 @@ import { useTheme } from "@/theme/use-theme";
 type ScreenProps = PropsWithChildren<{
   /** Screens without a navigation header also need the top inset. */
   edges?: Edge[];
+  /** Pull-to-refresh (PLAN.md §4.5), on screens that show server data. */
+  refreshing?: boolean;
+  onRefresh?: () => void;
 }>;
 
 /**
@@ -14,7 +24,12 @@ type ScreenProps = PropsWithChildren<{
  * screen. Taps on buttons land while the keyboard is open (`handled`), so a
  * form's submit button works on the first press.
  */
-export function Screen({ children, edges = ["bottom", "left", "right"] }: ScreenProps) {
+export function Screen({
+  children,
+  edges = ["bottom", "left", "right"],
+  refreshing = false,
+  onRefresh,
+}: ScreenProps) {
   const { colors } = useTheme();
   return (
     <SafeAreaView edges={edges} style={[styles.fill, { backgroundColor: colors.background }]}>
@@ -26,6 +41,17 @@ export function Screen({ children, edges = ["bottom", "left", "right"] }: Screen
           contentInsetAdjustmentBehavior="automatic"
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.grow}
+          refreshControl={
+            onRefresh ? (
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.accentText}
+                colors={[colors.accentFill]}
+                progressBackgroundColor={colors.surface}
+              />
+            ) : undefined
+          }
         >
           <View style={styles.content}>{children}</View>
         </ScrollView>

@@ -94,6 +94,17 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // Works around an @expo/ui crash on reload (PROGRESS.md, M1 finding 21).
     "./plugins/with-expo-core-preload",
     [
+      "expo-image-picker",
+      {
+        // The profile photo comes from the photo library only. `false` blocks
+        // the camera and microphone permissions the library would otherwise
+        // bring in; Android's system photo picker needs no permission at all.
+        photosPermission: "TapTap opens your photos so you can choose a profile photo or logo.",
+        cameraPermission: false,
+        microphonePermission: false,
+      },
+    ],
+    [
       "react-native-nfc-manager",
       {
         nfcPermission: "TapTap reads your TapTap card so you can set it up.",

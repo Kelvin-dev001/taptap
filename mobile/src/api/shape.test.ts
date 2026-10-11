@@ -1,4 +1,14 @@
-import { array, boolean, nullable, number, object, ShapeIssue, string, type Infer } from "./shape";
+import {
+  array,
+  boolean,
+  nullable,
+  number,
+  object,
+  record,
+  ShapeIssue,
+  string,
+  type Infer,
+} from "./shape";
 
 const Lead = object({
   id: string,
@@ -52,5 +62,17 @@ describe("response shapes", () => {
   it("refuses numbers that are not numbers", () => {
     expect(() => number(Number.NaN, "n")).toThrow(ShapeIssue);
     expect(() => number(Infinity, "n")).toThrow(ShapeIssue);
+  });
+});
+
+describe("record", () => {
+  it("accepts any JSON object and nothing else", () => {
+    expect(record({ bio: "x", leadForm: { enabled: true } }, "")).toEqual({
+      bio: "x",
+      leadForm: { enabled: true },
+    });
+    for (const bad of [null, [], "x", 1]) {
+      expect(() => record(bad, "config")).toThrow(ShapeIssue);
+    }
   });
 });

@@ -39,6 +39,18 @@ export const boolean: Check<boolean> = (value, path) => {
   throw new ShapeIssue(path);
 };
 
+/**
+ * A JSON object whose inside this app does not check key by key — a profile's
+ * `config` and `theme`, which the web editor owns. Code reading them must treat
+ * every field as optional, as lib/profile.ts's types already do.
+ */
+export const record: Check<Record<string, unknown>> = (value, path) => {
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  throw new ShapeIssue(path);
+};
+
 export function nullable<T>(check: Check<T>): Check<T | null> {
   return (value, path) => (value === null || value === undefined ? null : check(value, path));
 }

@@ -6,6 +6,9 @@ import { renderRouter } from "expo-router/testing-library";
  * Supabase, storage and native modules replaced. Proves the Stack.Protected
  * guards in app/_layout.tsx move between welcome, sign-in, the reset screen
  * and the app by themselves as the session changes.
+ *
+ * M2 adds Home and the editor on the same harness: the profile from the
+ * (mocked) database, its status, and an edit flowing through autosave.
  */
 
 type AuthEvent =
@@ -24,6 +27,37 @@ const mockAuth = {
 };
 let mockOnboarded: boolean | null = true;
 const mockOnboardListeners = new Set<() => void>();
+
+/** One live profile, published from exactly this draft. */
+const mockAction = { id: "l-1", type: "whatsapp", label: "Chat on WhatsApp", value: "0722000000" };
+const mockPage = {
+  id: "p-1",
+  slug: "mama-njeri",
+  title: "Mama Njeri's",
+  mode: "page",
+  redirect_url: null,
+  config: { bio: "Coffee and mandazi" },
+  theme: {},
+  status: "published",
+  is_active: true,
+  published_at: "2026-10-01T09:00:00+00:00",
+  published_content: {
+    id: "p-1",
+    title: "Mama Njeri's",
+    mode: "page",
+    redirect_url: null,
+    config: { bio: "Coffee and mandazi" },
+    theme: {},
+    links: [{ ...mockAction, sort_order: 0 }],
+  },
+  updated_at: "2026-10-01T08:59:00.123456+00:00",
+  created_at: "2026-09-01T09:00:00+00:00",
+  // Live whatever cards the account holds (D-023), so the test needs none.
+  entitlement_grandfathered: true,
+  links: [{ ...mockAction, sort_order: 0, is_active: true }],
+};
+const mockCallAppApi = jest.fn();
+const mockRpc = jest.fn();
 
 const SESSION_KEY = "taptap.session";
 const owner = { id: "u-1", email: "owner@business.co.ke" };
@@ -56,16 +90,27 @@ jest.mock("@/api/supabase", () => ({
         return { data: { subscription: { unsubscribe: () => mockListeners.delete(listener) } } };
       },
     },
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          single: async () => ({
-            data: { account_id: "acc-1", accounts: { name: "Mama Njeri's Café" } },
-            error: null,
+    from: (table: string) => {
+      if (table === "smart_pages") {
+        return {
+          select: () => ({
+            order: () => ({ order: async () => ({ data: [mockPage], error: null }) }),
+          }),
+        };
+      }
+      if (table === "nfc_tags") return { select: async () => ({ data: [], error: null }) };
+      return {
+        select: () => ({
+          eq: () => ({
+            single: async () => ({
+              data: { account_id: "acc-1", accounts: { name: "Mama Njeri's Café" } },
+              error: null,
+            }),
           }),
         }),
-      }),
-    }),
+      };
+    },
+    rpc: (...args: unknown[]) => mockRpc(...args),
   },
 }));
 
@@ -82,6 +127,16 @@ jest.mock("@/api/query", () => {
     clearQueryCache: async () => client.clear(),
   };
 });
+
+jest.mock("expo-crypto", () => ({ randomUUID: () => "11111111-2222-4333-8444-555555555555" }));
+jest.mock("@react-native-async-storage/async-storage", () =>
+  jest.requireActual("@react-native-async-storage/async-storage/jest/async-storage-mock"),
+);
+jest.mock("@/api/app-api", () => ({
+  callAppApi: (...args: unknown[]) => mockCallAppApi(...args),
+  NetworkError: class extends Error {},
+  NotSignedInError: class extends Error {},
+}));
 
 jest.mock("@/features/onboarding/onboarding", () => ({
   loadOnboarded: () => undefined,
@@ -137,11 +192,23 @@ async function start() {
   return { getPathname: () => rendered.getPathname() };
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  // The cache and the unsent-edits store live for the whole app run — here,
+  // the whole file. Each test starts from nothing, as a fresh install would.
+  jest.requireMock<{ queryClient: { clear(): void } }>("@/api/query").queryClient.clear();
+  await jest
+    .requireActual<typeof import("@/features/profile/draft-sync-instance")>(
+      "@/features/profile/draft-sync-instance",
+    )
+    .draftSync.clear();
   mockStore.clear();
   mockListeners.clear();
   mockOnboarded = true;
   for (const fn of Object.values(mockAuth)) fn.mockReset();
+  mockCallAppApi.mockReset();
+  mockRpc.mockReset();
+  mockRpc.mockResolvedValue({ data: { ok: true }, error: null });
+  mockCallAppApi.mockResolvedValue({ status: 200, body: { updatedAt: "2026-10-11T10:00:00.000001+00:00" } });
 });
 
 describe("first launch", () => {
@@ -287,5 +354,117 @@ describe("resetting a password", () => {
       type: "recovery",
     });
     expect(router.getPathname()).toBe("/");
+  });
+});
+
+describe("home and the editor (M2)", () => {
+  it("shows the live profile as customers see it, with its status", async () => {
+    mockStore.set(SESSION_KEY, JSON.stringify(session));
+    await start();
+    expect(await screen.findByText("Live")).toBeTruthy();
+    expect(screen.getByText("Customers see this profile when they tap your card or open your link.")).toBeTruthy();
+    expect(screen.getByText("What customers see")).toBeTruthy();
+    // The published snapshot, rendered natively.
+    expect(screen.getByText("Chat on WhatsApp")).toBeTruthy();
+    expect(screen.getByText("Coffee and mandazi")).toBeTruthy();
+    expect(screen.getByText("taptap.hornbilltech.co.ke/mama-njeri")).toBeTruthy();
+  });
+
+  it("saves an edit by itself, and Home says it is not live yet", async () => {
+    mockStore.set(SESSION_KEY, JSON.stringify(session));
+    const router = await start();
+    await screen.findByText("Live");
+
+    await fireEvent.press(screen.getByText("Edit profile"));
+    expect(router.getPathname()).toBe("/profile/p-1/edit");
+    const name = await screen.findByLabelText("Business name");
+    expect(name.props.value).toBe("Mama Njeri's");
+
+    await fireEvent.changeText(name, "Mama Njeri's Kitchen");
+    expect(await screen.findByText("Saving…")).toBeTruthy();
+    expect(screen.getByText("Unpublished changes")).toBeTruthy();
+
+    // A moment after typing stops, the draft goes to the server with its ids.
+    expect(await screen.findByText("Saved", undefined, { timeout: 4000 })).toBeTruthy();
+    expect(mockCallAppApi).toHaveBeenCalledTimes(1);
+    const [method, path, body] = mockCallAppApi.mock.calls[0];
+    expect(method).toBe("PUT");
+    expect(path).toBe("/api/app/v1/pages/p-1/draft");
+    expect(body).toMatchObject({
+      expectedUpdatedAt: "2026-10-01T08:59:00.123456+00:00",
+      title: "Mama Njeri's Kitchen",
+      blocks: [{ id: "l-1", type: "whatsapp", label: "Chat on WhatsApp", value: "0722000000", isActive: true }],
+    });
+    // Saved is not published: customers still see the old name.
+    expect(screen.getByText("Unpublished changes")).toBeTruthy();
+  });
+
+  it("adds an action only once it works", async () => {
+    mockStore.set(SESSION_KEY, JSON.stringify(session));
+    const router = await start();
+    await screen.findByText("Live");
+    await fireEvent.press(screen.getByText("Edit profile"));
+    await screen.findByLabelText("Business name");
+
+    await fireEvent.press(screen.getByText("Add action"));
+    expect(await screen.findByText("Add an action")).toBeTruthy();
+    await fireEvent.press(screen.getByText("WhatsApp"));
+    expect(router.getPathname()).toBe("/profile/p-1/action");
+
+    const number = await screen.findByLabelText("WhatsApp number");
+    await fireEvent.changeText(number, "0722 000");
+    await fireEvent.press(screen.getByText("Add action"));
+    expect(
+      await screen.findByText("That number is too short. Kenyan numbers have 10 digits, like 0722 000 000."),
+    ).toBeTruthy();
+    expect(router.getPathname()).toBe("/profile/p-1/action");
+
+    await fireEvent.changeText(screen.getByLabelText(/WhatsApp number/), "0722 000 111");
+    await fireEvent.press(screen.getByText("Add action"));
+    expect(router.getPathname()).toBe("/profile/p-1/edit");
+
+    expect(await screen.findByText("Saved", undefined, { timeout: 4000 })).toBeTruthy();
+    const body = mockCallAppApi.mock.calls[0][2];
+    expect(body.blocks).toEqual([
+      { id: "l-1", type: "whatsapp", label: "Chat on WhatsApp", value: "0722000000", isActive: true },
+      { id: "11111111-2222-4333-8444-555555555555", type: "whatsapp", label: "", value: "0722 000 111", isActive: true },
+    ]);
+  });
+
+  it("stops at a change made elsewhere and lets the owner keep theirs", async () => {
+    mockCallAppApi.mockResolvedValueOnce({
+      status: 409,
+      body: { code: "conflict", updatedAt: "2026-10-11T09:30:00.000001+00:00" },
+    });
+    mockStore.set(SESSION_KEY, JSON.stringify(session));
+    await start();
+    await screen.findByText("Live");
+    await fireEvent.press(screen.getByText("Edit profile"));
+    await fireEvent.changeText(await screen.findByLabelText("Business name"), "Mine");
+
+    expect(await screen.findByText("Changed somewhere else", undefined, { timeout: 4000 })).toBeTruthy();
+    expect(mockCallAppApi).toHaveBeenCalledTimes(1);
+
+    await fireEvent.press(screen.getByText("Keep my version"));
+    expect(await screen.findByText("Saved", undefined, { timeout: 4000 })).toBeTruthy();
+    expect(mockCallAppApi.mock.calls[1][2]).toMatchObject({
+      expectedUpdatedAt: "2026-10-11T09:30:00.000001+00:00",
+      title: "Mine",
+    });
+  });
+
+  it("publishes the saved draft through publish_page", async () => {
+    mockStore.set(SESSION_KEY, JSON.stringify(session));
+    await start();
+    await screen.findByText("Live");
+    await fireEvent.press(screen.getByText("Edit profile"));
+    await fireEvent.changeText(await screen.findByLabelText("Business name"), "Mama Njeri's Kitchen");
+
+    // Publishing waits for the save, so nothing older goes live.
+    await fireEvent.press(screen.getByText("Publish changes"));
+    expect(await screen.findByText("Published. Customers see your changes now.", undefined, { timeout: 4000 })).toBeTruthy();
+    expect(mockCallAppApi).toHaveBeenCalledTimes(1);
+    expect(mockRpc).toHaveBeenCalledWith("publish_page", { p_page_id: "p-1" });
+    expect(mockCallAppApi.mock.invocationCallOrder[0]).toBeLessThan(mockRpc.mock.invocationCallOrder[0]);
   });
 });

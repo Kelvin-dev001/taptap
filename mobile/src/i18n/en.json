@@ -4,7 +4,10 @@
   },
   "common": {
     "cancel": "Cancel",
-    "or": "or"
+    "or": "or",
+    "tryAgain": "Try again",
+    "done": "Done",
+    "close": "Close"
   },
   "field": {
     "showPassword": "Show password",
@@ -100,8 +103,20 @@
   },
   "home": {
     "welcome": "Welcome back",
-    "placeholderTitle": "Your profile lives here",
-    "placeholderBody": "Coming next: your live profile, sharing on WhatsApp and your QR code."
+    "noProfileTitle": "No profile yet",
+    "noProfileBody": "Create your first profile on the TapTap website. It'll appear here.",
+    "loadError": "Couldn't load your profile.",
+    "switchProfile": "Switch profile",
+    "switchProfileHint": "Choose which profile to show",
+    "profilesTitle": "Your profiles",
+    "untitled": "Untitled profile",
+    "share": "Share",
+    "qr": "QR code",
+    "edit": "Edit profile",
+    "notLiveYet": "Sharing and the QR code work once this profile is live.",
+    "livePreview": "What customers see",
+    "draftPreview": "Your draft",
+    "redirectsTo": "Every tap opens {{url}}"
   },
   "leads": {
     "placeholderTitle": "Your leads will appear here",
@@ -124,7 +139,8 @@
     "signOutTitle": "Sign out on this phone?",
     "signOutBody": "You'll need your email to sign back in. Nothing is deleted, and you stay signed in on the website.",
     "signedOut": "Signed out.",
-    "version": "Version {{version}} · {{variant}}"
+    "version": "Version {{version}} · {{variant}}",
+    "signOutUnsaved": "Some profile changes haven't reached the server yet. Signing out on this phone discards them."
   },
   "dev": {
     "foundationTitle": "Developer checks",
@@ -172,5 +188,268 @@
     "resultCancelled": "Scan cancelled",
     "resultError": "Couldn't read the card: {{message}}",
     "elapsed": "Read in {{ms}} ms"
+  },
+  "blocks": {
+    "unknown": "Action",
+    "whatsapp": {
+      "label": "WhatsApp",
+      "description": "Open a chat with your business",
+      "field": "WhatsApp number",
+      "placeholder": "0722 000 000"
+    },
+    "google_review": {
+      "label": "Google review",
+      "description": "Send customers to leave a review",
+      "field": "Review link",
+      "placeholder": "https://g.page/r/…"
+    },
+    "mpesa": {
+      "label": "Pay with M-Pesa",
+      "description": "Show your paybill or till number",
+      "field": "Till or paybill",
+      "placeholder": "Till 123456 or Paybill 987654"
+    },
+    "directions": {
+      "label": "Directions",
+      "description": "Open your location in Maps",
+      "field": "Address or Maps link",
+      "placeholder": "Westlands, Nairobi"
+    },
+    "contact": {
+      "label": "Save contact",
+      "description": "Save your details to a phone",
+      "field": "",
+      "placeholder": ""
+    },
+    "call": {
+      "label": "Call",
+      "description": "Start a phone call",
+      "field": "Phone number",
+      "placeholder": "0722 000 000"
+    },
+    "email": {
+      "label": "Email",
+      "description": "Open a new email",
+      "field": "Email address",
+      "placeholder": "you@business.co.ke"
+    },
+    "website": {
+      "label": "Website",
+      "description": "Link to your site",
+      "field": "Website address",
+      "placeholder": "yourbusiness.co.ke"
+    },
+    "instagram": {
+      "label": "Instagram",
+      "description": "Your Instagram profile",
+      "field": "Instagram link",
+      "placeholder": "instagram.com/yourbusiness"
+    },
+    "facebook": {
+      "label": "Facebook",
+      "description": "Your Facebook page",
+      "field": "Facebook link",
+      "placeholder": "facebook.com/yourbusiness"
+    },
+    "tiktok": {
+      "label": "TikTok",
+      "description": "Your TikTok profile",
+      "field": "TikTok link",
+      "placeholder": "tiktok.com/@yourbusiness"
+    },
+    "youtube": {
+      "label": "YouTube",
+      "description": "Your channel or a video",
+      "field": "YouTube link",
+      "placeholder": "youtube.com/@yourbusiness"
+    },
+    "linkedin": {
+      "label": "LinkedIn",
+      "description": "Your company or personal page",
+      "field": "LinkedIn link",
+      "placeholder": "linkedin.com/in/yourname"
+    },
+    "x": {
+      "label": "X (Twitter)",
+      "description": "Your X profile",
+      "field": "X link",
+      "placeholder": "x.com/yourbusiness"
+    },
+    "menu": {
+      "label": "Menu",
+      "description": "Link to a menu or price list",
+      "field": "Menu link",
+      "placeholder": "https://… (or a PDF link)"
+    },
+    "booking": {
+      "label": "Book an appointment",
+      "description": "Link to your booking page",
+      "field": "Booking link",
+      "placeholder": "https://calendly.com/…"
+    },
+    "custom": {
+      "label": "Custom link",
+      "description": "Anything else",
+      "field": "Link",
+      "placeholder": "https://…"
+    }
+  },
+  "blockGroups": {
+    "popular": "Popular in Kenya",
+    "contact": "Contact",
+    "social": "Social",
+    "business": "Business"
+  },
+  "profileView": {
+    "noActions": "No actions yet.",
+    "formName": "Name",
+    "formPhone": "Phone",
+    "formEmail": "Email",
+    "formSend": "Send",
+    "poweredBy": "Powered by Hornbill TapTap"
+  },
+  "status": {
+    "live": "Live",
+    "unpublished": "Unpublished changes",
+    "draft": "Draft",
+    "inactive": "Not active",
+    "off": "Switched off",
+    "liveBody": "Customers see this profile when they tap your card or open your link.",
+    "unpublishedBody": "You have changes customers can't see yet. Publish to put them live.",
+    "draftBody": "This profile isn't public yet. Your link shows nothing until you publish it.",
+    "inactiveBody": "This profile isn't linked to an active TapTap card, so customers see a \"not active right now\" page.",
+    "offBody": "This profile is switched off. Switch it back on from the TapTap website."
+  },
+  "share": {
+    "title": "Share your profile",
+    "whatsapp": "Share on WhatsApp",
+    "more": "More options",
+    "copy": "Copy link",
+    "copied": "Link copied.",
+    "message": "{{name}}: {{url}}",
+    "whatsappFailed": "Couldn't open WhatsApp."
+  },
+  "qr": {
+    "title": "QR code",
+    "hint": "Customers scan this with their phone camera to open your profile.",
+    "label": "QR code that opens {{url}}"
+  },
+  "colours": {
+    "yours": "Your colour",
+    "charcoal": "Charcoal",
+    "orange": "Hornbill orange",
+    "red": "Red",
+    "pink": "Pink",
+    "purple": "Purple",
+    "blue": "Blue",
+    "teal": "Teal",
+    "green": "Green",
+    "gold": "Gold",
+    "grey": "Grey"
+  },
+  "editor": {
+    "title": "Edit profile",
+    "details": "Details",
+    "photo": "Photo",
+    "logo": "Logo",
+    "addPhoto": "Add a photo",
+    "changePhoto": "Change photo",
+    "removePhoto": "Remove photo",
+    "uploading": "Uploading…",
+    "photoFailed": "Couldn't upload the photo. Try again.",
+    "photoTooLarge": "That photo couldn't be made small enough. Try another one.",
+    "photoOffline": "Connect to the internet to change the photo.",
+    "businessName": "Business name",
+    "yourName": "Your name",
+    "tagline": "Tagline",
+    "taglineHint": "One short line under your name",
+    "taglinePlaceholder": "Coffee shop · Westlands",
+    "about": "About",
+    "aboutPlaceholder": "What you do, in a sentence.",
+    "actions": "Actions",
+    "actionsHint": "The first action is the main button.",
+    "addAction": "Add action",
+    "noActions": "No actions yet. Add WhatsApp or a Google review link to start.",
+    "moveUp": "Move {{label}} up",
+    "moveDown": "Move {{label}} down",
+    "showAction": "Show {{label}}",
+    "hiddenAction": "Hidden",
+    "editAction": "Edit {{label}}",
+    "unknownAction": "Added on the website. Edit it there.",
+    "contact": "Contact card",
+    "contactHint": "What people save when they tap Save contact.",
+    "fullName": "Full name",
+    "org": "Organisation",
+    "jobTitle": "Job title",
+    "phone": "Phone",
+    "email": "Email",
+    "website": "Website",
+    "look": "Look",
+    "style": "Style",
+    "light": "Light",
+    "dark": "Dark",
+    "buttonColour": "Button colour",
+    "colourHint": "Button text switches between dark and light to stay readable.",
+    "leadForm": "Lead form",
+    "leadFormSwitch": "Show a lead form",
+    "leadFormDescription": "Collect name, phone and email from visitors.",
+    "leadHeadline": "Headline",
+    "leadHeadlinePlaceholder": "Get in touch",
+    "leadButton": "Button text",
+    "leadButtonPlaceholder": "Send",
+    "leadUnavailable": "The lead form works on profiles linked to an active TapTap card.",
+    "redirect": "Destination",
+    "redirectHint": "Every tap goes straight here. Nothing else is shown.",
+    "redirectInvalid": "Enter a full link, starting with https://",
+    "preview": "Preview",
+    "publish": "Publish",
+    "publishChanges": "Publish changes",
+    "publishing": "Publishing…",
+    "unpublish": "Unpublish",
+    "published": "Published. Customers see your changes now.",
+    "unpublishedToast": "Unpublished. Your link shows nothing until you publish again.",
+    "publishOffline": "Connect to the internet to publish.",
+    "publishBlocked": "This profile can go live once it's linked to an active TapTap card.",
+    "upToDate": "Customers already see this version.",
+    "publishFailed": "Couldn't publish. Try again.",
+    "saveFirstFailed": "Your latest changes haven't saved yet, so nothing was published.",
+    "unpublishTitle": "Unpublish this profile?",
+    "unpublishBody": "Your link and cards will show nothing until you publish again. Your draft is kept.",
+    "loadError": "Couldn't load this profile.",
+    "notFound": "This profile no longer exists.",
+    "save": {
+      "saving": "Saving…",
+      "saved": "Saved",
+      "offline": "Saved on this phone. It'll sync when you're online.",
+      "retrying": "Couldn't save yet. Trying again…",
+      "invalidAction": "Couldn't save: “{{label}}” doesn't work. Check it.",
+      "invalid": "Couldn't save this change. Check what you typed."
+    },
+    "conflictTitle": "Changed somewhere else",
+    "conflictBody": "This profile was saved on the website or another phone while you were editing. Keep your version, or load the latest?",
+    "keepMine": "Keep my version",
+    "useTheirs": "Load the latest",
+    "action": {
+      "chooseTitle": "Add an action",
+      "newTitle": "Add {{label}}",
+      "editTitle": "Edit action",
+      "label": "Button text",
+      "labelHint": "Leave empty to show “{{label}}”.",
+      "contactNote": "Saves the details from your contact card. Fill them in under Contact card.",
+      "show": "Show on my profile",
+      "add": "Add action",
+      "delete": "Delete action",
+      "deleteTitle": "Delete this action?",
+      "deleteBody": "It goes from your draft now, and from your profile when you next publish.",
+      "valueMissing": "Fill this in, or the button won't do anything.",
+      "valueInvalid": "That doesn't look like a working link. Check it.",
+      "phoneInvalid": "Use digits only, like 0722 000 000.",
+      "phoneShort": "That number is too short. Kenyan numbers have 10 digits, like 0722 000 000.",
+      "phoneLong": "That number is too long. Kenyan numbers have 10 digits, like 0722 000 000."
+    }
+  },
+  "preview": {
+    "title": "Preview",
+    "banner": "Your draft, as customers will see it after you publish."
   }
 }

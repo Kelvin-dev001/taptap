@@ -10,6 +10,8 @@ import {
   type PropsWithChildren,
 } from "react";
 import { clearQueryCache } from "@/api/query";
+import { draftSync } from "@/features/profile/draft-sync-instance";
+import { forgetSelectedProfile } from "@/features/profile/selection";
 import { hadSessionAtLaunch, SESSION_KEY, sessionStorage, supabase } from "@/api/supabase";
 import { Sentry } from "@/lib/sentry";
 import {
@@ -85,10 +87,14 @@ export function SessionProvider({ children }: PropsWithChildren) {
   }, [userId]);
 
   // Whoever signs in next on this phone sees nothing of the last person:
-  // cached data goes whether they signed out or the server ended the session.
+  // cached data and unsent profile edits go, whether they signed out or the
+  // server ended the session.
   const signedOut = state.status === "signedOut";
   useEffect(() => {
-    if (signedOut) void clearQueryCache();
+    if (!signedOut) return;
+    void clearQueryCache();
+    void draftSync.clear();
+    forgetSelectedProfile();
   }, [signedOut]);
 
   const signOut = useCallback(async () => {
