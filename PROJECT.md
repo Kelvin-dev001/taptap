@@ -6,12 +6,13 @@
 > decision changes.
 
 **Last updated:** 2026-10-11
-**In parallel: the native mobile app (D-034 … D-046).** An Expo app for card owners, on branch
+**In parallel: the native mobile app (D-034 … D-047).** An Expo app for card owners, on branch
 `mobile-app`. `docs/mobile/PLAN.md` was approved on 2026-09-28. M0 (setup) is code-complete with
 its phone checks outstanding; M1 (sign-in and shell) is built and running on the Camon, its phone
 session outstanding; M2 (profile, share and QR, with the link-id fix for the web too, D-046) is
-deployed and live on the web, its phone session outstanding; M3 (leads and analytics) was started
-on 2026-10-11 with approval — status in `docs/mobile/PROGRESS.md`. Store launch is targeted for
+deployed and live on the web, its phone session outstanding; M3 (leads and analytics) is built with
+`0031` applied; M4 (cards, NFC set-up and account deletion, D-047) was started on 2026-10-11 with
+approval — status in `docs/mobile/PROGRESS.md`. Store launch is targeted for
 mid-December 2026.
 **Current phase (web):** **Sprint 8c — Premium proof and replacements (D-033), built and applied.**
 The Premium front is generated from the customer's profile, approved by them, and frozen at
@@ -164,6 +165,7 @@ expand across East Africa, then the continent.
 | D-044 | **On the phone, a stored session means signed in** — supabase-js reports no session offline once the token has expired; only a server refusal or a sign-out ends it. Sign-out is local and works offline |
 | D-045 | **Dependencies are measured in the bundle, not assumed:** Metro does not tree-shake, so icons are imported one file each, zod is replaced by a small local checker, and transitive native libraries are pinned to the SDK's versions. JavaScript tabs, not native tabs |
 | D-046 | **A draft save keeps every action's id:** one transactional `save_page_draft()` for the web's Save and the app's autosave; ids come from the editor, a stale `updated_at` gets a 409 instead of overwriting, `updated_at` moves only with the draft, and `log_event` keeps clicks on removed actions |
+| D-047 | **Account deletion keeps the tax record, anonymised:** a shared account loses only the person leaving; otherwise profiles, leads and analytics are deleted, cards switched off but kept on the account, payments and orders kept without personal details; service role, own token, sign-in within ten minutes |
 
 ## MVP scope (one line)
 

@@ -8,12 +8,126 @@ Live status against `docs/mobile/PLAN.md`. Newest first within each milestone.
 | **M0 — setup** | by Sat 31 Oct | 🟡 **In progress** — code done; phone checks now run on the M1 dev build |
 | **M1 — sign-in and shell** | 2–6 Nov | 🟡 **Started early, 9 Oct (approved)** — deployed, Supabase changed, dev build `b0c3324a` runs on the Camon; next: your inbox test and the phone session |
 | **M2 — profile, share, QR** | 9–13 Nov | 🟡 **Started 11 Oct (approved)** — committed and pushed; `0030` applied and the web deployed to production 11 Oct; next: dev build, phone session |
-| **M3 — leads and analytics** | 16–20 Nov | 🟡 **Started 11 Oct (approved)** — code done and verified (320 app tests, 952 web tests, `0031` run against Postgres); push registration deferred until Firebase exists; next: commit, apply `0031`, phone session |
-| M4 — cards and NFC | 23–27 Nov | Not started |
+| **M3 — leads and analytics** | 16–20 Nov | 🟡 **Started 11 Oct (approved)** — committed and pushed, `0031` applied 11 Oct; push registration deferred until Firebase exists; next: phone session |
+| **M4 — cards and NFC** | 23–27 Nov | 🟡 **Started 11 Oct (approved)** — code done and verified (346 app tests, 978 web tests, `0033` run against Postgres); next: commit, apply `0033`, web deploy, phone session |
 | M5 — push | 23–27 Nov ⚠ | Not started |
 | M6 — web ↔ app | 30 Nov–4 Dec ⚠ | Not started |
 | M7 — hardening and betas | 30 Nov–4 Dec | Not started |
 | M8 — store submission | 7–11 Dec | Not started |
+
+---
+
+## M4 — cards, NFC and account deletion
+
+**Started 11 Oct** with your approval ("proceed m4"), about six weeks early. You answered plan
+question 10 the same day: delete, keep payments anonymised for five years, remove only the person
+from a shared account (D-047).
+
+### Done-means checklist (PLAN.md §15)
+
+- [x] Cards list: name, serial, profile, neutral status, taps in 30 days — built and tested; the
+      wording follows PLAN.md §3 to the letter, and a test checks it never says renew, pay or buy.
+- [ ] Rename, change profile and switch off/on show up on a real tap within seconds — built
+      (rename queued offline; linking and switching need the network and use the web's
+      `rebind_tag` and `set_tag_status`); **needs a real card and a second phone.**
+- [ ] **NFC on the Camon and on the iPhone:** tap a card → the right card identified → link it to a
+      profile → a second phone tapping the card opens that profile — built; **Camon test pending**;
+      iPhone waits for the Apple account (D-U-N-S).
+- [x] A non-TapTap tag, another account's card, NFC switched off, and a phone without NFC each get
+      their own clear outcome; the serial fallback works — built; the serial path is tested end to
+      end; the NFC outcomes need the phone. An unowned card "hasn't been activated yet" and cannot
+      be claimed (D-027); nothing mentions buying.
+- [x] In-app reads never create analytics events — reading a card touches nothing on the network
+      unless the card is someone else's, and then only `resolve_tag`, which records nothing. **A
+      before-and-after count on the database is part of the phone session.**
+- [x] Account deletion backend (`0033`, W7 route) with tests — built; `0033` run against Postgres;
+      **yours to apply, and the web route to deploy.**
+- [ ] The in-app flow proven on a throwaway account: its cards stop resolving, its payment rows
+      remain anonymised — needs `0033`, the deploy and a throwaway account.
+
+### Built on 11 Oct
+
+**Database — `0033_account_deletion.sql`:** `delete_account(user)`, service role only. A shared
+account loses only this person. Otherwise: profiles (with their actions, events and leads),
+insight dismissals, notification records and quote requests are deleted; cards are switched off,
+unlinked and unnamed but stay on the account; orders keep amounts, dates and status history but
+lose names, phone numbers, delivery details, notes and Premium proofs; payments keep amount, status,
+reference and the M-Pesa receipt but lose the payer's phone number; the account becomes "Deleted
+account". Hornbill staff are refused. `account_deletions` records each deletion's counts, nothing
+personal, readable by the service role only.
+
+**Web (deploy only with your OK, after `0033`):**
+
+- `lib/account-deletion.ts` (W7): calls `delete_account`, removes the account's photos from Storage,
+  then deletes the Supabase Auth user — in that order, so a failure can be retried safely.
+- `POST /api/app/v1/account/delete` (W7): the caller's own Bearer token only (never a user id from
+  the body), and only within ten minutes of a sign-in (the token's `amr`). **New public API route**
+  (part of M4). Production already has `SUPABASE_SERVICE_ROLE_KEY` (checked by name).
+
+**Mobile (no new native modules: build `f0500f92` runs it):**
+
+- Cards tab: every card and stand, what it opens, its state in neutral words, taps in 30 days;
+  "Set up a card".
+- Card screen: rename (saved even offline), what it opens (live profiles only), switch on/off with
+  a confirmation, serial, taps, last tap.
+- Set up a card: scan by NFC, or type the serial; it finds which of your cards it is and you choose
+  the live profile it opens. Another account's card, an unactivated card, an unknown card, a
+  non-TapTap tag, an empty tag, NFC off and no NFC each get their own message.
+- Account → Delete account: what goes, what stays, what happens if others share the business; prove
+  it's you (password, or a code by email); confirm; signed out.
+
+### Verification, 11 Oct
+
+- **`0033` against real Postgres** (PGlite, with the production foreign keys and cascades): 14
+  checks pass — anon and signed-in callers denied; staff refused with nothing changed; a shared
+  account loses only the person; for the last person, the right rows go and the right rows stay,
+  down to each column; the M-Pesa receipt survives and the phone number does not; other accounts
+  untouched; deleting the auth user afterwards keeps payments and orders; a second run is harmless.
+- **Web:** 978 tests (+26: the sign-in-recency check, the deletion order, the route, the migration
+  text), `tsc` and `eslint` clean, `next build` succeeds with the route.
+- **Mobile:** 346 tests (+26: card wording against fixed dates, serial matching, card
+  identification, the queued rename, and navigation flows for the Cards tab, set-up by serial, a
+  serial not on the account, and deleting an account with a right and a wrong password).
+- **Bundle:** 5.84 MB (M3 5.79 MB; budget 7 MB).
+
+### Findings
+
+37. The plan had cards "detached" on deletion. Clearing `account_id` would have made them look like
+    unsold stock to the ops tools, so they stay on the (emptied) account, switched off.
+38. Order history notes (`order_events.note`) are free text staff write, and can name or phone the
+    customer. They are cleared on deletion; the status history itself stays.
+39. A deleted account's photos live in Storage, which a database function cannot empty safely; the
+    route removes them, best-effort, after the database work.
+40. `set_tag_status(…, 'assigned')` switches a card on even when it points at no profile; the
+    database treats that as "unassigned" on tap, so nothing breaks. Left as the web has it.
+
+### What you need to do
+
+**1. Let me commit** (and push).
+
+**2. Apply `0033`** (safe for the website: nothing calls it until the route is deployed). Say
+"apply 0033", or:
+
+```powershell
+cd C:\Projects\taptap
+supabase db push --dry-run
+supabase db push
+```
+
+**3. Deploy the web** (preview, then production) — the deletion route. After `0033`.
+
+**4. On the Camon** (build `f0500f92`, same session as M1–M3):
+
+1. **Cards tab:** your cards, what each opens, their state; nothing mentions renewing or paying.
+2. **Set up a card:** scan one of your cards → it names the card → choose a live profile → "Card set
+   up". Tap the card with another phone: it opens that profile.
+3. Scan a bank card, a non-TapTap tag, and (if you have one) another account's card: each says
+   something different. Switch NFC off and open Set up a card: it says so and offers settings.
+4. **Card screen:** rename it (also once in airplane mode — it saves when you're back), switch it
+   off (a tap now shows nothing), switch it on again.
+5. **Account → Delete account** on a throwaway account only (I can prepare one): its profile and
+   leads go, its card stops working, and its payments stay without the phone number. I'll check the
+   database before and after.
 
 ---
 
@@ -43,8 +157,8 @@ soon as Firebase exists (see "What you need to do", step 4).
       `get_analytics` with the web's own arithmetic (lib/analytics.ts), so they match by
       construction; **a side-by-side check with the web is pending.**
 - [x] Charts respect reduce-motion — the charts have no animation at all.
-- [ ] `0031` and `0032` applied after a dry run — **`0031` written and run against Postgres;
-      yours to approve.** `0032` deferred (above).
+- [ ] `0031` and `0032` applied after a dry run — **`0031` applied 11 Oct** after a dry run, and the
+      web's calls return the same leads as before. `0032` deferred (above).
 - [ ] Push device registration works — deferred (above).
 
 ### Built on 11 Oct
@@ -101,10 +215,13 @@ Every existing web call keeps working unchanged.
 
 ### What you need to do
 
-**1. Let me commit** (and push, if you want it on GitHub).
+**1. Commit** — ✅ done 11 Oct: `25b7222` (`0031`), `44badd1` (app), `3466ac5` (docs); pushed.
 
-**2. Apply `0031`** — needed before the Leads tab works on the phone (the app sends the new
-cursor arguments, which the old function does not have). Safe for the website.
+**2. Apply `0031`** — ✅ **done 11 Oct, at your request.** Migration history showed only `0031`
+pending; the dry run listed only it; it applied cleanly. Checked on the database: one `get_leads`,
+with the cursor arguments; `authenticated` may call it, `anon` may not; history reads `0031`. The
+web's exact inbox call, run as the account with the most leads, returned the same leads before and
+after (same count, same ids), and so did the CSV export's call. For the record, the commands:
 
 ```powershell
 cd C:\Projects\taptap

@@ -1253,5 +1253,28 @@ Save rather than breaking.
 
 ---
 
+### D-047 — Deleting an account deletes the business's content and keeps the tax record, anonymised
+**Date:** 2026-10-11 · **Status:** Accepted (Kelvin, plan question 10) · **Plan:** §2.2 #2, §9 W7, §10 `0033`
+
+**Context:** both app stores require in-app account deletion, and nothing deleted an account
+before. Deleting the `accounts` row would cascade into `payments` and `orders` (0004, 0017), which
+are tax records Kenya's Tax Procedures Act expects kept for five years.
+
+**Decision:** if others share the business account, only the person leaving is removed. If they
+are the last, their profiles, actions, analytics and leads are deleted, with insight dismissals,
+notification records and quote requests; every card is switched off, unlinked and unnamed but stays
+on the account (so it is never mistaken for unsold stock); payment and order records are kept with
+names, phone numbers, delivery details, order notes and the M-Pesa payload (apart from its receipt)
+removed; the account row stays as "Deleted account". Photos are removed from Storage and the
+Supabase Auth user deleted. It runs from `POST /api/app/v1/account/delete` with the service role,
+only for the caller's own token and only within ten minutes of a sign-in (`amr`); Hornbill staff
+are refused. Every deletion is recorded in `account_deletions`, without personal data.
+
+**Consequences:** the five-year retention is a statement of policy; nothing purges the anonymised
+records yet (a later job, when the first ones turn five). The privacy policy must say all this
+(W13, M6), and Play needs the same deletion on the web (`/account/delete`, M6).
+
+---
+
 _Add new decisions above this line as `D-00N`, and mirror the one-liner into
 `PROJECT.md`._
