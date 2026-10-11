@@ -7,7 +7,7 @@ Live status against `docs/mobile/PLAN.md`. Newest first within each milestone.
 | Step 1 — plan | by 27 Sep | ✅ Approved 28 Sep 2026 |
 | **M0 — setup** | by Sat 31 Oct | 🟡 **In progress** — code done; phone checks now run on the M1 dev build |
 | **M1 — sign-in and shell** | 2–6 Nov | 🟡 **Started early, 9 Oct (approved)** — deployed, Supabase changed, dev build `b0c3324a` runs on the Camon; next: your inbox test and the phone session |
-| **M2 — profile, share, QR** | 9–13 Nov | 🟡 **Started 11 Oct (approved)** — code done and verified (289 app tests, 945 web tests, `0030` run against Postgres); next: commit, apply `0030`, web deploy, dev build, phone session |
+| **M2 — profile, share, QR** | 9–13 Nov | 🟡 **Started 11 Oct (approved)** — committed and pushed; `0030` applied and the web deployed to production 11 Oct; next: dev build, phone session |
 | M3 — leads and analytics | 16–20 Nov | Not started |
 | M4 — cards and NFC | 23–27 Nov | Not started |
 | M5 — push | 23–27 Nov ⚠ | Not started |
@@ -41,9 +41,13 @@ the web's Save too). Decision D-046.
       shows a toast — built; phone test pending.
 - [ ] The full-screen QR scans from another phone at 1 m in normal light — built (drawn on the
       phone with the web's encoder and settings, tested against it); **needs a second phone.**
-- [ ] **Link-id fix live** (W4, `0030`): saving keeps action ids — **tested** (web and Postgres);
-      clicks on the live page still recorded after a draft save — reproduced and fixed against
-      Postgres; **live check after `0030` and the deploy.** Web tests green; deploy with your OK.
+- [ ] **Link-id fix live** (W4, `0030`): **`0030` applied and the web deployed to production,
+      11 Oct.** Saving keeps action ids — tested (web and Postgres); clicks on the live page still
+      recorded after a draft save — reproduced and fixed against Postgres. **Seen live, 11 Oct:** an app
+      save and a web save (after the fix, finding 32) on "kev" kept its action (created 8 Oct), and
+      eight app autosaves on "jijhdgjn" kept its. **Still to see live:** a click on a live profile
+      after a draft save — your account has no live profile (no card), so it needs a customer's or
+      a test card.
 
 ### Built on 11 Oct
 
@@ -114,8 +118,10 @@ the web's Save too). Decision D-046.
 
 22. **The link-id bug is real.** Reproduced against Postgres: before `0030`, a click on an action
     the draft has replaced fails `log_event`'s foreign key, and `/api/track` swallows the error.
-    Every live profile edited since its last publish has been dropping clicks on those buttons.
-    The optional query in step 2 below shows how many buttons that is today.
+    Any live profile edited after its last publish would drop clicks on the replaced buttons.
+    **Measured on 11 Oct, before applying `0030`: 0 of the 26 buttons on the 10 live profiles**
+    — every live profile had been published after its last save, so nobody was losing clicks
+    that day. The past cannot be measured: a lost click left no row.
 23. **Publishing changed `updated_at`** (the 0001 trigger bumps it on any update), which would have
     made every publish look like a conflicting edit to the other device. Now it tracks the draft only.
 24. **A subtle RLS case, found by the Postgres run:** an action id that belongs to *another
@@ -140,12 +146,31 @@ the web's Save too). Decision D-046.
     three billing reads, the save), so roughly half a second. Fine for autosave; pinning functions
     to Dublin (`dub1`) would speed up every server-rendered page too. A web-wide change, so not
     made here.
+32. **A regression I shipped, live for about an hour on 11 Oct.** The database stores an empty
+    action label or value as null; the web editor sent the nulls back; the new draft check wanted
+    text. So every web Save failed ("Something in this draft could not be saved") on profiles with
+    a "Save contact" action or an unlabelled one — **12 of 14 page profiles, 8 live**. Nothing was
+    lost: saves were refused and the old draft stayed. Found because your test save on "kev" never
+    reached the database (the production logs showed the request; the row had not changed). Fixed
+    in `f7ecd0f` (null reads as empty, plus a test with the exact nulls Supabase returns) and
+    deployed to production as `taptap-13fdyvrba` within the hour. The app was never affected — it
+    turns nulls into text when it reads — and its saves were already working live: "jijhdgjn" kept
+    its one action (created 27 Sep) across eight autosaves. My earlier editor test used only filled
+    values, which is how this got past 945 tests. Every other new limit was checked against all
+    existing rows the same evening: none would refuse a save.
 
 ### What you need to do
 
-**1. Review, then let me commit** — I'll stage the files explicitly and run the secret scan.
+**1. Commit** — ✅ done 11 Oct: `e4a9045` (web and `0030`), `8eeec88` (app), `979dc47` (docs);
+pushed.
 
-**2. Apply `0030`** (before the web deploy; it is safe for the current website):
+**2. Apply `0030`** — ✅ **done 11 Oct, at your request** ("apply 0030 and deploy the web for
+me"). The CLI connected through its login role; `migration list` showed the database at `0029`
+with only `0030` pending; the dry run listed only `0030`; it applied cleanly. Checked afterwards
+on the database: `save_page_draft` exists and is not SECURITY DEFINER, `authenticated` may run it
+and `anon` may not; `smart_pages` now has `smart_pages_touch_draft` and
+`smart_pages_enforce_publish` (the old always-bump trigger is gone); the 10-argument `log_event`
+keeps clicks on removed actions; the migration history reads `0030`. For the record, the commands:
 
 ```powershell
 cd C:\Projects\taptap
@@ -167,10 +192,19 @@ where sp.status = 'published';
 *After applying:* `select proname from pg_proc where proname in ('save_page_draft', 'smart_pages_touch_draft');`
 should return both.
 
-**3. Deploy the web** — preview, then production, as for M1. Until this is done, the new app's
-autosave keeps edits on the phone and retries.
+**3. Deploy the web** — ✅ **done 11 Oct**, from `mobile-app` at `979dc47`. The first preview
+attempt answered "Not authorized" (as on 10 Oct); the retry deployed
+`taptap-1bngpwki7-…vercel.app`. On the preview: `/` and `/login` 200, `/dashboard` 307, an
+unknown slug 404 (no real customer slug requested), the new route 401 `{"code":"unauthorized"}`
+with no token and with a fake one, 405 for GET. Production `taptap-rkvi4wkr4-…vercel.app`, on
+`taptap.hornbilltech.co.ke`: the same answers, `/auth/confirm` 307, and the route sends
+`Cache-Control: no-store`. **Your check on the web** found finding 32: the first deploy's Save refused profiles with blank
+labels or values. Fixed and redeployed the same evening: `f7ecd0f`, preview
+`taptap-58tguxna3`, production `taptap-13fdyvrba` (the domain points at it). Publishing from your
+own account correctly shows the activation prompt: `kelvinoyugi101` has no card (D-021). Production now runs code
+from `mobile-app`, which is ahead of `main`: a PR to merge it is overdue (since M1).
 
-**4. Build the new dev app** — the photo picker, image resizing and clipboard are native modules.
+**4. Build the new dev app** — ✅ **built 11 Oct** (your approval): `f0500f92`, from the M2 commits, finished cleanly. Install page: <https://expo.dev/accounts/hornbill-taptap/projects/hornbill-taptap/builds/f0500f92-ed27-4cb4-bacb-0f2b88724202>. The photo picker, image resizing and clipboard are native modules.
 It uses the third of October's 15 free Android builds:
 
 ```powershell
