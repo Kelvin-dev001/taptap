@@ -15,6 +15,8 @@ import { MarketingFooter } from "@/components/marketing/footer";
 import { WhatsAppButton } from "@/components/marketing/whatsapp-button";
 import { Section, SectionHeading } from "@/components/marketing/section";
 import { Reveal } from "@/components/marketing/reveal";
+import { AndroidAppBanner } from "@/components/app-banner/android-app-banner";
+import { APP_STORE_ID, PLAY_STORE_URL } from "@/lib/app-store";
 
 const TITLE = "Hornbill TapTap | Smart NFC Business Cards & Review Stands in Kenya";
 const DESCRIPTION =
@@ -38,6 +40,8 @@ export const metadata: Metadata = {
   },
   twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
   robots: { index: true, follow: true },
+  // Safari's Smart App Banner (PLAN.md §9 W11) — only once the app is listed.
+  ...(APP_STORE_ID ? { itunes: { appId: APP_STORE_ID } } : {}),
 };
 
 /**
@@ -60,6 +64,7 @@ export default function Home() {
         Skip to content
       </a>
 
+      <AndroidAppBanner playUrl={PLAY_STORE_URL} />
       <MarketingNav />
 
       <main id="main">

@@ -1,10 +1,16 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { loadBillingContext } from "@/lib/billing-context";
 import { AppShell } from "@/components/shell/app-shell";
+import { AndroidAppBanner } from "@/components/app-banner/android-app-banner";
+import { APP_STORE_ID, PLAY_STORE_URL } from "@/lib/app-store";
 import { signOutAction } from "./actions";
 
 export const dynamic = "force-dynamic";
+
+// Safari's Smart App Banner on every dashboard page (PLAN.md §9 W11), once listed.
+export const metadata: Metadata = APP_STORE_ID ? { itunes: { appId: APP_STORE_ID } } : {};
 
 /**
  * One auth check and one workspace fetch for every dashboard route, so pages
@@ -47,6 +53,7 @@ export default async function DashboardLayout({
       profiles={pages ?? []}
       signOutAction={signOutAction}
     >
+      <AndroidAppBanner playUrl={PLAY_STORE_URL} />
       {children}
     </AppShell>
   );

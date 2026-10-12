@@ -43,6 +43,23 @@ describe("legal pages", () => {
     expect(text).toContain("ODPC");
   });
 
+  it("names every processor that touches personal data, and where it is (PLAN.md §9 W13)", () => {
+    const { container } = render(<PrivacyPage />);
+    const text = container.textContent ?? "";
+    for (const name of ["Supabase", "Vercel", "Resend", "M-Pesa", "Expo", "Firebase Cloud Messaging", "Apple Push Notification", "Sentry"]) {
+      expect(text).toContain(name);
+    }
+    expect(text).toContain("Ireland");
+  });
+
+  it("says how long data is kept and how to delete an account (Google Play, Apple 5.1.1(v))", () => {
+    const { container } = render(<PrivacyPage />);
+    const text = container.textContent ?? "";
+    expect(text).toContain("five years");
+    expect(text).toContain("Account → Delete account");
+    expect(container.querySelector('a[href="/account/delete"]')).not.toBeNull();
+  });
+
   it("offers a working phone link, not just a number to copy", () => {
     const { container } = render(<PrivacyPage />);
     const tel = container.querySelector('a[href^="tel:"]');
