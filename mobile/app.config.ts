@@ -41,6 +41,16 @@ const BUNDLE_ID = "ke.co.hornbilltech.taptap";
 const GOOGLE_SERVICES =
   process.env.GOOGLE_SERVICES_JSON ?? (existsSync("./google-services.json") ? "./google-services.json" : undefined);
 
+/**
+ * Website links the app opens instead of the browser (PLAN.md §9 W10, D-049):
+ * exact paths only, the dashboard links that lead and first-tap emails send.
+ * Card taps (/t/…), profile links (/<slug>), billing and orders always stay in
+ * the browser. Kept equal to lib/app-links.ts by src/links/links.test.ts — a
+ * config file cannot import it, because EAS evaluates this file on its own.
+ */
+const APP_LINK_HOST = "taptap.hornbilltech.co.ke";
+const APP_LINK_PATHS = ["/dashboard", "/dashboard/customers", "/dashboard/analytics"];
+
 const INTER = ["400Regular", "500Medium", "600SemiBold", "700Bold"].map(
   (weight) => `node_modules/@expo-google-fonts/inter/${weight}/Inter_${weight}.ttf`,
 );
@@ -63,6 +73,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       // HTTPS only — the standard exemption, so no export-compliance paperwork.
       ITSAppUsesNonExemptEncryption: false,
     },
+    // Which paths open the app is the website's apple-app-site-association.
+    associatedDomains: [`applinks:${APP_LINK_HOST}`],
   },
   android: {
     package: IS_DEV ? `${BUNDLE_ID}.dev` : BUNDLE_ID,
@@ -70,6 +82,17 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // Cached leads are customers' personal data; they must not ride along in
     // Google Drive backups (PLAN.md §4.5).
     allowBackup: false,
+    // autoVerify: Android checks the website's assetlinks.json at install and,
+    // once verified, opens these links without asking. Exact `path`s, never a
+    // prefix.
+    intentFilters: [
+      {
+        action: "VIEW",
+        autoVerify: true,
+        data: APP_LINK_PATHS.map((path) => ({ scheme: "https", host: APP_LINK_HOST, path })),
+        category: ["BROWSABLE", "DEFAULT"],
+      },
+    ],
     // Only what the app uses (brief: permissions only when needed). An empty
     // list drops Expo's default extras; the blocked ones are what its template
     // would otherwise still merge in. NFC and INTERNET come from their modules.
