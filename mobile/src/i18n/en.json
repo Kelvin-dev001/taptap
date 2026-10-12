@@ -235,7 +235,9 @@
     "version": "Version {{version}} · {{variant}}",
     "signOutUnsaved": "Some profile changes haven't reached the server yet. Signing out on this phone discards them.",
     "deleteAccount": "Delete account",
-    "deleteAccountHint": "What's deleted and what's kept"
+    "deleteAccountHint": "What's deleted and what's kept",
+    "notifications": "Notifications",
+    "notificationsHint": "New leads, cards and terms"
   },
   "dev": {
     "foundationTitle": "Developer checks",
@@ -707,5 +709,38 @@
     "reauthenticate": "Please confirm it's you again, then try once more.",
     "failed": "Couldn't delete your account. Nothing was lost; try again.",
     "offline": "Connect to the internet to delete your account."
+  },
+  "push": {
+    "title": "Notifications",
+    "explainerTitle": "Know the moment a customer gets in touch",
+    "explainerBody": "Get a notification when someone leaves their details, when a new card is first tapped, and before a card's term ends. Customer names never show on your lock screen.",
+    "turnOn": "Turn on",
+    "notNow": "Not now",
+    "on": "Notifications are on.",
+    "refused": "Notifications stay off. You can turn them on in Account at any time.",
+    "blocked": "Notifications are off for TapTap in your phone's settings.",
+    "openSettings": "Open phone settings",
+    "thisPhone": "These switches are for this phone. Other phones signed in to your account keep their own.",
+    "cannotRegister": "This phone can't receive notifications yet. Try again later.",
+    "offline": "Connect to the internet to change notifications.",
+    "saveFailed": "Couldn't save that. Try again.",
+    "privacy": "Notifications never include a customer's name or number. Open the app to see who it is.",
+    "kinds": {
+      "lead": "New leads",
+      "leadHint": "When someone leaves their details on one of your profiles",
+      "first_tap": "A new card goes live",
+      "first_tapHint": "When a card you've received is tapped for the first time",
+      "term": "Card terms",
+      "termHint": "Before a card's term ends, and if it stops"
+    },
+    "channelLeads": "New leads",
+    "channelCards": "Cards",
+    "channelAccount": "Card terms",
+    "helpTitle": "Notifications not arriving?",
+    "helpBody": "Tecno, Infinix and itel phones close apps in the background to save battery, which can stop notifications. Allow TapTap to keep running:",
+    "helpStep1": "Open Settings → Apps → TapTap.",
+    "helpStep2": "Under Battery, choose No restrictions (or Allow background activity).",
+    "helpStep3": "Turn on Auto-launch (or Auto-start), if your phone has it.",
+    "openAppSettings": "Open TapTap's settings"
   }
 }

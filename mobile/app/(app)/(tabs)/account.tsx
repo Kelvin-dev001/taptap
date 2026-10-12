@@ -11,7 +11,7 @@ import { space } from "@/theme/tokens";
 import { Button } from "@/ui/button";
 import { Card } from "@/ui/card";
 import { ConfirmSheet } from "@/ui/confirm-sheet";
-import { Trash, Wrench } from "@/ui/icons";
+import { Bell, Trash, Wrench } from "@/ui/icons";
 import { ListRow } from "@/ui/list-row";
 import { OfflineBanner } from "@/ui/offline-banner";
 import { Screen } from "@/ui/screen";
@@ -60,6 +60,15 @@ export default function Account() {
             </Text>
           ) : null}
         </View>
+      </Card>
+
+      <Card>
+        <ListRow
+          icon={Bell}
+          title={t("account.notifications")}
+          subtitle={t("account.notificationsHint")}
+          onPress={() => router.push("/settings/notifications")}
+        />
       </Card>
 
       {devToolsEnabled ? (

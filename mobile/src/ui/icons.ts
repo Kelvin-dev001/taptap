@@ -8,6 +8,8 @@
  */
 export { default as ArrowDown } from "lucide-react-native/icons/arrow-down";
 export { default as ArrowUp } from "lucide-react-native/icons/arrow-up";
+export { default as Bell } from "lucide-react-native/icons/bell";
+export { default as BellOff } from "lucide-react-native/icons/bell-off";
 export { default as Briefcase } from "lucide-react-native/icons/briefcase";
 export { default as CalendarCheck } from "lucide-react-native/icons/calendar-check";
 export { default as Camera } from "lucide-react-native/icons/camera";

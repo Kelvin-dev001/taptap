@@ -12,6 +12,7 @@ import {
 import { clearQueryCache } from "@/api/query";
 import { draftSync } from "@/features/profile/draft-sync-instance";
 import { forgetSelectedProfile } from "@/features/profile/selection";
+import { unregisterThisPhone } from "@/features/push/push";
 import { hadSessionAtLaunch, SESSION_KEY, sessionStorage, supabase } from "@/api/supabase";
 import { Sentry } from "@/lib/sentry";
 import {
@@ -99,6 +100,9 @@ export function SessionProvider({ children }: PropsWithChildren) {
 
   const signOut = useCallback(async () => {
     signingOut.current = true;
+    // While the session still works: this phone stops getting the account's
+    // notifications. Quick and best-effort; it never blocks signing out.
+    await unregisterThisPhone();
     // `local`: this phone only. The default would sign the person out of the
     // website and every other phone too.
     const { error } = await supabase.auth.signOut({ scope: "local" });

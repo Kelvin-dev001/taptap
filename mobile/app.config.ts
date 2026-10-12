@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import type { ConfigContext, ExpoConfig } from "expo/config";
 
 /**
@@ -30,6 +31,16 @@ const BUNDLE_ID = "ke.co.hornbilltech.taptap";
  * the system font first (no loading step). Android names a family after its
  * file and iOS after the PostScript name; src/theme/typography.ts maps both.
  */
+/**
+ * Firebase's Android config, which a phone needs before it can get a push
+ * token (PLAN.md §4.7). On EAS it arrives as a file environment variable
+ * (GOOGLE_SERVICES_JSON); locally, as a git-ignored google-services.json.
+ * Without either, the app still builds and runs — push registration simply
+ * does nothing on Android.
+ */
+const GOOGLE_SERVICES =
+  process.env.GOOGLE_SERVICES_JSON ?? (existsSync("./google-services.json") ? "./google-services.json" : undefined);
+
 const INTER = ["400Regular", "500Medium", "600SemiBold", "700Bold"].map(
   (weight) => `node_modules/@expo-google-fonts/inter/${weight}/Inter_${weight}.ttf`,
 );
@@ -55,6 +66,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     package: IS_DEV ? `${BUNDLE_ID}.dev` : BUNDLE_ID,
+    ...(GOOGLE_SERVICES ? { googleServicesFile: GOOGLE_SERVICES } : {}),
     // Cached leads are customers' personal data; they must not ride along in
     // Google Drive backups (PLAN.md §4.5).
     allowBackup: false,
@@ -104,6 +116,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         microphonePermission: false,
       },
     ],
+    // Push (M5). POST_NOTIFICATIONS is asked for only after the in-app
+    // explainer, never at launch. The orange tints the small icon; a proper
+    // monochrome notification icon comes with the brand assets in M8.
+    ["expo-notifications", { color: "#C2560A" }],
     [
       "react-native-nfc-manager",
       {

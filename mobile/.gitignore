@@ -40,8 +40,9 @@ yarn-error.*
 *.key
 *.mobileprovision
 credentials.json
-google-services.json
-GoogleService-Info.plist
+# The wildcard also catches a browser's "google-services (1).json" duplicate.
+google-services*.json
+GoogleService-Info*.plist
 *service-account*.json
 
 # test output

@@ -77,6 +77,8 @@ function mockRpcAnswer(fn: string): unknown {
     }
     case "get_leads":
       return mockLeadRows;
+    case "register_push_device":
+      return { prefs: { lead: true, first_tap: true, term: true } };
     case "get_devices_overview":
       return mockCards.map((c) => ({ id: c.id, taps: 4, last_tap: null }));
     case "get_analytics":
@@ -174,6 +176,28 @@ jest.mock("@/api/query", () => {
 });
 
 jest.mock("expo-crypto", () => ({ randomUUID: () => "11111111-2222-4333-8444-555555555555" }));
+
+/** The phone's notification permission, and the notification that opened the app, per test. */
+let mockPushPermission = "undetermined";
+let mockLastResponse: unknown = null;
+jest.mock("expo-notifications", () => ({
+  setNotificationHandler: () => undefined,
+  useLastNotificationResponse: () => mockLastResponse,
+  clearLastNotificationResponse: () => {
+    mockLastResponse = null;
+  },
+  addPushTokenListener: () => ({ remove: () => undefined }),
+  addNotificationReceivedListener: () => ({ remove: () => undefined }),
+  getPermissionsAsync: async () => ({ status: mockPushPermission }),
+  requestPermissionsAsync: async () => {
+    mockPushPermission = "granted";
+    return { status: "granted" };
+  },
+  getExpoPushTokenAsync: async () => ({ data: "ExponentPushToken[test-phone-token]" }),
+  setNotificationChannelAsync: async () => null,
+  AndroidImportance: { HIGH: 4, DEFAULT: 3 },
+  DEFAULT_ACTION_IDENTIFIER: "expo.modules.notifications.actions.DEFAULT",
+}));
 jest.mock("@react-native-async-storage/async-storage", () =>
   jest.requireActual("@react-native-async-storage/async-storage/jest/async-storage-mock"),
 );
@@ -255,6 +279,8 @@ beforeEach(async () => {
   mockRpc.mockReset();
   mockLeadRows = [];
   mockCards = [];
+  mockPushPermission = "undetermined";
+  mockLastResponse = null;
   mockLeadUpdate.mockReset();
   mockRpc.mockImplementation(async (fn: string) => ({ data: mockRpcAnswer(fn), error: null }));
   mockCallAppApi.mockResolvedValue({ status: 200, body: { updatedAt: "2026-10-11T10:00:00.000001+00:00" } });
@@ -689,5 +715,48 @@ describe("deleting the account (M4)", () => {
 
     expect(await screen.findByText("That email and password don't match. Try again, or reset your password.")).toBeTruthy();
     expect(mockCallAppApi).not.toHaveBeenCalled();
+  });
+});
+
+describe("push (M5)", () => {
+  it("explains before asking, then registers this phone", async () => {
+    mockStore.set(SESSION_KEY, JSON.stringify(session));
+    await start();
+    expect(await screen.findByText("Know the moment a customer gets in touch")).toBeTruthy();
+    // The phone's own prompt comes only from "Turn on".
+    expect(mockRpc).not.toHaveBeenCalledWith("register_push_device", expect.anything());
+
+    await fireEvent.press(screen.getByText("Turn on"));
+    expect(await screen.findByText("Notifications are on.")).toBeTruthy();
+    expect(mockRpc).toHaveBeenCalledWith("register_push_device", expect.objectContaining({
+      p_token: "ExponentPushToken[test-phone-token]",
+    }));
+    expect(screen.queryByText("Know the moment a customer gets in touch")).toBeNull();
+  });
+
+  it("puts the explainer away on 'Not now'", async () => {
+    mockStore.set(SESSION_KEY, JSON.stringify(session));
+    await start();
+    await fireEvent.press(await screen.findByText("Not now"));
+    expect(screen.queryByText("Know the moment a customer gets in touch")).toBeNull();
+    expect(mockRpc).not.toHaveBeenCalledWith("register_push_device", expect.anything());
+  });
+
+  it("opens the lead a tapped notification is about", async () => {
+    mockLeadRows = [
+      {
+        id: "00000000-0000-4000-8000-000000000001", smart_page_id: "p-1", page_title: "Mama Njeri's", page_slug: "mama-njeri",
+        name: "Customer 1", phone: "0722000000", email: null, company: null, message: "Hello", status: "new",
+        note: null, created_at: "2026-10-11T08:00:00.000001+00:00", updated_at: null, repeat_count: 0,
+      },
+    ];
+    mockLastResponse = {
+      actionIdentifier: "expo.modules.notifications.actions.DEFAULT",
+      notification: { request: { content: { data: { kind: "lead", id: "00000000-0000-4000-8000-000000000001" } } } },
+    };
+    mockStore.set(SESSION_KEY, JSON.stringify(session));
+    const router = await start();
+    await act(async () => undefined);
+    expect(router.getPathname()).toBe("/lead/00000000-0000-4000-8000-000000000001");
   });
 });

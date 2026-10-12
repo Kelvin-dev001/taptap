@@ -16,6 +16,7 @@ import {
 import { ProfileView } from "@/features/profile/profile-view";
 import { selectProfile, useSelectedProfileId } from "@/features/profile/selection";
 import { STATUS_TONE } from "@/features/profile/status";
+import { PushExplainer } from "@/features/push/push-explainer";
 import { ShareSheet } from "@/features/profile/share-sheet";
 import { useProfiles, useProfileState } from "@/features/profile/use-profiles";
 import { space } from "@/theme/tokens";
@@ -94,6 +95,8 @@ export default function Home() {
 
     body = (
       <>
+        <PushExplainer />
+
         {all.length > 1 ? (
           <Pressable
             onPress={() => setPicking(true)}
