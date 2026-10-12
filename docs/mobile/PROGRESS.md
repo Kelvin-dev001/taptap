@@ -9,11 +9,150 @@ Live status against `docs/mobile/PLAN.md`. Newest first within each milestone.
 | **M1 — sign-in and shell** | 2–6 Nov | 🟡 **Started early, 9 Oct (approved)** — deployed, Supabase changed, dev build `b0c3324a` runs on the Camon; next: your inbox test and the phone session |
 | **M2 — profile, share, QR** | 9–13 Nov | 🟡 **Started 11 Oct (approved)** — committed and pushed; `0030` applied and the web deployed to production 11 Oct; next: dev build, phone session |
 | **M3 — leads and analytics** | 16–20 Nov | 🟡 **Started 11 Oct (approved)** — committed and pushed, `0031` applied 11 Oct; push registration deferred until Firebase exists; next: phone session |
-| **M4 — cards and NFC** | 23–27 Nov | 🟡 **Started 11 Oct (approved)** — code done and verified (346 app tests, 978 web tests, `0033` run against Postgres); next: commit, apply `0033`, web deploy, phone session |
-| M5 — push | 23–27 Nov ⚠ | Not started |
+| **M4 — cards and NFC** | 23–27 Nov | 🟡 **Started 11 Oct (approved)** — committed and pushed; `0033` applied and the deletion route in production 11 Oct; next: phone session, deletion test on a throwaway account |
+| **M5 — push** | 23–27 Nov ⚠ | 🟡 **Started 12 Oct (approved)** — committed and pushed; `0034` applied and the web deployed to production 12 Oct; Firebase project done; next: FCM key and Expo token (yours), dev build, phone session |
 | M6 — web ↔ app | 30 Nov–4 Dec ⚠ | Not started |
 | M7 — hardening and betas | 30 Nov–4 Dec | Not started |
 | M8 — store submission | 7–11 Dec | Not started |
+
+---
+
+## M5 — push
+
+**Started 12 Oct** with your approval ("proceed m5"). You answered plan questions 11 and 12 the same
+day: no customer names in notifications, and term reminders by push in neutral words (D-048).
+
+**12 Oct, at your request** ("4. yes you can go ahead"): committed (`2c1148d` web and `0034`,
+`22da1e6` app), pushed, applied `0034` and deployed the web to production `taptap-ik437w5s2`.
+Checked live: row security on, a policy letting owners read only their own phones, no direct
+writes, `push_targets` and `forget_push_tokens` service role only, 0 rows; the site, `/login`
+and the app's account route answer as before. Production has no `EXPO_ACCESS_TOKEN` yet, so
+pushes go out unauthenticated until step 3 — harmless while no phone is registered.
+
+**Firebase (step 1) is done:** project `taptap-ad4e4`; `google-services.json` covers both
+`ke.co.hornbilltech.taptap` and `.dev`. The browser had saved the second download as
+`google-services (1).json`, which the ignore rule did not match — so it would have shown up as
+a file to commit, in a public repo. I renamed it over the first, single-app download and widened
+the rule to `google-services*.json`. The private key is in `mobile\credentials.json`
+(git-ignored, and `/mobile` never goes to Vercel).
+
+**Still needed before a phone can receive anything:** the FCM key in EAS (step 2) and the dev
+build (step 5). Step 3 locks sending to the server.
+
+### Done-means checklist (PLAN.md §15)
+
+- [x] Explainer, then the OS prompt; refusal handled — built and tested: a card on Home asks first;
+      "Turn on" shows the phone's prompt; "Not now" puts the card away; a refusal is remembered, and
+      Account → Notifications explains how to turn them on in the phone's settings.
+- [ ] A lead submitted on the public page arrives on the Camon within 10 s — app in the background
+      and swiped away — and tapping it opens the lead — built (sent at high priority on its own
+      channel; tapping routes to the lead, tested); **needs Firebase, the deploy and the phone.**
+- [ ] First-tap push on a dispatched test card; term-ending push from the cron, run against a test
+      identity — built and tested; **needs the same, plus a test card.**
+- [x] Per-type switches respected; signing out stops delivery to that phone — built and tested
+      (switches are per phone; sign-out removes the phone before the session ends).
+- [x] HiOS settings documented, and the help screen added — on Tecno, Infinix and itel phones,
+      Account → Notifications shows the three settings that keep TapTap running. **Whether HiOS
+      still blocks delivery is the phone test.**
+
+### Built on 12 Oct
+
+**Database — `0034_push_devices.sql`** (the plan's `0032`; renumbered, see M4's note): one row per
+phone with its Expo token, owner, account and three switches. Readable by its owner only; written
+only through `register_push_device` (the user from the session, the account from `profiles` — a
+phone signed into by someone else moves to them, with default switches), `unregister_push_device`
+and `set_push_prefs`. The server reads `push_targets(account, kind)` and prunes with
+`forget_push_tokens`, both service role only. Deleting a person deletes their phones.
+
+**Web (deploy only with your OK, after `0034`):**
+
+- `lib/notifications/push.ts`: what each notification says (no names; terms exactly as PLAN.md §3
+  allows) and the Expo sender — batches of 100, high priority for leads, removed phones reported.
+- `lib/notifications/notify-push.ts`: push beside each email — `/api/lead` (new lead),
+  `handleFirstTap` (a dispatched card's first tap) and the daily renewals cron (terms). Each send is
+  claimed in `notification_deliveries` on channel `push` before it is made, so a retry never sends
+  twice; term pushes reuse the email's term-aware key plus `:push`.
+
+**Mobile (needs a new dev build: `expo-notifications` is native):**
+
+- Home explainer; Account → Notifications with a switch per kind, the phone's permission, and the
+  Tecno/Infinix/itel help.
+- Android channels "New leads" (high importance), "Cards", "Card terms" — each mutable in the
+  phone's settings.
+- Tapping a notification opens the lead, the card, or Cards; a lead arriving while the app is open
+  refreshes the inbox.
+- Registration refreshed each launch; removed at sign-out.
+- `app.config.ts` reads Firebase's `google-services.json` from an EAS file variable (or a git-ignored
+  local file) — without it the app still builds, and push registration does nothing on Android.
+
+### Verification, 12 Oct
+
+- **`0034` against real Postgres** (PGlite, with RLS and Supabase's default table grants): 11 checks
+  pass — registration as the signed-in person on their own account; refused signed out, for bad
+  tokens or platforms, and for anon; no direct writes; each person sees only their own phones, even
+  on a shared account; switches validated and own-phone only; re-registering keeps switches, a phone
+  changing hands resets them; sign-out removes only your own phone; the server's reads limited to
+  the service role and respecting switches; removed phones forgotten; deleting a person removes
+  their phones.
+- **Web:** 1,002 tests (+24: the wording, the sender, claim-before-send, `:push` keys, the
+  migration text), `tsc` and `eslint` clean, `next build` succeeds.
+- **Mobile:** 362 tests (+16: routes from a notification — never a path from the payload —
+  switches, registration, sign-out that never waits long, HiOS detection, and navigation flows for
+  the explainer, "Not now" and opening a lead from a notification), `tsc` and `eslint` clean.
+- **Bundle:** 5.95 MB (M4 5.84 MB; budget 7 MB — about 1 MB left for M6–M8).
+- **Permissions:** expo-notifications adds POST_NOTIFICATIONS (asked for only after the explainer)
+  and RECEIVE_BOOT_COMPLETED; camera, microphone and storage stay removed.
+
+### Findings
+
+41. A phone that signs out while offline cannot remove itself from the account (that needs the
+    session), so it keeps receiving the account's notifications until someone signs in on it or
+    Expo reports it gone. The text never names a customer, which limits what it shows. Noted.
+42. The notification icon is the app icon tinted orange until M8's brand assets add a proper
+    monochrome one (Android draws a non-monochrome icon as a white square).
+43. Expo's push receipts (a second check minutes after sending) are not read yet; tickets already
+    catch phones the app was removed from. A receipts job is an M7 hardening item.
+44. A failed term push leaves its record (no retry), unlike the email, which retries the next day:
+    the email is the channel that must not miss.
+
+### What you need to do
+
+**1. Firebase.** ✅ Done 12 Oct (project `taptap-ad4e4`, both apps).
+
+**2. The FCM key for Expo.** In Firebase: Project settings → Service accounts → Generate new private
+key (a JSON file — secret). Then, in your PowerShell window:
+
+```powershell
+cd C:\Projects\taptap\mobile
+npx eas-cli@latest credentials
+```
+
+Android → `development` → Google Service Account → Manage your Google Service Account Key for
+Push Notifications (FCM V1) → Set up → Upload a new key → path `./credentials.json` (the CLI may
+offer it by itself — say yes). Then run it again and choose `production` → the same menus → use
+the existing key. That covers `.dev` and the store/preview app. Afterwards delete
+`mobile\credentials.json`: Expo holds the key, and it can be re-generated in Firebase.
+(I don't upload credentials myself, and the command is interactive.)
+
+**3. Lock push to this server.** At expo.dev/accounts/hornbill-taptap/settings/access-tokens:
+add a robot user (name `taptap-push`, role Developer — not Admin) and create a token for it;
+copy it. In PowerShell, from `C:\Projects\taptap`:
+`vercel env add EXPO_ACCESS_TOKEN production`, mark it sensitive if asked, and paste it there
+(not here). Tell me, and I'll redeploy and then switch on "Enhanced security for push
+notifications" on that same page — in that order, because once it is on, Expo refuses every push
+that comes without the token. (Expo's docs don't say which robot role may send; if Developer is
+refused, the phone test shows it and the fix is a new token.)
+
+**4. Commit, push, `0034`, deploy.** ✅ Done 12 Oct (see the top of this section).
+
+**5. New dev build** (after step 2): `expo-notifications` plus the Firebase config. EAS uploads
+only what git tracks, so `google-services.json` goes up as the EAS file variable
+`GOOGLE_SERVICES_JSON` first (`eas env:create`, all three environments, visibility sensitive).
+Say so and I'll do both. Fourth of October's 15 free Android builds.
+
+**6. On the Camon:** turn notifications on from Home; submit your own lead form from another phone
+— the notification arrives (try with the app open, in the background, and swiped away) and opens
+the lead; switch "New leads" off and submit again — nothing arrives; sign out — nothing arrives.
 
 ---
 
@@ -103,10 +242,16 @@ personal, readable by the service role only.
 
 ### What you need to do
 
-**1. Let me commit** (and push).
+**1. Commit** — ✅ done 11 Oct: `1668209` (`0033`, deletion logic and route), `af3667a` (app),
+`b1b9ceb` (docs); pushed.
 
-**2. Apply `0033`** (safe for the website: nothing calls it until the route is deployed). Say
-"apply 0033", or:
+**2. Apply `0033`** — ✅ **done 11 Oct, at your request.** History showed only `0033` pending; the
+dry run listed only it; applied cleanly. Checked afterwards: `delete_account` is callable by the
+service role only (not `authenticated`, not `anon`); `account_deletions` has RLS on, no policies,
+and `authenticated` cannot read it; no deletions yet. **Numbering note:** `0032` (push devices) was
+skipped, and the Supabase CLI refuses a migration numbered below the newest applied one without
+`--include-all` — so the push migration will take the next free number (`0034`) instead. For the
+record, the commands:
 
 ```powershell
 cd C:\Projects\taptap
@@ -114,7 +259,11 @@ supabase db push --dry-run
 supabase db push
 ```
 
-**3. Deploy the web** (preview, then production) — the deletion route. After `0033`.
+**3. Deploy the web** — ✅ **done 11 Oct**, from `b1b9ceb`. Preview `taptap-l127qlxtq`, production
+`taptap-c9rwi8jut` on `taptap.hornbilltech.co.ke` (the domain points at it). On both: `/` and `/login`
+200, `/dashboard` 307, an unknown slug 404; the deletion route answers 401 `{"code":"unauthorized"}`
+with no token and with a fake one, 405 for GET; the draft route still 401 without a token. No real
+deletion was attempted: that is step 4.5, on a throwaway account.
 
 **4. On the Camon** (build `f0500f92`, same session as M1–M3):
 

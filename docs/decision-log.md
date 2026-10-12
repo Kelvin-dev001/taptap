@@ -1276,5 +1276,28 @@ records yet (a later job, when the first ones turn five). The privacy policy mus
 
 ---
 
+### D-048 — Push says what happened, never who, and card terms in neutral words
+**Date:** 2026-10-12 · **Status:** Accepted (Kelvin, plan questions 11 and 12) · **Plan:** §4.7, §9 W9, §10 `0034`
+
+**Context:** a push notification passes through Google's and Apple's servers and sits on a lock
+screen where anyone can read it. Store payment rules forbid purchase prompts in the app, and that
+includes its notifications (PLAN.md §3).
+
+**Decision:** three kinds — a new lead ("Someone left their details on {profile}."), a card's first
+tap ("‘Reception’ was tapped for the first time."), and a card's term at T30, T7, T0 and lapsed
+("‘Reception’ is active until 31 Dec 2026." / "…term ended… Still working until…" / "…is no longer
+active."). No customer name or number, ever; no price, "renew" or link. Each phone registers through
+`register_push_device` (the user from the session, the account from `profiles`), keeps its own
+switch per kind, and is removed at sign-out. The web sends through Expo's push API beside each
+email, claiming each send in `notification_deliveries` on channel `push` first, so nothing goes
+twice; term pushes reuse the email's term-aware key with `:push`. Leads go at high priority.
+
+**Consequences:** the owner opens the app to see who a lead is. Delivery on Android needs a
+Firebase project and its FCM key in EAS (Kelvin's account); with EXPO_ACCESS_TOKEN set and
+"enhanced security" on, only this server can push to TapTap's users. Phones Expo reports as gone
+are forgotten automatically. Push receipts (a second check minutes later) are not read yet.
+
+---
+
 _Add new decisions above this line as `D-00N`, and mirror the one-liner into
 `PROJECT.md`._
