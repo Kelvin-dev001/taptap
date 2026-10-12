@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { composeFirstTapEmail } from "./first-tap-email";
+import { pushFirstTap } from "./notify-push";
 import { sendEmail } from "./send";
 
 /** Shape returned by the first_tap_notification_target RPC (migration 0028). */
@@ -127,7 +128,12 @@ export async function handleFirstTap(tagId: string): Promise<NotifyOutcome> {
       return { status: "skipped", reason: "order was not out for delivery" };
     }
 
-    return await notifyFirstTap(result.order_id);
+    // Email and push side by side; the email's outcome is what the tap route logs.
+    const [email] = await Promise.all([
+      notifyFirstTap(result.order_id),
+      pushFirstTap(tagId, result.order_id, admin),
+    ]);
+    return email;
   } catch (err) {
     return {
       status: "failed",

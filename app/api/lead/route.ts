@@ -1,6 +1,7 @@
 import { after } from "next/server";
 import { createEdgeClient } from "@/lib/supabase/edge";
 import { notifyNewLead } from "@/lib/notifications/notify-lead";
+import { pushNewLead } from "@/lib/notifications/notify-push";
 
 export const runtime = "edge";
 
@@ -53,7 +54,8 @@ export async function POST(request: Request) {
   // that a no-op rather than a crash.
   if (typeof leadId === "string") {
     after(async () => {
-      await notifyNewLead(leadId);
+      // Email and push are independent: the owner may have either switched off.
+      await Promise.all([notifyNewLead(leadId), pushNewLead(leadId)]);
     });
   }
 

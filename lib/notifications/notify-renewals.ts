@@ -6,6 +6,7 @@ import {
   type IdentityForEmail,
   type RenewalMilestone,
 } from "./renewal-email";
+import { pushTerm } from "./notify-push";
 import { sendEmail } from "./send";
 
 /** Shape returned by the renewal_notification_targets RPC (migration 0016). */
@@ -21,6 +22,8 @@ export type RenewalRunSummary = {
   identitiesExamined: number;
   emailsSent: number;
   emailsFailed: number;
+  /** One push per card per milestone, to every phone that wants term notices. */
+  pushesSent: number;
   alreadySent: number;
   skipped: { accountId: string; reason: string }[];
   errors: string[];
@@ -52,6 +55,7 @@ export async function notifyDueRenewals(now: Date = new Date()): Promise<Renewal
     identitiesExamined: 0,
     emailsSent: 0,
     emailsFailed: 0,
+    pushesSent: 0,
     alreadySent: 0,
     skipped: [],
     errors: [],
@@ -88,6 +92,16 @@ export async function notifyDueRenewals(now: Date = new Date()): Promise<Renewal
         byMilestone.set(milestone, group);
       }
       if (byMilestone.size === 0) continue;
+
+      // Push first, and whether or not there is an email address: the phone is
+      // a separate channel with its own once-only record (0034, ":push" keys).
+      for (const [milestone, identities] of byMilestone) {
+        for (const identity of identities) {
+          const pushed = await pushTerm(admin, target.accountId, identity, milestone);
+          if (pushed.status === "sent") summary.pushesSent += 1;
+          else if (pushed.status === "failed") summary.errors.push(`${target.accountId}: push ${pushed.error}`);
+        }
+      }
 
       if (!target.ownerEmail) {
         summary.skipped.push({
