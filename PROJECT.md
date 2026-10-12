@@ -5,15 +5,15 @@
 > re-reading the original master-prompt PDF. Update this file whenever a major
 > decision changes.
 
-**Last updated:** 2026-10-11
-**In parallel: the native mobile app (D-034 … D-048).** An Expo app for card owners, on branch
+**Last updated:** 2026-10-12
+**In parallel: the native mobile app (D-034 … D-049).** An Expo app for card owners, on branch
 `mobile-app`. `docs/mobile/PLAN.md` was approved on 2026-09-28. M0 (setup) is code-complete with
 its phone checks outstanding; M1 (sign-in and shell) is built and running on the Camon, its phone
 session outstanding; M2 (profile, share and QR, with the link-id fix for the web too, D-046) is
 deployed and live on the web, its phone session outstanding; M3 (leads and analytics) is built with
 `0031` applied; M4 (cards, NFC set-up and account deletion, D-047) is shipped to the web and database; M5 (push,
 D-048) was started on 2026-10-12 with approval, is shipped to the web and database (`0034`), and
-waits on the FCM key in EAS and a dev build for delivery — status in `docs/mobile/PROGRESS.md`. Store launch is targeted for
+is on dev build `e2dff455` for its phone test; M6 (web ↔ app: links that open the app, web account deletion, privacy policy, D-049) was started on 2026-10-12 with approval and is deployed, its phone test on dev build `fcf1eed3` outstanding — status in `docs/mobile/PROGRESS.md`. Store launch is targeted for
 mid-December 2026.
 **Current phase (web):** **Sprint 8c — Premium proof and replacements (D-033), built and applied.**
 The Premium front is generated from the customer's profile, approved by them, and frozen at
@@ -168,6 +168,7 @@ expand across East Africa, then the continent.
 | D-046 | **A draft save keeps every action's id:** one transactional `save_page_draft()` for the web's Save and the app's autosave; ids come from the editor, a stale `updated_at` gets a 409 instead of overwriting, `updated_at` moves only with the draft, and `log_event` keeps clicks on removed actions |
 | D-047 | **Account deletion keeps the tax record, anonymised:** a shared account loses only the person leaving; otherwise profiles, leads and analytics are deleted, cards switched off but kept on the account, payments and orders kept without personal details; service role, own token, sign-in within ten minutes |
 | D-048 | **Push says what happened, never who:** new lead, a card's first tap, card terms in neutral words; no customer names or numbers, no price or renew; per-phone switches; sent beside each email, once, through Expo |
+| D-049 | *Proposed:* **Only three email links open the app** (`/dashboard`, `/dashboard/customers`, `/dashboard/analytics`, exact); card taps, profiles, billing, orders and sign-in links stay in the browser; web deletion at `/account/delete`; banners and `/app` hidden until a store listing |
 
 ## MVP scope (one line)
 

@@ -1299,5 +1299,32 @@ are forgotten automatically. Push receipts (a second check minutes later) are no
 
 ---
 
+### D-049 — Only three email links open the app; everything a customer taps stays in the browser
+**Date:** 2026-10-12 · **Status:** Proposed (built in M6 with approval; for Kelvin's review) · **Plan:** §9 W7, W10–W13
+
+**Context:** Universal Links and App Links let an ordinary `https://` link open the app. Claimed
+too widely, they would send a business's own customers — who may also own a TapTap account — into
+the app instead of the business's page, and would pull payment pages into an app that may not show
+them (D-036). Google Play also needs a web page for deleting an account, and the store listings do
+not exist yet.
+
+**Decision:** the app claims exactly three paths, the dashboard links our emails send:
+`/dashboard` → Home, `/dashboard/customers` → Leads (new-lead email), `/dashboard/analytics` →
+Analytics (first-tap email). Exact paths, no prefixes. Card taps (`/t/…`), profile links
+(`/<slug>`), billing, orders and sign-in links (`/auth/confirm`, the plan's optional bonus) stay
+in the browser. One list, `lib/app-links.ts`, builds both `.well-known` files and the app's
+mapping; tests hold the app's intent filter and the email templates to it. The iPhone file is a
+404 until Apple's Team ID exists; the store app's Android fingerprint is added once Play App
+Signing gives it. `/account/delete` deletes on the web under the app's rules (session user only,
+a fresh password or emailed code, D-047). The download banners and `/app` are built but show
+nothing until `lib/app-store.ts` has a listing.
+
+**Consequences:** an owner who taps a lead email on their phone lands on Leads in the app; anyone
+tapping a card or profile always gets the web page. Emailed sign-in links keep working exactly as
+today. A new email link that should open the app needs an entry in `lib/app-links.ts` and a new app
+build. Apple's CDN check, and links on the store build, wait for the D-U-N-S enrolment.
+
+---
+
 _Add new decisions above this line as `D-00N`, and mirror the one-liner into
 `PROJECT.md`._

@@ -11,12 +11,106 @@ Live status against `docs/mobile/PLAN.md`. Newest first within each milestone.
 | **M3 — leads and analytics** | 16–20 Nov | 🟡 **Started 11 Oct (approved)** — committed and pushed, `0031` applied 11 Oct; push registration deferred until Firebase exists; next: phone session |
 | **M4 — cards and NFC** | 23–27 Nov | 🟡 **Started 11 Oct (approved)** — committed and pushed; `0033` applied and the deletion route in production 11 Oct; next: phone session, deletion test on a throwaway account |
 | **M5 — push** | 23–27 Nov ⚠ | 🟡 **Started 12 Oct (approved)** — committed and pushed; `0034` applied and the web deployed to production 12 Oct; Firebase, FCM key and Expo token done; enhanced push security on; dev build `e2dff455` ready 12 Oct; next: phone session |
-| M6 — web ↔ app | 30 Nov–4 Dec ⚠ | Not started |
+| **M6 — web ↔ app** | 30 Nov–4 Dec ⚠ | 🟡 **Started 12 Oct (approved)** — committed, pushed and deployed 12 Oct; dev build `fcf1eed3` started; next: the Camon test; Apple's side waits on D-U-N-S |
 | M7 — hardening and betas | 30 Nov–4 Dec | Not started |
 | M8 — store submission | 7–11 Dec | Not started |
 
 ---
 
+## M6 — web ↔ app
+
+**Started 12 Oct** with your approval ("commit and push then start m6"). Decision D-049
+(proposed): what opens the app, and what never does.
+
+**Shipped the same day, at your request** ("1. yes 2. yes 3. yes"): committed (`5315c1b` web,
+`c48fcd2` app), pushed, deployed to production `taptap-8abi321lq`, and dev build **`fcf1eed3`**
+started. Checked live: `assetlinks.json` 200 JSON, the iPhone file 404, `/app` 404,
+`/account/delete` 200, the new privacy policy, and **Google's Digital Asset Links API already
+reads our file and lists the `.dev` app with its fingerprint** — the website half of Android
+verification passes.
+
+### Done-means checklist (PLAN.md §15)
+
+- [ ] The links files are served correctly — built and checked on a local production server:
+      `assetlinks.json` answers 200 with JSON for the `.dev` app; the iPhone file answers 404 until
+      Apple's Team ID exists. **Live 12 Oct; Google's checker reads it.** Apple's CDN check **waits on
+      the D-U-N-S enrolment**; the phone's own verification needs build `fcf1eed3`.
+- [ ] With the app installed, lead and first-tap email links open the right screen; billing and
+      dispatch links stay in the browser; card taps and profile links always open the browser —
+      built and tested (exact paths only, held to the email templates by a test). **Needs the
+      deploy, the build and the Camon, with a real card.**
+- [x] Banners on `/` and `/dashboard` only, dismissal remembered, with an automated test for the
+      rest — built and tested; **hidden until there is a store listing** (`lib/app-store.ts`).
+- [ ] `/app` page live — built; a 404 until there is a store listing (M8).
+- [ ] `/account/delete` works — built, tested and live; **needs a throwaway account.**
+- [ ] Privacy policy updated — rewritten and live; **needs your read (and ideally a lawyer's).**
+
+### Built on 12 Oct
+
+**One list of links, `lib/app-links.ts`** (shared with the app): `/dashboard` → Home,
+`/dashboard/customers` → Leads (new-lead email), `/dashboard/analytics` → Analytics (first-tap
+email). Exact paths. It builds `/.well-known/assetlinks.json` (Android; the `.dev` app's signing
+fingerprint, read from build `e2dff455`) and `/.well-known/apple-app-site-association` (iPhone;
+404 while there is no Team ID). Card taps, profiles, billing, orders and `/auth/confirm` are never
+claimed. The emailed sign-in links (the plan's optional bonus) stay in the browser: a web user
+resetting a password on their phone should not be pulled into the app.
+
+**App:** `app.config.ts` declares the three paths for Android (verified at install) and the
+domain for iPhone; `app/+native-intent.tsx` turns an incoming website link into its screen,
+never a path read from the link, and leaves the app's own and the dev client's URLs alone.
+**Native change — needs a new dev build.**
+
+**`/account/delete`** (the page Google Play's Data safety form links to): what is deleted and
+kept, in the app's words (D-047); signed out, a sign-in that comes straight back; signed in,
+password or emailed code, a tick to confirm, then the same `deleteAccount` as the app's route,
+for the session's own user only. Then signed out, with a confirmation. Email fallback for
+anyone who cannot sign in.
+
+**Privacy policy:** every processor and where it is (Supabase in Ireland; Vercel, Resend,
+Expo with Firebase and Apple push, and Sentry in the US; M-Pesa in Kenya), what the app collects
+(notification address, crash reports scrubbed of names, emails and IPs; NFC only during set-up;
+no location, contacts or advertising ID), retention (payments 5 years, anonymised on deletion;
+crash reports up to 90 days), the transfer abroad, and the three ways to delete.
+
+**Banners and `/app`:** an Android banner (dismissal remembered) and Safari's Smart App Banner
+on `/` and the dashboard only; `/app` with a button per store and a QR for computers. All render
+nothing until `lib/app-store.ts` has a listing — no button points at a store page that doesn't
+exist.
+
+### Verification, 12 Oct
+
+- **Web:** 1,045 tests (+43: the link list against the email templates and reserved slugs, both
+  files, deletion's every refusal and the session-only user, the page signed in and out, the
+  privacy policy's processors and deletion link, banner placement and dismissal, `/app` as a
+  404). `tsc` and `eslint` clean; `next build` succeeds; a local production server answers
+  `assetlinks.json` 200 JSON, the iPhone file 404, `/app` 404, `/account/delete` 200 signed out
+  with the sign-in link.
+- **Mobile:** 368 tests (+6: the intent filter equals the shared list, exact and verified; the
+  iPhone domain; a screen exists for each link; link → screen; other URLs untouched). `tsc` and
+  `eslint` clean. Bundle 5.96 MB.
+- **No profile owns `app` or `account`** (read-only count, 14 profiles), so the new pages shadow
+  nobody.
+
+### Findings
+
+45. The store app (`ke.co.hornbilltech.taptap`) has no signing fingerprint in `assetlinks.json`
+    yet: Google Play re-signs uploads with its own key, which only exists once the Play Console
+    does (D-U-N-S). Until it is added, the store build opens no links — safe, the browser works.
+46. The iPhone file and the Associated Domains entitlement need the Apple Team ID; no iOS build
+    is possible before the enrolment anyway.
+47. The privacy policy is a draft by an engineer, checked against the code. It should be read by
+    you and, ideally, a lawyer before the store submissions (the ODPC registration is still open).
+
+### What you need to do
+
+1–3. ✅ Commit, push, deploy and the dev build — done 12 Oct (`fcf1eed3`, the fifth of October's
+   15 free builds).
+4. **On the Camon, with that build:** Settings → Apps → TapTap Dev → Open by default — the
+   link is listed as verified. Then email yourself a lead (or wait for one) and tap its
+   "view" link: the app opens on Leads. Tap a card and open a profile link: both open the
+   browser. Then delete a throwaway account at `/account/delete`.
+
+---
 ## M5 — push
 
 **Started 12 Oct** with your approval ("proceed m5"). You answered plan questions 11 and 12 the same

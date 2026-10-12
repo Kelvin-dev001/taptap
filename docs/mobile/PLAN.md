@@ -3,7 +3,7 @@
 **Status:** **Approved by Kelvin, 28 September 2026** (questions 1–5 answered, §18). M0
 code-complete, phone checks outstanding; **M1 started early, 9 October 2026, with approval**;
 **M2 started 11 October 2026, with approval** (its link-id fix is D-046); **M3 started the same day,
-with approval** (push registration waits for Firebase); **M4 the same day** (deletion policy D-047); **M5 on 12 October** (push, D-048) — see
+with approval** (push registration waits for Firebase); **M4 the same day** (deletion policy D-047); **M5 on 12 October** (push, D-048); **M6 the same day** (web ↔ app, D-049) — see
 `docs/mobile/PROGRESS.md`.
 **Date:** 27 September 2026 · **Branch:** `mobile-app` (from `main` at `8e9b989`)
 **Read with:** `docs/mobile/BRIEF.md`, `PROJECT.md`, `docs/decision-log.md` (D-001 … D-033)
@@ -503,7 +503,7 @@ money through `Intl` with `en-KE` ("31 Dec 2026", "KES 1,000"). Adding Kiswahili
 |---|---|---|
 | Cold start to a usable Home (cached) | ≤ 3.0 s on the low-end emulator profile; ≤ 1.5 s on the Camon | `adb shell am start -W`, median of 5, plus Sentry's app-start timing |
 | Android download size | ≤ 25 MB | Play Console |
-| JavaScript bundle (Hermes bytecode) | ≤ 7 MB at launch — M0 baseline 4.4 MB (Expo Router, Sentry, i18n, NFC); **M1 5.24 MB** (+ Supabase, TanStack Query, SVG icons, sign-in and shell); **M2 5.72 MB** (+ Home, editor, share, QR encoder, photo picker and clipboard modules); **M3 5.79 MB** (+ leads, analytics); **M4 5.84 MB** (+ cards, NFC set-up, account deletion); **M5 5.95 MB** (+ push). M1 briefly measured 7.9 MB before the fixes in D-045 | `npx expo export --platform android` |
+| JavaScript bundle (Hermes bytecode) | ≤ 7 MB at launch — M0 baseline 4.4 MB (Expo Router, Sentry, i18n, NFC); **M1 5.24 MB** (+ Supabase, TanStack Query, SVG icons, sign-in and shell); **M2 5.72 MB** (+ Home, editor, share, QR encoder, photo picker and clipboard modules); **M3 5.79 MB** (+ leads, analytics); **M4 5.84 MB** (+ cards, NFC set-up, account deletion); **M5 5.95 MB** (+ push); **M6 5.96 MB** (+ website links). M1 briefly measured 7.9 MB before the fixes in D-045 | `npx expo export --platform android` |
 | Leads list | no blank rows scrolling 500 leads on the low-end profile | manual + performance monitor |
 | Profile photo upload | ≤ 300 KB after compression | unit test on the resize step |
 
