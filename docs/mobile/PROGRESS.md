@@ -10,7 +10,7 @@ Live status against `docs/mobile/PLAN.md`. Newest first within each milestone.
 | **M2 — profile, share, QR** | 9–13 Nov | 🟡 **Started 11 Oct (approved)** — committed and pushed; `0030` applied and the web deployed to production 11 Oct; next: dev build, phone session |
 | **M3 — leads and analytics** | 16–20 Nov | 🟡 **Started 11 Oct (approved)** — committed and pushed, `0031` applied 11 Oct; push registration deferred until Firebase exists; next: phone session |
 | **M4 — cards and NFC** | 23–27 Nov | 🟡 **Started 11 Oct (approved)** — committed and pushed; `0033` applied and the deletion route in production 11 Oct; next: phone session, deletion test on a throwaway account |
-| **M5 — push** | 23–27 Nov ⚠ | 🟡 **Started 12 Oct (approved)** — committed and pushed; `0034` applied and the web deployed to production 12 Oct; Firebase project done; next: FCM key and Expo token (yours), dev build, phone session |
+| **M5 — push** | 23–27 Nov ⚠ | 🟡 **Started 12 Oct (approved)** — committed and pushed; `0034` applied and the web deployed to production 12 Oct; Firebase, FCM key and Expo token done; enhanced push security on; dev build `e2dff455` ready 12 Oct; next: phone session |
 | M6 — web ↔ app | 30 Nov–4 Dec ⚠ | Not started |
 | M7 — hardening and betas | 30 Nov–4 Dec | Not started |
 | M8 — store submission | 7–11 Dec | Not started |
@@ -36,8 +36,18 @@ a file to commit, in a public repo. I renamed it over the first, single-app down
 the rule to `google-services*.json`. The private key is in `mobile\credentials.json`
 (git-ignored, and `/mobile` never goes to Vercel).
 
-**Still needed before a phone can receive anything:** the FCM key in EAS (step 2) and the dev
-build (step 5). Step 3 locks sending to the server.
+**Later on 12 Oct** ("everything done. proceed"): you uploaded the FCM key and put the robot's
+token in Vercel as `EXPO_ACCESS_TOKEN` (Secret). I redeployed production as `taptap-gkk4tu4yh` so
+the server sends with it, stored `google-services.json` in EAS as the file variable
+`GOOGLE_SERVICES_JSON` (sensitive; development, preview and production), and started dev build
+**`e2dff455`** from `5d2076f`. Once you had signed in to Expo in Chrome, I switched on **Enhanced
+security for push notifications** (still on after a reload). The robot is `taptap-push`, role
+Developer; its token was active and not yet used, as expected with no phone registered.
+
+**Build `e2dff455` finished at 10:56** (development, SDK 57, from `5d2076f`). Its log shows the
+Firebase file arriving through `GOOGLE_SERVICES_JSON` and Gradle running
+`processDebugGoogleServices`, so the app can get a push token. Install it from
+expo.dev/accounts/hornbill-taptap/projects/hornbill-taptap/builds/e2dff455-71ce-44cc-b6d1-6a6203dc68d4.
 
 ### Done-means checklist (PLAN.md §15)
 
@@ -127,6 +137,7 @@ cd C:\Projects\taptap\mobile
 npx eas-cli@latest credentials
 ```
 
+✅ Done 12 Oct. Still to do: delete `mobile\credentials.json`. For the record:
 Android → `development` → Google Service Account → Manage your Google Service Account Key for
 Push Notifications (FCM V1) → Set up → Upload a new key → path `./credentials.json` (the CLI may
 offer it by itself — say yes). Then run it again and choose `production` → the same menus → use
@@ -134,7 +145,8 @@ the existing key. That covers `.dev` and the store/preview app. Afterwards delet
 `mobile\credentials.json`: Expo holds the key, and it can be re-generated in Firebase.
 (I don't upload credentials myself, and the command is interactive.)
 
-**3. Lock push to this server.** At expo.dev/accounts/hornbill-taptap/settings/access-tokens:
+**3. Lock push to this server.** ✅ Done 12 Oct: token in Vercel and deployed; switch on.
+At expo.dev/accounts/hornbill-taptap/settings/access-tokens:
 add a robot user (name `taptap-push`, role Developer — not Admin) and create a token for it;
 copy it. In PowerShell, from `C:\Projects\taptap`:
 `vercel env add EXPO_ACCESS_TOKEN production`, mark it sensitive if asked, and paste it there
@@ -148,11 +160,15 @@ refused, the phone test shows it and the fix is a new token.)
 **5. New dev build** (after step 2): `expo-notifications` plus the Firebase config. EAS uploads
 only what git tracks, so `google-services.json` goes up as the EAS file variable
 `GOOGLE_SERVICES_JSON` first (`eas env:create`, all three environments, visibility sensitive).
-Say so and I'll do both. Fourth of October's 15 free Android builds.
+✅ Both done 12 Oct: build `e2dff455`, the fourth of October's 15 free Android builds.
 
 **6. On the Camon:** turn notifications on from Home; submit your own lead form from another phone
 — the notification arrives (try with the app open, in the background, and swiped away) and opens
 the lead; switch "New leads" off and submit again — nothing arrives; sign out — nothing arrives.
+If no notification arrives at all: switch "Enhanced security for push notifications" off at
+expo.dev/accounts/hornbill-taptap/settings/access-tokens and submit again. If it now arrives, the
+robot's role is too low (Vercel's logs say `UNAUTHORIZED`) and it needs a new token; if it still
+doesn't, the cause is Firebase or the phone. Either way, tell me and switch it back on after.
 
 ---
 
